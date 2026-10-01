@@ -228,6 +228,52 @@ export type ChipDefinition = {
   onClick?: (chip: Extract<InlineNode, { type: "chip" }>, ev: MouseEvent) => void;
 };
 
+/* ───────────────────────────── Link previews & embeds ───────────────────────────── */
+
+export type LinkPreview = {
+  url: string;
+  title?: string;
+  description?: string;
+  imageUrl?: string;
+  siteName?: string;
+  faviconUrl?: string;
+  /** Anything else the host wants to show (price, author, …). Text only. */
+  extra?: Record<string, string>;
+};
+
+export type LinkPreviewOptions = {
+  /**
+   * Fetch metadata for a URL. MUST run on the host's server: browsers cannot
+   * read other sites' HTML (CORS) and a server fetcher needs SSRF protection.
+   * Return null for "no preview".
+   */
+  resolve: (url: string, ctx: { signal: AbortSignal }) => Promise<LinkPreview | null>;
+  /** "card": a block card for a URL alone on its line. "hover": a card when hovering links in text. */
+  modes?: ("card" | "hover")[]; // default both
+  /** Only preview these hosts / never these hosts. */
+  allowedHosts?: string[];
+  blockedHosts?: string[];
+  /** Cache entries per editor/view. Default 100. */
+  cacheSize?: number;
+  /** Delay before the hover card opens. Default 450 ms. */
+  hoverDelayMs?: number;
+  render?: (preview: LinkPreview) => HTMLElement;
+};
+
+export type EmbedProvider = {
+  name: string;
+  /** Matches the full URL; groups are passed to `embedUrl`. */
+  match: RegExp;
+  /** The iframe src. Must be https. */
+  embedUrl: (match: RegExpMatchArray) => string;
+  aspectRatio?: string; // "16/9"
+  height?: number; // fixed px height instead of a ratio
+  /** sandbox tokens; default "allow-scripts allow-same-origin allow-presentation allow-popups". */
+  sandbox?: string;
+  allow?: string;
+  title?: string;
+};
+
 /* ───────────────────────────── Assets & uploads ───────────────────────────── */
 
 export type UploadRejectReason =
@@ -411,6 +457,9 @@ export type EditorOptions = {
   chips?: ChipDefinition[];
   upload?: UploadOptions;
   links?: LinkPolicy;
+  linkPreview?: LinkPreviewOptions;
+  /** Providers turn a URL alone on its line into an embedded player. [] = none. */
+  embeds?: EmbedProvider[];
   highlight?: Highlighter | null;
   math?: { renderer?: MathRenderer | null };
   syntax?: { inline?: InlineSyntax[]; block?: BlockSyntax[] };

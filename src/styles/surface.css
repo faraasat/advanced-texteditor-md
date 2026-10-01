@@ -1,0 +1,448 @@
+/*
+ * advanced-texteditor-md — WYSIWYG surface content.
+ * Typography and structure for `.atm-surface` and its children only.
+ * Every colour/size is a `--atm-*` variable with a fallback, so a theme (or a
+ * variable set on any ancestor) overrides it. Self-contained: style.css may
+ * @import or concatenate this file.
+ */
+
+.atm-surface {
+  --atm-s-bg: var(--atm-bg, #ffffff);
+  --atm-s-fg: var(--atm-fg, #1f2328);
+  --atm-s-muted: var(--atm-muted, #656d76);
+  --atm-s-border: var(--atm-border, #d0d7de);
+  --atm-s-accent: var(--atm-accent, #0969da);
+  --atm-s-code-bg: var(--atm-code-bg, #f6f8fa);
+  --atm-s-code-fg: var(--atm-code-fg, inherit);
+  --atm-s-radius: var(--atm-radius, 6px);
+  --atm-s-mono: var(--atm-font-mono, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace);
+  --atm-s-head-bg: var(--atm-table-head-bg, color-mix(in srgb, var(--atm-s-fg) 5%, transparent));
+  --atm-s-ring: var(--atm-ring, color-mix(in srgb, var(--atm-s-accent) 55%, transparent));
+
+  position: relative;
+  min-height: var(--atm-surface-min-height, 6em);
+  padding: var(--atm-surface-padding, 0.75rem 1rem);
+  outline: none;
+  color: var(--atm-s-fg);
+  background: var(--atm-surface-bg, transparent);
+  font-family: var(--atm-font-family, inherit);
+  font-size: var(--atm-font-size, 1rem);
+  line-height: var(--atm-line-height, 1.6);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  caret-color: var(--atm-s-accent);
+  tab-size: 4;
+}
+
+.atm-surface:focus-visible {
+  outline: none;
+}
+
+/* Placeholder: shown while the document is empty (data-empty), never part of the content. */
+.atm-surface[data-empty]::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  inset-inline-start: var(--atm-surface-padding-x, 1rem);
+  color: var(--atm-s-muted);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 2rem);
+}
+
+.atm-surface > :first-child {
+  margin-top: 0;
+}
+.atm-surface > :last-child {
+  margin-bottom: 0;
+}
+
+.atm-surface p {
+  margin: 0 0 0.75em;
+}
+
+.atm-surface h1,
+.atm-surface h2,
+.atm-surface h3,
+.atm-surface h4,
+.atm-surface h5,
+.atm-surface h6 {
+  margin: 1.2em 0 0.5em;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--atm-heading-fg, inherit);
+}
+.atm-surface h1 { font-size: 1.85em; }
+.atm-surface h2 { font-size: 1.5em; }
+.atm-surface h3 { font-size: 1.25em; }
+.atm-surface h4 { font-size: 1.1em; }
+.atm-surface h5 { font-size: 1em; }
+.atm-surface h6 { font-size: 0.9em; color: var(--atm-s-muted); }
+
+.atm-surface strong { font-weight: 650; }
+.atm-surface del { text-decoration: line-through; }
+
+.atm-surface a {
+  color: var(--atm-link, var(--atm-s-accent));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Lists */
+.atm-surface ul,
+.atm-surface ol {
+  margin: 0 0 0.75em;
+  padding-inline-start: 1.6em;
+}
+.atm-surface li > p {
+  margin: 0 0 0.35em;
+}
+.atm-surface .atm-tight > li > p,
+.atm-surface li > p:last-child {
+  margin-bottom: 0;
+}
+.atm-surface li > ul,
+.atm-surface li > ol {
+  margin: 0.15em 0 0.15em;
+}
+.atm-surface li + li {
+  margin-top: 0.15em;
+}
+
+/* Task items: the checkbox hangs in the marker column. */
+.atm-surface li.atm-task {
+  list-style: none;
+  position: relative;
+}
+.atm-surface li.atm-task > .atm-task-box {
+  position: absolute;
+  inset-inline-start: -1.45em;
+  top: 0.3em;
+  width: 1em;
+  height: 1em;
+  margin: 0;
+  accent-color: var(--atm-s-accent);
+  cursor: pointer;
+}
+.atm-surface li.atm-task > .atm-task-box:disabled {
+  cursor: default;
+}
+.atm-surface li.atm-task-done > p {
+  color: var(--atm-s-muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--atm-s-muted) 60%, transparent);
+}
+
+/* Quote */
+.atm-surface blockquote {
+  margin: 0 0 0.75em;
+  padding: 0.1em 0 0.1em 1em;
+  border-inline-start: 3px solid var(--atm-quote-border, var(--atm-s-border));
+  color: var(--atm-quote-fg, var(--atm-s-muted));
+}
+.atm-surface blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* Code */
+.atm-surface code {
+  font-family: var(--atm-s-mono);
+  font-size: 0.875em;
+}
+.atm-surface :not(pre) > code,
+.atm-surface .atm-code-inline {
+  padding: 0.12em 0.35em;
+  border-radius: calc(var(--atm-s-radius) - 2px);
+  background: var(--atm-s-code-bg);
+  color: var(--atm-s-code-fg);
+}
+.atm-surface pre {
+  position: relative;
+  margin: 0 0 0.75em;
+  padding: 0.75em 1em;
+  border-radius: var(--atm-s-radius);
+  background: var(--atm-s-code-bg);
+  color: var(--atm-s-code-fg);
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.45;
+}
+.atm-surface pre > code {
+  padding: 0;
+  background: none;
+  font-size: 0.875em;
+  white-space: pre;
+}
+.atm-surface pre[data-lang]::after {
+  content: attr(data-lang);
+  position: absolute;
+  top: 0.35em;
+  inset-inline-end: 0.6em;
+  font: 0.7em/1 var(--atm-s-mono);
+  color: var(--atm-s-muted);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Rule */
+.atm-surface hr {
+  height: 0;
+  margin: 1.25em 0;
+  border: 0;
+  border-top: 1px solid var(--atm-s-border);
+}
+
+/* Tables */
+.atm-surface table {
+  margin: 0 0 0.75em;
+  border-collapse: collapse;
+  border-spacing: 0;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: normal;
+}
+.atm-surface th,
+.atm-surface td {
+  min-width: 3em;
+  padding: 0.35em 0.7em;
+  border: 1px solid var(--atm-s-border);
+  vertical-align: top;
+  white-space: pre-wrap;
+}
+.atm-surface th {
+  background: var(--atm-s-head-bg);
+  font-weight: 600;
+  text-align: start;
+}
+
+/* Images */
+.atm-surface img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: bottom;
+  border-radius: calc(var(--atm-s-radius) - 2px);
+}
+.atm-surface .atm-img-blocked {
+  padding: 0 0.3em;
+  border: 1px dashed var(--atm-s-border);
+  border-radius: 4px;
+  color: var(--atm-s-muted);
+}
+
+/* Chips and mentions: a tinted pill (palette slot via --atm-chip-color). */
+.atm-surface .atm-chip {
+  --atm-c: var(--atm-chip-color, var(--atm-s-accent));
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25em;
+  padding: 0 0.45em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--atm-c) 14%, transparent);
+  color: color-mix(in srgb, var(--atm-c) 80%, var(--atm-s-fg));
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: nowrap;
+  cursor: default;
+  user-select: all;
+}
+.atm-surface .atm-chip-mention {
+  --atm-c: var(--atm-chip-color, var(--atm-mention-color, var(--atm-s-accent)));
+}
+.atm-surface .atm-chip-badge,
+.atm-surface .atm-mention-badge {
+  padding: 0 0.35em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--atm-c, var(--atm-s-accent)) 22%, transparent);
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Math */
+.atm-surface .atm-math {
+  cursor: pointer;
+}
+.atm-surface .atm-math-inline {
+  padding: 0 0.1em;
+}
+.atm-surface .atm-math-block {
+  display: block;
+  margin: 0 0 0.75em;
+  padding: 0.5em 0;
+  text-align: center;
+  overflow-x: auto;
+}
+.atm-surface .atm-math-src,
+.atm-surface .atm-math-edit {
+  font-family: var(--atm-s-mono);
+  font-size: 0.875em;
+  padding: 0.1em 0.35em;
+  border-radius: calc(var(--atm-s-radius) - 2px);
+  background: var(--atm-s-code-bg);
+}
+.atm-surface .atm-math-editing {
+  cursor: text;
+}
+.atm-surface .atm-math-editing .atm-math-edit {
+  outline: 1px solid var(--atm-s-ring);
+}
+.atm-surface .atm-math-editing .atm-math-edit::before,
+.atm-surface .atm-math-editing .atm-math-edit::after {
+  content: "$";
+  color: var(--atm-s-muted);
+  user-select: none;
+}
+.atm-surface .atm-math-block.atm-math-editing .atm-math-edit {
+  display: block;
+  white-space: pre-wrap;
+  text-align: start;
+}
+.atm-surface .atm-math-block.atm-math-editing .atm-math-edit::before,
+.atm-surface .atm-math-block.atm-math-editing .atm-math-edit::after {
+  content: "$$";
+  display: block;
+}
+
+/* Selection ring on atoms (chips, math, images, rules) */
+.atm-surface .atm-selected,
+.atm-surface img:focus,
+.atm-surface .atm-chip:focus-visible {
+  outline: 2px solid var(--atm-s-ring);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+.atm-surface hr.atm-selected {
+  outline-offset: 4px;
+}
+
+/* Footnotes */
+.atm-surface .atm-footnote-ref {
+  font-size: 0.75em;
+  line-height: 0;
+  color: var(--atm-s-accent);
+}
+.atm-surface .atm-footnote-ref a {
+  text-decoration: none;
+}
+.atm-surface .atm-footnotes {
+  margin-top: 1.5em;
+  padding-top: 0.5em;
+  border-top: 1px solid var(--atm-s-border);
+  font-size: 0.9em;
+  color: var(--atm-s-muted);
+}
+
+/* Upload placeholder */
+.atm-surface .atm-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  margin: 0 0 0.75em;
+  padding: 0.55em 0.8em;
+  border: 1px dashed var(--atm-s-border);
+  border-radius: var(--atm-s-radius);
+  color: var(--atm-s-muted);
+  font-size: 0.9em;
+  user-select: none;
+  white-space: normal;
+}
+.atm-surface .atm-upload-bar {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--atm-s-fg) 10%, transparent);
+  overflow: hidden;
+}
+.atm-surface .atm-upload-bar > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--atm-s-accent);
+  transition: width 0.2s ease;
+}
+
+/* Custom syntax defaults */
+.atm-surface mark {
+  padding: 0 0.1em;
+  border-radius: 2px;
+  background: var(--atm-mark-bg, color-mix(in srgb, #f5d000 40%, transparent));
+  color: inherit;
+}
+.atm-surface .atm-custom-callout,
+.atm-surface div.atm-custom {
+  margin: 0 0 0.75em;
+}
+
+/* Chip palette: light defaults */
+:root {
+  --atm-chip-1: #0969da;
+  --atm-chip-2: #1a7f37;
+  --atm-chip-3: #8250df;
+  --atm-chip-4: #bf3989;
+  --atm-chip-5: #bc4c00;
+  --atm-chip-6: #9a6700;
+  --atm-chip-7: #0e7490;
+  --atm-chip-8: #cf222e;
+}
+
+/* Dark */
+[data-atm-theme="dark"] .atm-surface,
+.atm-surface[data-atm-theme="dark"] {
+  --atm-s-bg: var(--atm-bg, #0d1117);
+  --atm-s-fg: var(--atm-fg, #e6edf3);
+  --atm-s-muted: var(--atm-muted, #8d96a0);
+  --atm-s-border: var(--atm-border, #30363d);
+  --atm-s-accent: var(--atm-accent, #4493f8);
+  --atm-s-code-bg: var(--atm-code-bg, #161b22);
+  --atm-chip-1: #4493f8;
+  --atm-chip-2: #3fb950;
+  --atm-chip-3: #a371f7;
+  --atm-chip-4: #db61a2;
+  --atm-chip-5: #f0883e;
+  --atm-chip-6: #d29922;
+  --atm-chip-7: #39c5cf;
+  --atm-chip-8: #f85149;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-atm-theme="light"]) {
+    --atm-chip-1: #4493f8;
+    --atm-chip-2: #3fb950;
+    --atm-chip-3: #a371f7;
+    --atm-chip-4: #db61a2;
+    --atm-chip-5: #f0883e;
+    --atm-chip-6: #d29922;
+    --atm-chip-7: #39c5cf;
+    --atm-chip-8: #f85149;
+  }
+  :root:not([data-atm-theme="light"]) .atm-surface:not([data-atm-theme="light"]) {
+    --atm-s-bg: var(--atm-bg, #0d1117);
+    --atm-s-fg: var(--atm-fg, #e6edf3);
+    --atm-s-muted: var(--atm-muted, #8d96a0);
+    --atm-s-border: var(--atm-border, #30363d);
+    --atm-s-accent: var(--atm-accent, #4493f8);
+    --atm-s-code-bg: var(--atm-code-bg, #161b22);
+  }
+  :root:not([data-atm-theme="light"]) [data-atm-theme="light"] .atm-surface {
+    --atm-s-bg: var(--atm-bg, #ffffff);
+    --atm-s-fg: var(--atm-fg, #1f2328);
+    --atm-s-muted: var(--atm-muted, #656d76);
+    --atm-s-border: var(--atm-border, #d0d7de);
+    --atm-s-accent: var(--atm-accent, #0969da);
+    --atm-s-code-bg: var(--atm-code-bg, #f6f8fa);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-surface *,
+  .atm-surface *::before,
+  .atm-surface *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

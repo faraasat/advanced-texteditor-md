@@ -1,0 +1,847 @@
+/*
+ * advanced-texteditor-md - editor chrome.
+ *
+ * Everything reads --atm-* variables with a fallback, so the editor looks right
+ * with no theme at all. Source order of the published dist/style.css:
+ *   themes -> surface -> highlight -> this file.
+ * (scripts/copy-css.mjs inlines the three imports below; a bundler that
+ * understands CSS imports can use this file as it stands.)
+ */
+@import "./themes.css";
+@import "./surface.css";
+@import "./highlight.css";
+
+/* ───────────────────────────── root ───────────────────────────── */
+
+.atm {
+  --atm-r: var(--atm-radius, 8px);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-width: 0;
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-r);
+  font-family: var(--atm-font-family, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  font-size: var(--atm-font-size, 1rem);
+  line-height: var(--atm-line-height, 1.55);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.atm *,
+.atm *::before,
+.atm *::after {
+  box-sizing: border-box;
+}
+.atm.atm-focused {
+  border-color: var(--atm-ring, #2563eb);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--atm-ring, #2563eb) 22%, transparent);
+}
+.atm[aria-disabled="true"] {
+  opacity: 0.6;
+}
+.atm [hidden] {
+  display: none !important;
+}
+
+.atm-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ───────────────────────────── body & panes ───────────────────────────── */
+
+.atm-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.atm-surface-host,
+.atm-markdown-host,
+.atm-preview {
+  min-width: 0;
+  min-height: var(--atm-min-height, 8rem);
+  max-height: var(--atm-max-height, none);
+}
+/* The element that scrolls must itself be focusable (a contenteditable and a textarea are; the
+   read-only preview gets tabindex 0), or keyboard users cannot scroll it. So the editable, not its
+   host, carries the height limits; this also makes the whole minimum height clickable. */
+.atm-surface-host > * {
+  min-height: var(--atm-min-height, 8rem);
+  max-height: var(--atm-max-height, none);
+  overflow: auto;
+}
+.atm-preview {
+  overflow: auto;
+}
+.atm-markdown-host {
+  display: flex;
+  overflow: hidden;
+}
+.atm-markdown {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: var(--atm-min-height, 8rem);
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 0;
+  outline: 0;
+  resize: none;
+  overflow: auto;
+  background: transparent;
+  color: inherit;
+  font-family: var(--atm-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 0.92em;
+  line-height: 1.6;
+  tab-size: 2;
+}
+.atm-markdown::placeholder {
+  color: var(--atm-muted, #59636e);
+}
+.atm-markdown[readonly] {
+  cursor: default;
+}
+.atm-preview {
+  padding: 0.75rem 1rem;
+  background: color-mix(in srgb, var(--atm-surface, #f6f8fa) 55%, transparent);
+}
+
+/* Split: source and preview side by side; stacked when the editor is narrow. */
+.atm-mode-split .atm-body {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.atm-mode-split .atm-preview {
+  border-left: 1px solid var(--atm-border, #d0d7de);
+}
+.atm-mode-split.atm-narrow .atm-body,
+.atm-narrow.atm-layout-split .atm-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+.atm-mode-split.atm-narrow .atm-preview {
+  border-left: 0;
+  border-top: 1px solid var(--atm-border, #d0d7de);
+}
+@media (max-width: 640px) {
+  .atm-mode-split .atm-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .atm-mode-split .atm-preview {
+    border-left: 0;
+    border-top: 1px solid var(--atm-border, #d0d7de);
+  }
+}
+
+/* ───────────────────────────── toolbar ───────────────────────────── */
+
+.atm-toolbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 6px;
+  background: var(--atm-surface, #f6f8fa);
+  border-bottom: 1px solid var(--atm-border, #d0d7de);
+  border-top-left-radius: calc(var(--atm-r) - 1px);
+  border-top-right-radius: calc(var(--atm-r) - 1px);
+}
+.atm-toolbar-bottom {
+  border-bottom: 0;
+  border-top: 1px solid var(--atm-border, #d0d7de);
+  border-radius: 0 0 calc(var(--atm-r) - 1px) calc(var(--atm-r) - 1px);
+}
+.atm-toolbar-items {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+.atm-sep {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--atm-border, #d0d7de);
+}
+.atm-btn {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: calc(var(--atm-r) - 2px);
+  background: transparent;
+  color: var(--atm-fg, #1f2328);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.atm-btn:hover {
+  background: color-mix(in srgb, var(--atm-fg, #1f2328) 8%, transparent);
+}
+.atm-btn[aria-pressed="true"],
+.atm-btn.atm-active {
+  background: color-mix(in srgb, var(--atm-accent, #2563eb) 16%, transparent);
+  color: var(--atm-accent, #2563eb);
+  border-color: color-mix(in srgb, var(--atm-accent, #2563eb) 35%, transparent);
+}
+.atm-btn[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.atm-btn[aria-disabled="true"]:hover {
+  background: transparent;
+}
+.atm-btn svg {
+  display: block;
+  pointer-events: none;
+}
+.atm-btn .atm-chevron {
+  opacity: 0.7;
+}
+@media (pointer: coarse) {
+  .atm-btn {
+    min-width: 40px;
+    height: 40px;
+  }
+}
+
+/* One visible, high-contrast focus ring for every control the chrome draws. */
+.atm-btn:focus-visible,
+.atm-tab:focus-visible,
+.atm-menu-item:focus-visible,
+.atm-table-cell:focus-visible,
+.atm-btn-primary:focus-visible,
+.atm-btn-secondary:focus-visible,
+.atm-btn-danger:focus-visible,
+.atm-popover input:focus-visible,
+.atm-popover textarea:focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: 1px;
+}
+
+.atm-tooltip {
+  position: absolute;
+  z-index: 30;
+  max-width: 18rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--atm-fg, #1f2328);
+  color: var(--atm-bg, #fff);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ───────────────────────────── mode switch ───────────────────────────── */
+
+.atm-mode-switch {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: calc(var(--atm-r) - 1px);
+  background: var(--atm-bg, #fff);
+}
+.atm-tab {
+  padding: 4px 10px;
+  border: 0;
+  border-radius: calc(var(--atm-r) - 3px);
+  background: transparent;
+  color: var(--atm-muted, #59636e);
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.atm-tab:hover {
+  color: var(--atm-fg, #1f2328);
+}
+.atm-tab[aria-selected="true"],
+.atm-tab.atm-tab-active {
+  background: var(--atm-accent, #2563eb);
+  color: var(--atm-accent-fg, #fff);
+}
+.atm-mode-switch-floating {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 5;
+}
+
+/* ───────────────────────────── menus ───────────────────────────── */
+
+.atm-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 12rem;
+  max-width: min(22rem, calc(100vw - 16px));
+  max-height: 18rem;
+  overflow: auto;
+  padding: 4px;
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-r);
+  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
+  font-size: 0.875rem;
+}
+.atm-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: calc(var(--atm-r) - 3px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.atm-menu-item:hover,
+.atm-menu-item-active,
+.atm-menu-item[aria-selected="true"] {
+  background: color-mix(in srgb, var(--atm-accent, #2563eb) 14%, transparent);
+}
+.atm-menu-item[aria-checked="true"] .atm-menu-label {
+  font-weight: 600;
+}
+.atm-menu-shortcut,
+.atm-menu-desc {
+  color: var(--atm-muted, #59636e);
+  font-size: 0.75rem;
+}
+.atm-menu-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--atm-muted, #59636e);
+}
+.atm-menu-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.atm-slash-menu {
+  /* Focus stays in the editor and the active option follows aria-activedescendant (the ARIA
+     combobox pattern), so this listbox is never focusable; a focusable-less scroll container is a
+     keyboard trap as far as axe is concerned. With a mouse it scrolls by wheel (slash.ts) and with
+     the arrow keys (scrollIntoView); touch needs native scrolling. */
+  max-height: min(30rem, calc(100vh - 32px));
+  overflow-y: hidden;
+}
+@media (pointer: coarse) {
+  .atm-slash-menu {
+    overflow-y: auto;
+  }
+}
+.atm-slash-menu .atm-menu-item {
+  justify-content: flex-start;
+}
+.atm-menu-empty {
+  padding: 8px;
+  color: var(--atm-muted, #59636e);
+}
+.atm-toolbar > .atm-menu {
+  position: fixed;
+}
+
+/* The mention menu is built by the mention controller; these are its hooks. */
+.atm-mention-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 14rem;
+  max-width: min(24rem, calc(100vw - 16px));
+  max-height: 18rem;
+  overflow: auto;
+  padding: 4px;
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-r, 8px);
+  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
+  font: 0.875rem/1.35 var(--atm-font-family, ui-sans-serif, system-ui, sans-serif);
+}
+.atm-mention-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.atm-mention-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.atm-mention-option[aria-selected="true"],
+.atm-mention-option:hover {
+  background: color-mix(in srgb, var(--atm-accent, #2563eb) 14%, transparent);
+}
+.atm-mention-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--atm-chip-color, var(--atm-muted, #59636e)) 22%, var(--atm-bg, #fff));
+  color: var(--atm-fg, #1f2328);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.atm-mention-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.atm-mention-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.atm-mention-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.atm-mention-desc {
+  overflow: hidden;
+  color: var(--atm-muted, #59636e);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.atm-mention-badge {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--atm-chip-color, var(--atm-muted, #59636e)) 14%, transparent);
+  color: var(--atm-chip-color, var(--atm-muted, #59636e));
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+.atm-mention-group {
+  padding: 6px 8px 2px;
+  color: var(--atm-muted, #59636e);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.atm-mention-status {
+  padding: 8px;
+  color: var(--atm-muted, #59636e);
+}
+.atm-mention-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* ───────────────────────────── popovers ───────────────────────────── */
+
+.atm-popover {
+  position: fixed;
+  z-index: 70;
+  width: min(22rem, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  padding: 12px;
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-r);
+  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
+  font-size: 0.875rem;
+}
+.atm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.atm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.atm-label {
+  color: var(--atm-muted, #59636e);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.atm-popover input[type="text"],
+.atm-popover textarea,
+.atm-popover input[type="file"] {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: calc(var(--atm-r) - 2px);
+  background: var(--atm-bg, #fff);
+  color: inherit;
+  font: inherit;
+}
+.atm-popover textarea {
+  font-family: var(--atm-font-mono, ui-monospace, monospace);
+  resize: vertical;
+}
+.atm-popover [aria-invalid="true"] {
+  border-color: var(--atm-danger, #b42318);
+}
+.atm-error {
+  color: var(--atm-danger, #b42318);
+  font-size: 0.8125rem;
+}
+.atm-hint {
+  color: var(--atm-muted, #59636e);
+  font-size: 0.75rem;
+}
+.atm-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.atm-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.atm-popover .atm-actions {
+  margin-top: 2px;
+}
+.atm-btn-primary,
+.atm-btn-secondary,
+.atm-btn-danger {
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--atm-r) - 2px);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.atm-btn-primary {
+  background: var(--atm-accent, #2563eb);
+  color: var(--atm-accent-fg, #fff);
+}
+.atm-btn-secondary {
+  background: transparent;
+  color: var(--atm-fg, #1f2328);
+  border-color: var(--atm-border, #d0d7de);
+}
+.atm-btn-danger {
+  margin-right: auto;
+  background: transparent;
+  color: var(--atm-danger, #b42318);
+  border-color: color-mix(in srgb, var(--atm-danger, #b42318) 45%, transparent);
+}
+.atm-pop-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+.atm-math-preview {
+  min-height: 2.5rem;
+  padding: 8px;
+  overflow: auto;
+  border: 1px dashed var(--atm-border, #d0d7de);
+  border-radius: calc(var(--atm-r) - 2px);
+}
+
+.atm-table-grid {
+  display: grid;
+  gap: 2px;
+}
+.atm-table-row {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+.atm-table-cell {
+  aspect-ratio: 1;
+  min-width: 20px;
+  padding: 0;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: 3px;
+  background: var(--atm-bg, #fff);
+  cursor: pointer;
+}
+.atm-table-cell.atm-cell-on {
+  background: color-mix(in srgb, var(--atm-accent, #2563eb) 30%, var(--atm-bg, #fff));
+  border-color: var(--atm-accent, #2563eb);
+}
+
+/* ───────────────────────────── status bar ───────────────────────────── */
+
+.atm-statusbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 4px 10px;
+  border-top: 1px solid var(--atm-border, #d0d7de);
+  background: var(--atm-surface, #f6f8fa);
+  color: var(--atm-muted, #59636e);
+  font-size: 0.75rem;
+  border-radius: 0 0 calc(var(--atm-r) - 1px) calc(var(--atm-r) - 1px);
+}
+.atm-statusbar .atm-mode-switch {
+  margin-right: auto;
+}
+.atm-status-mode {
+  margin-left: auto;
+}
+.atm-count-warn {
+  color: var(--atm-warn, #9a6700);
+  font-weight: 600;
+}
+.atm-count-error {
+  color: var(--atm-danger, #b42318);
+  font-weight: 700;
+}
+.atm-toast {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 40;
+  max-width: min(24rem, calc(100% - 20px));
+  padding: 8px 12px;
+  border-radius: calc(var(--atm-r) - 2px);
+  background: var(--atm-fg, #1f2328);
+  color: var(--atm-bg, #fff);
+  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
+  font-size: 0.8125rem;
+}
+.atm-toast[data-kind="error"] {
+  background: var(--atm-danger, #b42318);
+  color: #fff;
+}
+
+/* ───────────────────────────── layouts ───────────────────────────── */
+
+/* minimal: chrome appears while the editor has focus. Controls stay in the tab
+   order so that tabbing to them is what reveals them. */
+.atm-layout-minimal {
+  border-color: transparent;
+}
+.atm-layout-minimal .atm-toolbar,
+.atm-layout-minimal .atm-statusbar {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.atm-layout-minimal.atm-focused,
+.atm-layout-minimal:hover,
+.atm-layout-minimal:focus-within {
+  border-color: var(--atm-border, #d0d7de);
+}
+.atm-layout-minimal.atm-focused .atm-toolbar,
+.atm-layout-minimal.atm-focused .atm-statusbar,
+.atm-layout-minimal:focus-within .atm-toolbar,
+.atm-layout-minimal:focus-within .atm-statusbar {
+  opacity: 1;
+}
+
+/* bubble: a floating toolbar over the selection */
+.atm-layout-bubble .atm-toolbar[data-bubble] {
+  position: fixed;
+  z-index: 50;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  padding: 3px;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-r);
+  background: var(--atm-bg, #fff);
+  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
+}
+.atm-layout-bubble .atm-toolbar[data-bubble] .atm-toolbar-items {
+  overflow: visible;
+  flex-wrap: nowrap;
+}
+
+/* bottom-bar: toolbar under the surface, actions on the right (comment box) */
+.atm-layout-bottom-bar .atm-toolbar {
+  background: transparent;
+}
+.atm-layout-bottom-bar .atm-actions {
+  flex: none;
+  margin-left: auto;
+}
+.atm-layout-bottom-bar .atm-surface-host,
+.atm-layout-bottom-bar .atm-markdown-host,
+.atm-layout-bottom-bar .atm-markdown {
+  min-height: var(--atm-min-height, 4rem);
+}
+
+/* split: source | preview */
+.atm-layout-split .atm-markdown-host,
+.atm-layout-split .atm-preview {
+  min-height: var(--atm-min-height, 12rem);
+}
+
+/* document: sticky toolbar, a centred page */
+.atm-layout-document {
+  background: var(--atm-surface, #f6f8fa);
+  overflow: clip;
+}
+.atm-layout-document .atm-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--atm-bg, #fff);
+}
+.atm-layout-document .atm-body {
+  padding: 1.5rem 1rem;
+}
+.atm-layout-document .atm-surface-host,
+.atm-layout-document .atm-markdown-host {
+  width: min(100%, var(--atm-page-width, 48rem));
+  margin: 0 auto;
+  background: var(--atm-bg, #fff);
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: calc(var(--atm-r) - 2px);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+}
+.atm-layout-document.atm-mode-split .atm-body {
+  gap: 1rem;
+}
+
+/* The surface stylesheet also declares a chip palette on `.atm-surface`, which would shadow the
+   theme's AA-checked one for every chip. `inherit` hands the theme's value back down. */
+.atm .atm-surface {
+  --atm-chip-1: inherit;
+  --atm-chip-2: inherit;
+  --atm-chip-3: inherit;
+  --atm-chip-4: inherit;
+  --atm-chip-5: inherit;
+  --atm-chip-6: inherit;
+  --atm-chip-7: inherit;
+  --atm-chip-8: inherit;
+}
+
+/* ───────────────────────────── chips (fallback look) ─────────────────────────────
+ * :where() has no specificity, so any chip rule in the surface stylesheet or in the
+ * host's CSS replaces this one. The palette colour arrives as --atm-chip-color. */
+:where(.atm-chip) {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  padding: 0 0.45em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--atm-chip-color, var(--atm-accent, #2563eb)) 14%, transparent);
+  color: var(--atm-chip-color, var(--atm-accent, #2563eb));
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+:where(.atm-chip-badge) {
+  font-size: 0.72em;
+  font-weight: 600;
+}
+
+/* ───────────────────────────── user preferences ───────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .atm,
+  .atm *,
+  .atm-popover,
+  .atm-popover *,
+  .atm-menu,
+  .atm-mention-menu {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Windows high contrast and other forced-colors modes: use system colours. */
+@media (forced-colors: active) {
+  .atm,
+  .atm-toolbar,
+  .atm-statusbar,
+  .atm-menu,
+  .atm-popover,
+  .atm-mention-menu,
+  .atm-mode-switch {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+  .atm-btn {
+    border-color: ButtonBorder;
+    forced-color-adjust: auto;
+  }
+  .atm-btn[aria-pressed="true"],
+  .atm-btn.atm-active,
+  .atm-tab[aria-selected="true"],
+  .atm-menu-item[aria-selected="true"],
+  .atm-mention-option[aria-selected="true"],
+  .atm-table-cell.atm-cell-on {
+    background: Highlight;
+    color: HighlightText;
+    border-color: Highlight;
+  }
+  .atm-btn:focus-visible,
+  .atm-tab:focus-visible,
+  .atm-menu-item:focus-visible,
+  .atm-table-cell:focus-visible,
+  .atm-popover input:focus-visible,
+  .atm-popover textarea:focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 2px;
+  }
+  .atm.atm-focused {
+    outline: 2px solid Highlight;
+    box-shadow: none;
+  }
+  .atm-btn[aria-disabled="true"] {
+    color: GrayText;
+    opacity: 1;
+  }
+  .atm-sep {
+    background: CanvasText;
+  }
+}
+
+@media print {
+  .atm-toolbar,
+  .atm-statusbar,
+  .atm-mode-switch {
+    display: none !important;
+  }
+  .atm {
+    border: 0;
+  }
+}

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md demo</title>
+    <meta name="description" content="A dependency-free WYSIWYG editor that stores Markdown." />
+    <!-- The built library. Run `node scripts/build-example.mjs` first (see example/README.md). -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --page-bg: #f4f6f8;
+        --page-fg: #1f2328;
+        --page-muted: #59636e;
+        --page-card: #ffffff;
+        --page-border: #d0d7de;
+        --page-accent: #2563eb;
+      }
+      [data-atm-theme="dark"], [data-atm-theme="slate"], [data-atm-theme="contrast"] {
+        --page-bg: #0b0e13;
+        --page-fg: #e6edf3;
+        --page-muted: #9aa4b0;
+        --page-card: #12161d;
+        --page-border: #30363d;
+        --page-accent: #60a5fa;
+      }
+      [data-atm-theme="slate"] { --page-bg: #0b1220; --page-card: #111827; }
+      [data-atm-theme="sepia"] {
+        --page-bg: #ebe2c9; --page-fg: #433422; --page-muted: #655339; --page-card: #f4ecd8; --page-border: #d3c6a6; --page-accent: #8a4b08;
+      }
+      [data-atm-theme="contrast"] { --page-bg: #000; --page-fg: #fff; --page-muted: #e0e0e0; --page-card: #000; --page-border: #fff; --page-accent: #ffea00; }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--page-bg);
+        color: var(--page-fg);
+        font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      a { color: var(--page-accent); }
+      .skip { position: absolute; left: 8px; top: -48px; z-index: 100; padding: 8px 12px; background: var(--page-card); border: 2px solid var(--page-accent); border-radius: 6px; }
+      .skip:focus { top: 8px; }
+      header.top { max-width: 1280px; margin: 0 auto; padding: 28px 20px 8px; }
+      header.top h1 { margin: 0 0 4px; font-size: 1.6rem; letter-spacing: -0.01em; }
+      header.top p { margin: 0; max-width: 60ch; color: var(--page-muted); }
+      .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; max-width: 1280px; margin: 0 auto; padding: 16px 20px 48px; align-items: start; }
+      @media (max-width: 980px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+      main { min-width: 0; }
+      aside { display: grid; gap: 14px; min-width: 0; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; }
+      .card h2 { margin: 0 0 10px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      .row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; }
+      .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .field.grow { flex: 1 1 180px; }
+      label, .label { font-size: 0.78rem; font-weight: 600; color: var(--page-muted); }
+      select, input[type="text"], textarea, button.btn {
+        font: inherit; font-size: 0.9rem; color: var(--page-fg); background: var(--page-card);
+        border: 1px solid var(--page-border); border-radius: 8px; padding: 6px 9px;
+      }
+      textarea { width: 100%; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; }
+      button.btn { cursor: pointer; font-weight: 600; background: var(--page-accent); color: var(--page-bg); border-color: transparent; }
+      button.btn.secondary { background: transparent; color: var(--page-fg); border-color: var(--page-border); }
+      select:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--page-accent); outline-offset: 2px; }
+      .check { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 500; color: var(--page-fg); }
+      pre.out { margin: 0; max-height: 260px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.78rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      ul.log { margin: 0; padding: 0; list-style: none; font: 0.78rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 170px; overflow: auto; }
+      ul.log li { padding: 2px 0; border-bottom: 1px dashed var(--page-border); }
+      .hint { margin: 6px 0 0; font-size: 0.78rem; color: var(--page-muted); }
+      #editor-host { margin-bottom: 14px; }
+      .demo-note { margin: 0 0 10px; font-size: 0.85rem; color: var(--page-muted); }
+      kbd { font: 600 0.85em ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--page-border); border-bottom-width: 2px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#editor-host">Skip to the editor</a>
+    <header class="top">
+      <h1>advanced-texteditor-md</h1>
+      <p>You edit rendered content; what is stored is plain Markdown. Try the mentions (<kbd>@</kbd>), the slash menu (<kbd>/</kbd>), a pasted or dropped file, and the layouts and themes on the right.</p>
+    </header>
+
+    <div class="layout">
+      <main id="main">
+        <p class="demo-note" id="layout-note"></p>
+        <div id="editor-host" data-testid="editor-host"></div>
+
+        <section class="card" aria-labelledby="md-h">
+          <h2 id="md-h">Markdown (what is stored)</h2>
+          <pre class="out" id="output-md" aria-live="off" tabindex="0"></pre>
+        </section>
+      </main>
+
+      <aside aria-label="Demo controls">
+        <section class="card" aria-labelledby="view-h">
+          <h2 id="view-h">View</h2>
+          <div class="row">
+            <div class="field grow">
+              <label for="layout">Layout</label>
+              <select id="layout">
+                <option value="classic">classic</option>
+                <option value="minimal">minimal</option>
+                <option value="bubble">bubble</option>
+                <option value="bottom-bar">bottom-bar</option>
+                <option value="split">split</option>
+                <option value="document">document</option>
+              </select>
+            </div>
+            <div class="field grow">
+              <label for="theme">Theme</label>
+              <select id="theme">
+                <option value="light">light</option>
+                <option value="dark">dark</option>
+                <option value="sepia">sepia</option>
+                <option value="slate">slate</option>
+                <option value="contrast">contrast</option>
+                <option value="auto">auto (OS)</option>
+              </select>
+            </div>
+          </div>
+          <div class="row" style="margin-top: 10px">
+            <label class="check"><input type="checkbox" id="readonly" /> Read-only</label>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="up-h">
+          <h2 id="up-h">Uploads (in memory)</h2>
+          <p class="demo-note" style="margin-bottom: 8px">Drop or paste a file, or use the paperclip. Nothing leaves the page.</p>
+          <div class="field">
+            <label for="allow-ext">Allowed extensions (empty = any not denied)</label>
+            <input type="text" id="allow-ext" value="png, jpg, jpeg, gif, webp, pdf, txt, md, zip" />
+          </div>
+          <div class="field" style="margin-top: 8px">
+            <label for="deny-ext">Denied extensions (always wins)</label>
+            <input type="text" id="deny-ext" value="exe, bat, sh, js, html, svg, php" />
+          </div>
+          <div class="row" style="margin-top: 10px">
+            <div class="field">
+              <label for="max-kb">Max size (kB)</label>
+              <input type="text" id="max-kb" value="2048" size="6" inputmode="numeric" />
+            </div>
+            <button class="btn secondary" type="button" id="apply-upload">Apply</button>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="set-h">
+          <h2 id="set-h">Set value</h2>
+          <label for="set-value-input" class="label">Markdown to load</label>
+          <textarea id="set-value-input" rows="5" spellcheck="false">## Loaded from the box
+
+A **bold** claim, a ==highlight== and $a^2 + b^2 = c^2$.
+
+- [ ] one
+- [x] two</textarea>
+          <div class="row" style="margin-top: 8px">
+            <button class="btn" type="button" id="set-value-btn">Set value</button>
+            <button class="btn secondary" type="button" id="clear-btn">Clear</button>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="men-h">
+          <h2 id="men-h">Mentions in the document</h2>
+          <pre class="out" id="mentions-json" aria-live="off" tabindex="0">[]</pre>
+          <p class="hint">Three people exist in both systems: one chip, two ids.</p>
+        </section>
+
+        <section class="card" aria-labelledby="log-h">
+          <h2 id="log-h">Events</h2>
+          <ul class="log" id="event-log" aria-live="off"></ul>
+        </section>
+      </aside>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

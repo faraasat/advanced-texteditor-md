@@ -1,0 +1,75 @@
+<!doctype html>
+<!--
+  Bare demo of the WYSIWYG surface only (no toolbar/chrome). Used by e2e/surface.spec.ts.
+  Build the bundle first (the spec does this itself):
+
+    npx esbuild --bundle --format=esm --outfile=example/dist-surface.js --loader=ts \
+      --sourcefile=surface-entry.ts < <(printf '%s\n' \
+        'export { createSurface } from "./src/editor/surface";' \
+        'export { createMathRenderer } from "./src/math/index";' \
+        'export { createHighlighter } from "./src/highlight/index";' \
+        'export { default as javascript } from "./src/highlight/langs/javascript";')
+
+  Query string: ?md=<markdown>  &max=<maxLength>  &ro=1
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Surface demo</title>
+    <link rel="stylesheet" href="../src/styles/surface.css" />
+    <link rel="stylesheet" href="../src/styles/highlight.css" />
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; padding: 24px 16px; font: 16px/1.5 system-ui, sans-serif; background: Canvas; color: CanvasText; }
+      main { max-width: 760px; margin: 0 auto; }
+      #host { border: 1px solid color-mix(in srgb, CanvasText 25%, transparent); border-radius: 8px; }
+      #md { white-space: pre-wrap; font: 13px/1.4 ui-monospace, monospace; padding: 8px; border-radius: 6px; background: color-mix(in srgb, CanvasText 6%, transparent); min-height: 2em; }
+      h1 { font-size: 1.1rem; }
+      #outside { margin-top: 12px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>WYSIWYG surface</h1>
+      <div id="host"></div>
+      <button id="outside" type="button">Outside button</button>
+      <h2>Markdown</h2>
+      <pre id="md" aria-live="off"></pre>
+    </main>
+    <script type="module">
+      import { createSurface, createMathRenderer, createHighlighter, javascript } from "./dist-surface.js";
+      const q = new URLSearchParams(location.search);
+      window.inputs = [];
+      window.files = [];
+      window.chipClicks = [];
+      const labels = new Proxy({}, { get: (_t, k) => (k === "uploading" ? "Uploading" : k === "editor" ? "Editor" : String(k)) });
+      const s = createSurface({
+        classPrefix: "atm",
+        placeholder: "Write something…",
+        render: {
+          mathRenderer: createMathRenderer(),
+          highlight: createHighlighter([javascript]),
+          syntax: { inline: [{ name: "mark", open: "==", tag: "mark" }] },
+          chips: { mention: { scheme: "mention", kinds: { person: { color: 3 } }, onClick: (c) => window.chipClicks.push(c.id) } },
+        },
+        features: {},
+        labels,
+        maxLength: q.get("max") ? Number(q.get("max")) : undefined,
+        getEditor: () => ({}),
+        onFiles: (files, source) => window.files.push({ names: files.map((f) => f.name), source }),
+      });
+      document.getElementById("host").appendChild(s.el);
+      s.setValue(q.get("md") ?? "");
+      if (q.get("ro")) s.setReadOnly(true);
+      const out = document.getElementById("md");
+      out.textContent = s.getValue();
+      s.on("input", (md) => {
+        window.inputs.push(md);
+        out.textContent = md;
+      });
+      window.surface = s;
+      window.surfaceReady = true;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,221 @@
+/*
+ * advanced-texteditor-md - theme tokens.
+ *
+ * Light is the default (on :root). The editor sets data-atm-theme on its root:
+ *   light | dark   - fixed
+ *   auto           - JS resolves prefers-color-scheme to light or dark
+ * sepia, slate and contrast are examples of named themes: copy one, rename it,
+ * change the values. Any --atm-* variable can also be set on the page, on an
+ * ancestor, or on the editor element; the closest declaration wins.
+ *
+ * Also per theme: --atm-mark-bg/-fg (the ==mark== plugin), --atm-callout-note|tip|warning
+ * (the callout plugin) and, where highlight.css has no rule for the theme (sepia, slate,
+ * contrast), the --atm-tok-* syntax colours.
+ *
+ * --atm-chip-1 ... --atm-chip-8 are the mention/chip palette. Each colour is
+ * used as chip text over a 14% tint of itself and passes WCAG AA (>= 4.5:1)
+ * against its theme's background; test/editor/chrome-theme.test.ts checks it.
+ */
+
+/* Selectors are doubled (:root:root, [data-atm-theme="x"][data-atm-theme]) on purpose: other
+   stylesheets declare the same variables on :root, and a theme must win over them. */
+:root:root,
+[data-atm-theme="light"][data-atm-theme] {
+  --atm-bg: #ffffff;
+  --atm-fg: #1f2328;
+  --atm-muted: #59636e;
+  --atm-border: #d0d7de;
+  --atm-ring: #2563eb;
+  --atm-accent: #2563eb;
+  --atm-accent-fg: #ffffff;
+  --atm-surface: #f6f8fa;
+  --atm-code-bg: #f6f8fa;
+  --atm-code-fg: #1f2328;
+  --atm-danger: #b42318;
+  --atm-warn: #9a6700;
+  --atm-shadow: 0 8px 24px rgb(31 35 40 / 0.16), 0 1px 3px rgb(31 35 40 / 0.12);
+  --atm-chip-1: #1d4ed8;
+  --atm-chip-2: #166534;
+  --atm-chip-3: #92400e;
+  --atm-chip-4: #6d28d9;
+  --atm-chip-5: #9d174d;
+  --atm-chip-6: #115e59;
+  --atm-chip-7: #991b1b;
+  --atm-chip-8: #475569;
+  --atm-mark-bg: #fff2a8;
+  --atm-mark-fg: #1f2328;
+  --atm-callout-note: #1d4ed8;
+  --atm-callout-tip: #15803d;
+  --atm-callout-warning: #b45309;
+  color-scheme: light;
+}
+
+[data-atm-theme="dark"][data-atm-theme] {
+  --atm-bg: #0f1217;
+  --atm-fg: #e6edf3;
+  --atm-muted: #9aa4b0;
+  --atm-border: #30363d;
+  --atm-ring: #58a6ff;
+  --atm-accent: #60a5fa;
+  --atm-accent-fg: #0b1220;
+  --atm-surface: #161b22;
+  --atm-code-bg: #161b22;
+  --atm-code-fg: #e6edf3;
+  --atm-danger: #ff8b82;
+  --atm-warn: #e3b341;
+  --atm-shadow: 0 8px 24px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
+  --atm-chip-1: #93c5fd;
+  --atm-chip-2: #86efac;
+  --atm-chip-3: #fcd34d;
+  --atm-chip-4: #c4b5fd;
+  --atm-chip-5: #f9a8d4;
+  --atm-chip-6: #5eead4;
+  --atm-chip-7: #fca5a5;
+  --atm-chip-8: #cbd5e1;
+  --atm-mark-bg: #5c4b00;
+  --atm-mark-fg: #fff3c4;
+  --atm-callout-note: #93c5fd;
+  --atm-callout-tip: #86efac;
+  --atm-callout-warning: #fcd34d;
+  color-scheme: dark;
+}
+
+/* ── example themes ── */
+
+[data-atm-theme="sepia"][data-atm-theme] {
+  --atm-bg: #f4ecd8;
+  --atm-fg: #433422;
+  --atm-muted: #655339;
+  --atm-border: #d3c6a6;
+  --atm-ring: #8a4b08;
+  --atm-accent: #8a4b08;
+  --atm-accent-fg: #ffffff;
+  --atm-surface: #ece2c8;
+  --atm-code-bg: #ebe0c5;
+  --atm-code-fg: #433422;
+  --atm-danger: #9b1c1c;
+  --atm-warn: #7a4a00;
+  --atm-shadow: 0 8px 24px rgb(67 52 34 / 0.2), 0 1px 3px rgb(67 52 34 / 0.15);
+  --atm-chip-1: #1e3a8a;
+  --atm-chip-2: #14532d;
+  --atm-chip-3: #78350f;
+  --atm-chip-4: #4c1d95;
+  --atm-chip-5: #831843;
+  --atm-chip-6: #134e4a;
+  --atm-chip-7: #7f1d1d;
+  --atm-chip-8: #334155;
+  --atm-mark-bg: #f0d98a;
+  --atm-mark-fg: #433422;
+  --atm-callout-note: #1e40af;
+  --atm-callout-tip: #14532d;
+  --atm-callout-warning: #78350f;
+  --atm-tok-comment: #6b5a45;
+  --atm-tok-string: #7a3b00;
+  --atm-tok-number: #14532d;
+  --atm-tok-keyword: #a1252b;
+  --atm-tok-literal: #1e40af;
+  --atm-tok-function: #5b21b6;
+  --atm-tok-type: #78350f;
+  --atm-tok-operator: #433422;
+  --atm-tok-punctuation: #655339;
+  --atm-tok-property: #1e40af;
+  --atm-tok-tag: #14532d;
+  --atm-tok-attr-name: #78350f;
+  --atm-tok-attr-value: #7a3b00;
+  --atm-tok-regex: #14532d;
+  --atm-tok-variable: #78350f;
+  --atm-tok-meta: #655339;
+  color-scheme: light;
+}
+
+[data-atm-theme="slate"][data-atm-theme] {
+  --atm-bg: #111827;
+  --atm-fg: #e2e8f0;
+  --atm-muted: #a8b3c4;
+  --atm-border: #2d3b52;
+  --atm-ring: #7dd3fc;
+  --atm-accent: #38bdf8;
+  --atm-accent-fg: #0c1a2b;
+  --atm-surface: #1b2538;
+  --atm-code-bg: #0b1220;
+  --atm-code-fg: #e2e8f0;
+  --atm-danger: #fca5a5;
+  --atm-warn: #fcd34d;
+  --atm-shadow: 0 8px 24px rgb(2 6 23 / 0.5), 0 1px 3px rgb(2 6 23 / 0.4);
+  --atm-chip-1: #93c5fd;
+  --atm-chip-2: #86efac;
+  --atm-chip-3: #fcd34d;
+  --atm-chip-4: #c4b5fd;
+  --atm-chip-5: #f9a8d4;
+  --atm-chip-6: #5eead4;
+  --atm-chip-7: #fca5a5;
+  --atm-chip-8: #cbd5e1;
+  --atm-mark-bg: #5c4b00;
+  --atm-mark-fg: #fff6cc;
+  --atm-callout-note: #93c5fd;
+  --atm-callout-tip: #86efac;
+  --atm-callout-warning: #fcd34d;
+  --atm-tok-comment: #a8b3c4;
+  --atm-tok-string: #a5d6ff;
+  --atm-tok-number: #79c0ff;
+  --atm-tok-keyword: #ff9b94;
+  --atm-tok-literal: #79c0ff;
+  --atm-tok-function: #d2a8ff;
+  --atm-tok-type: #ffb86b;
+  --atm-tok-operator: #e2e8f0;
+  --atm-tok-punctuation: #a8b3c4;
+  --atm-tok-property: #79c0ff;
+  --atm-tok-tag: #7ee787;
+  --atm-tok-attr-name: #79c0ff;
+  --atm-tok-attr-value: #a5d6ff;
+  --atm-tok-regex: #7ee787;
+  --atm-tok-variable: #ffb86b;
+  --atm-tok-meta: #a8b3c4;
+  color-scheme: dark;
+}
+
+[data-atm-theme="contrast"][data-atm-theme] {
+  --atm-bg: #000000;
+  --atm-fg: #ffffff;
+  --atm-muted: #e0e0e0;
+  --atm-border: #ffffff;
+  --atm-ring: #ffea00;
+  --atm-accent: #ffea00;
+  --atm-accent-fg: #000000;
+  --atm-surface: #000000;
+  --atm-code-bg: #111111;
+  --atm-code-fg: #ffffff;
+  --atm-danger: #ff8080;
+  --atm-warn: #ffd24d;
+  --atm-shadow: 0 0 0 2px #ffffff;
+  --atm-chip-1: #66b3ff;
+  --atm-chip-2: #66ff66;
+  --atm-chip-3: #ffd24d;
+  --atm-chip-4: #d6a3ff;
+  --atm-chip-5: #ff9ecf;
+  --atm-chip-6: #4dffe0;
+  --atm-chip-7: #ff8080;
+  --atm-chip-8: #e5e5e5;
+  --atm-mark-bg: #ffea00;
+  --atm-mark-fg: #000000;
+  --atm-callout-note: #66b3ff;
+  --atm-callout-tip: #66ff66;
+  --atm-callout-warning: #ffd24d;
+  --atm-tok-comment: #d0d0d0;
+  --atm-tok-string: #a5f3fc;
+  --atm-tok-number: #7dd3fc;
+  --atm-tok-keyword: #ff9e9e;
+  --atm-tok-literal: #7dd3fc;
+  --atm-tok-function: #e9c8ff;
+  --atm-tok-type: #ffd08a;
+  --atm-tok-operator: #ffffff;
+  --atm-tok-punctuation: #e0e0e0;
+  --atm-tok-property: #7dd3fc;
+  --atm-tok-tag: #9dffa0;
+  --atm-tok-attr-name: #7dd3fc;
+  --atm-tok-attr-value: #a5f3fc;
+  --atm-tok-regex: #9dffa0;
+  --atm-tok-variable: #ffd08a;
+  --atm-tok-meta: #e0e0e0;
+  color-scheme: dark;
+}

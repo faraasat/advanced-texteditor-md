@@ -1,0 +1,42 @@
+/*
+ * advanced-texteditor-md - Tailwind CSS v4 bridge.
+ *
+ * Usage, in the CSS file where you load Tailwind:
+ *
+ *   @import "tailwindcss";
+ *   @import "advanced-texteditor-md/style.css";
+ *   @import "advanced-texteditor-md/tailwind.css";
+ *
+ * This file only maps the editor's --atm-* variables onto Tailwind theme
+ * tokens (`inline`, so the utilities read the variable at use time and follow
+ * the editor's data-atm-theme). After importing it you can write
+ * `bg-atm-surface text-atm-fg border-atm-border rounded-atm` in `classNames`.
+ *
+ * Importing style.css as well keeps the editor working without Tailwind.
+ */
+@theme inline {
+  --color-atm-bg: var(--atm-bg);
+  --color-atm-fg: var(--atm-fg);
+  --color-atm-muted: var(--atm-muted);
+  --color-atm-border: var(--atm-border);
+  --color-atm-ring: var(--atm-ring);
+  --color-atm-accent: var(--atm-accent);
+  --color-atm-accent-fg: var(--atm-accent-fg);
+  --color-atm-surface: var(--atm-surface);
+  --color-atm-code-bg: var(--atm-code-bg);
+  --color-atm-code-fg: var(--atm-code-fg);
+  --color-atm-danger: var(--atm-danger);
+  --color-atm-warn: var(--atm-warn);
+  --color-atm-chip-1: var(--atm-chip-1);
+  --color-atm-chip-2: var(--atm-chip-2);
+  --color-atm-chip-3: var(--atm-chip-3);
+  --color-atm-chip-4: var(--atm-chip-4);
+  --color-atm-chip-5: var(--atm-chip-5);
+  --color-atm-chip-6: var(--atm-chip-6);
+  --color-atm-chip-7: var(--atm-chip-7);
+  --color-atm-chip-8: var(--atm-chip-8);
+  --radius-atm: var(--atm-radius, 0.5rem);
+  --font-atm: var(--atm-font-family, ui-sans-serif, system-ui, sans-serif);
+  --font-atm-mono: var(--atm-font-mono, ui-monospace, monospace);
+  --shadow-atm: var(--atm-shadow);
+}
