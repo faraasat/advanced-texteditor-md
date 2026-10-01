@@ -1,0 +1,92 @@
+{
+  "name": "advanced-texteditor-md",
+  "version": "0.1.0",
+  "description": "A dependency-free WYSIWYG editor that stores Markdown. Mentions, chips, images and uploads, tables, task lists, LaTeX, code highlighting, custom syntax and plugins. Tailwind-friendly and themeable.",
+  "keywords": [
+    "editor",
+    "wysiwyg",
+    "markdown",
+    "markdown editor",
+    "rich text",
+    "text editor",
+    "gfm",
+    "github flavored markdown",
+    "mentions",
+    "latex",
+    "mathml",
+    "tailwind",
+    "typescript",
+    "zero dependencies",
+    "plugin"
+  ],
+  "homepage": "https://github.com/faraasat/advanced-texteditor-md",
+  "bugs": { "url": "https://github.com/faraasat/advanced-texteditor-md/issues" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faraasat/advanced-texteditor-md.git"
+  },
+  "license": "MIT",
+  "author": "Farasat Ali <63093876+faraasat@users.noreply.github.com>",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    },
+    "./parser": {
+      "import": { "types": "./dist/parser.d.ts", "default": "./dist/parser.js" },
+      "require": { "types": "./dist/parser.d.cts", "default": "./dist/parser.cjs" }
+    },
+    "./render": {
+      "import": { "types": "./dist/render.d.ts", "default": "./dist/render.js" },
+      "require": { "types": "./dist/render.d.cts", "default": "./dist/render.cjs" }
+    },
+    "./math": {
+      "import": { "types": "./dist/math.d.ts", "default": "./dist/math.js" },
+      "require": { "types": "./dist/math.d.cts", "default": "./dist/math.cjs" }
+    },
+    "./highlight": {
+      "import": { "types": "./dist/highlight.d.ts", "default": "./dist/highlight.js" },
+      "require": { "types": "./dist/highlight.d.cts", "default": "./dist/highlight.cjs" }
+    },
+    "./highlight/*": {
+      "import": { "types": "./dist/highlight/*.d.ts", "default": "./dist/highlight/*.js" },
+      "require": { "types": "./dist/highlight/*.d.cts", "default": "./dist/highlight/*.cjs" }
+    },
+    "./uploaders": {
+      "import": { "types": "./dist/uploaders.d.ts", "default": "./dist/uploaders.js" },
+      "require": { "types": "./dist/uploaders.d.cts", "default": "./dist/uploaders.cjs" }
+    },
+    "./style.css": "./dist/style.css",
+    "./tailwind.css": "./dist/tailwind.css",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": ["**/*.css"],
+  "files": ["dist", "README.md", "LICENSE", "CHANGELOG.md"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "tsup && node scripts/copy-css.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "size": "node scripts/size.mjs",
+    "test:e2e": "playwright test",
+    "release": "standard-version",
+    "prepublishOnly": "npm run typecheck && vitest run && npm run build && npm run size"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "@vitest/coverage-v8": "^5.0.3",
+    "jsdom": "^30.1.1",
+    "standard-version": "^9.5.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  },
+  "publishConfig": { "access": "public", "provenance": true }
+}

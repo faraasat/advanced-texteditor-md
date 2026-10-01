@@ -1,0 +1,83 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snapshots of realistic code > bash 1`] = `
+"<span class="atm-tok-comment">#!/bin/bash</span>
+<span class="atm-tok-comment"># comment</span>
+NAME=<span class="atm-tok-string">&quot;world $USER&quot;</span><span class="atm-tok-operator">;</span> <span class="atm-tok-keyword">if</span> <span class="atm-tok-punctuation">[</span> <span class="atm-tok-attr-name">-f</span> x <span class="atm-tok-punctuation">]</span><span class="atm-tok-operator">;</span> <span class="atm-tok-keyword">then</span> <span class="atm-tok-function">echo</span> <span class="atm-tok-string">&#39;hi&#39;</span> <span class="atm-tok-operator">&amp;&amp;</span> <span class="atm-tok-function">ls</span> <span class="atm-tok-attr-name">-la</span> <span class="atm-tok-operator">|</span> <span class="atm-tok-function">grep</span> foo<span class="atm-tok-operator">;</span> <span class="atm-tok-keyword">fi</span>
+<span class="atm-tok-keyword">for</span> i <span class="atm-tok-keyword">in</span> <span class="atm-tok-number">1</span> <span class="atm-tok-number">2</span><span class="atm-tok-operator">;</span> <span class="atm-tok-keyword">do</span> <span class="atm-tok-function">cat</span> <span class="atm-tok-string">&quot;$i&quot;</span> <span class="atm-tok-operator">&gt;</span> out.txt<span class="atm-tok-operator">;</span> <span class="atm-tok-keyword">done</span>"
+`;
+
+exports[`snapshots of realistic code > css 1`] = `
+"<span class="atm-tok-keyword">@media</span> <span class="atm-tok-punctuation">(</span>min-width<span class="atm-tok-punctuation">:</span> <span class="atm-tok-number">600px</span><span class="atm-tok-punctuation">)</span> <span class="atm-tok-punctuation">{</span> <span class="atm-tok-attr-name">.a</span> <span class="atm-tok-operator">&gt;</span> <span class="atm-tok-attr-name">#b</span><span class="atm-tok-meta">:hover</span><span class="atm-tok-punctuation">,</span> a<span class="atm-tok-meta">::before</span> <span class="atm-tok-punctuation">{</span> <span class="atm-tok-property">color</span><span class="atm-tok-punctuation">:</span> <span class="atm-tok-number">#fff</span><span class="atm-tok-punctuation">;</span> <span class="atm-tok-property">background</span><span class="atm-tok-punctuation">:</span> <span class="atm-tok-function">url</span><span class="atm-tok-punctuation">(</span><span class="atm-tok-string">&quot;x.png&quot;</span><span class="atm-tok-punctuation">)</span> <span class="atm-tok-keyword">!important</span><span class="atm-tok-punctuation">;</span> <span class="atm-tok-punctuation">}</span> <span class="atm-tok-punctuation">}</span>
+<span class="atm-tok-comment">/* c */</span>
+<span class="atm-tok-variable">$v</span><span class="atm-tok-punctuation">:</span> <span class="atm-tok-number">1</span><span class="atm-tok-punctuation">;</span>"
+`;
+
+exports[`snapshots of realistic code > html 1`] = `
+"<span class="atm-tok-meta">&lt;!DOCTYPE html&gt;</span>
+<span class="atm-tok-tag">&lt;div</span> <span class="atm-tok-attr-name">class</span><span class="atm-tok-punctuation">=</span><span class="atm-tok-attr-value">&quot;a b&quot;</span> <span class="atm-tok-attr-name">id</span><span class="atm-tok-punctuation">=</span><span class="atm-tok-attr-value">&#39;x&#39;</span> hidden<span class="atm-tok-punctuation">&gt;</span><span class="atm-tok-comment">&lt;!-- c --&gt;</span><span class="atm-tok-tag">&lt;a</span> <span class="atm-tok-attr-name">href</span><span class="atm-tok-punctuation">=</span><span class="atm-tok-attr-value">&quot;/x?a=1&amp;amp;b=2&quot;</span><span class="atm-tok-punctuation">&gt;</span>Hi <span class="atm-tok-meta">&amp;copy;</span> &quot;there&quot;<span class="atm-tok-tag">&lt;/a</span><span class="atm-tok-punctuation">&gt;</span><span class="atm-tok-tag">&lt;br</span><span class="atm-tok-punctuation">/&gt;</span><span class="atm-tok-tag">&lt;/div</span><span class="atm-tok-punctuation">&gt;</span>"
+`;
+
+exports[`snapshots of realistic code > js 1`] = `
+"<span class="atm-tok-comment">// hi</span>
+<span class="atm-tok-keyword">const</span> re <span class="atm-tok-operator">=</span> <span class="atm-tok-regex">/ab+c/gi</span><span class="atm-tok-punctuation">,</span> s <span class="atm-tok-operator">=</span> <span class="atm-tok-string">\`a \${b + \`x\`} c\`</span><span class="atm-tok-punctuation">;</span> <span class="atm-tok-keyword">let</span> n <span class="atm-tok-operator">=</span> <span class="atm-tok-number">0x1F</span> <span class="atm-tok-operator">+</span> <span class="atm-tok-number">1.5e3</span> <span class="atm-tok-operator">-</span> <span class="atm-tok-number">.5</span><span class="atm-tok-punctuation">;</span>
+<span class="atm-tok-keyword">function</span> <span class="atm-tok-function">foo</span><span class="atm-tok-punctuation">(</span>a<span class="atm-tok-punctuation">,</span> b<span class="atm-tok-punctuation">)</span> <span class="atm-tok-punctuation">{</span> <span class="atm-tok-keyword">return</span> a <span class="atm-tok-operator">/</span> b <span class="atm-tok-operator">/</span> <span class="atm-tok-number">2</span> <span class="atm-tok-operator">||</span> <span class="atm-tok-regex">/x\\/y/</span><span class="atm-tok-punctuation">.</span><span class="atm-tok-function">test</span><span class="atm-tok-punctuation">(</span><span class="atm-tok-string">&#39;it\\&#39;s &quot;//&quot; not&#39;</span><span class="atm-tok-punctuation">);</span> <span class="atm-tok-punctuation">}</span>
+<span class="atm-tok-keyword">class</span> <span class="atm-tok-type">Foo</span> <span class="atm-tok-keyword">extends</span> <span class="atm-tok-type">Bar</span> <span class="atm-tok-punctuation">{</span> <span class="atm-tok-keyword">async</span> <span class="atm-tok-function">run</span><span class="atm-tok-punctuation">()</span> <span class="atm-tok-punctuation">{</span> <span class="atm-tok-keyword">await</span> <span class="atm-tok-keyword">this</span><span class="atm-tok-punctuation">.</span>x<span class="atm-tok-operator">?</span><span class="atm-tok-punctuation">.</span>y<span class="atm-tok-punctuation">;</span> <span class="atm-tok-punctuation">}</span> <span class="atm-tok-punctuation">}</span>
+<span class="atm-tok-comment">/* multi
+line */</span> x <span class="atm-tok-operator">=</span> a <span class="atm-tok-operator">&lt;</span> b <span class="atm-tok-operator">?</span> <span class="atm-tok-string">&quot;s&quot;</span> <span class="atm-tok-operator">:</span> <span class="atm-tok-string">&#39;q&#39;</span><span class="atm-tok-punctuation">;</span>"
+`;
+
+exports[`snapshots of realistic code > json 1`] = `
+"<span class="atm-tok-punctuation">{</span>
+  <span class="atm-tok-property">&quot;name&quot;</span><span class="atm-tok-punctuation">:</span> <span class="atm-tok-string">&quot;x&quot;</span><span class="atm-tok-punctuation">,</span> <span class="atm-tok-property">&quot;n&quot;</span><span class="atm-tok-punctuation">:</span> <span class="atm-tok-number">-1.5e3</span><span class="atm-tok-punctuation">,</span> <span class="atm-tok-property">&quot;ok&quot;</span><span class="atm-tok-punctuation">:</span> <span class="atm-tok-literal">true</span><span class="atm-tok-punctuation">,</span> <span class="atm-tok-property">&quot;v&quot;</span><span class="atm-tok-punctuation">:</span> <span class="atm-tok-literal">null</span><span class="atm-tok-punctuation">,</span> <span class="atm-tok-property">&quot;a&quot;</span><span class="atm-tok-punctuation">:</span> <span class="atm-tok-punctuation">[</span><span class="atm-tok-number">1</span><span class="atm-tok-punctuation">,</span> <span class="atm-tok-number">2</span><span class="atm-tok-punctuation">,</span> <span class="atm-tok-string">&quot;//not&quot;</span><span class="atm-tok-punctuation">]</span>
+<span class="atm-tok-punctuation">}</span>"
+`;
+
+exports[`snapshots of realistic code > md 1`] = `
+"<span class="atm-tok-keyword"># Title</span>
+
+Some <span class="atm-tok-keyword">**bold**</span> and <span class="atm-tok-variable">*it*</span> and <span class="atm-tok-string">\`code\`</span> and <span class="atm-tok-function">[link]</span><span class="atm-tok-attr-value">(http://x.y)</span>.
+
+<span class="atm-tok-comment">&gt; quote</span>
+
+<span class="atm-tok-punctuation">-</span> item
+
+<span class="atm-tok-string">\`\`\`js
+const a = 1;
+\`\`\`</span>"
+`;
+
+exports[`snapshots of realistic code > py 1`] = `
+"<span class="atm-tok-keyword">import</span> os
+<span class="atm-tok-meta">@decorator</span>
+<span class="atm-tok-keyword">def</span> <span class="atm-tok-function">foo</span><span class="atm-tok-punctuation">(</span>a<span class="atm-tok-punctuation">,</span> b<span class="atm-tok-operator">=</span><span class="atm-tok-number">1</span><span class="atm-tok-punctuation">):</span>
+    <span class="atm-tok-string">&quot;&quot;&quot;doc # not comment
+    more&quot;&quot;&quot;</span>
+    s <span class="atm-tok-operator">=</span> <span class="atm-tok-string">f&#39;x{a}&#39;</span> <span class="atm-tok-operator">+</span> <span class="atm-tok-string">&quot;it&#39;s&quot;</span> <span class="atm-tok-comment"># real</span>
+    <span class="atm-tok-keyword">return</span> a <span class="atm-tok-operator">**</span> <span class="atm-tok-number">2</span> <span class="atm-tok-operator">//</span> <span class="atm-tok-number">3</span> <span class="atm-tok-keyword">if</span> a <span class="atm-tok-keyword">is</span> <span class="atm-tok-keyword">not</span> <span class="atm-tok-literal">None</span> <span class="atm-tok-keyword">else</span> <span class="atm-tok-literal">True</span>
+<span class="atm-tok-keyword">class</span> <span class="atm-tok-type">Foo</span><span class="atm-tok-punctuation">(</span><span class="atm-tok-type">Base</span><span class="atm-tok-punctuation">):</span> <span class="atm-tok-keyword">pass</span>"
+`;
+
+exports[`snapshots of realistic code > sql 1`] = `
+"<span class="atm-tok-comment">-- comment</span>
+<span class="atm-tok-keyword">SELECT</span> u<span class="atm-tok-punctuation">.</span>id<span class="atm-tok-punctuation">,</span> <span class="atm-tok-function">COUNT</span><span class="atm-tok-punctuation">(</span><span class="atm-tok-operator">*</span><span class="atm-tok-punctuation">)</span> <span class="atm-tok-keyword">AS</span> n<span class="atm-tok-punctuation">,</span> <span class="atm-tok-string">&#39;it&#39;&#39;s&#39;</span> <span class="atm-tok-keyword">FROM</span> users u
+  <span class="atm-tok-keyword">LEFT</span> <span class="atm-tok-keyword">JOIN</span> orders o <span class="atm-tok-keyword">ON</span> o<span class="atm-tok-punctuation">.</span>uid <span class="atm-tok-operator">=</span> u<span class="atm-tok-punctuation">.</span>id <span class="atm-tok-keyword">WHERE</span> u<span class="atm-tok-punctuation">.</span>age <span class="atm-tok-operator">&gt;=</span> <span class="atm-tok-number">18</span> <span class="atm-tok-comment">/* c */</span>
+<span class="atm-tok-keyword">group</span> <span class="atm-tok-keyword">by</span> <span class="atm-tok-number">1</span> <span class="atm-tok-keyword">ORDER</span> <span class="atm-tok-keyword">BY</span> n <span class="atm-tok-keyword">desc</span> <span class="atm-tok-keyword">LIMIT</span> <span class="atm-tok-number">10</span><span class="atm-tok-punctuation">;</span>"
+`;
+
+exports[`snapshots of realistic code > ts 1`] = `
+"<span class="atm-tok-keyword">interface</span> A<span class="atm-tok-operator">&lt;</span>T<span class="atm-tok-operator">&gt;</span> <span class="atm-tok-punctuation">{</span> x<span class="atm-tok-operator">:</span> <span class="atm-tok-type">string</span><span class="atm-tok-punctuation">;</span> y<span class="atm-tok-operator">?:</span> <span class="atm-tok-type">number</span> <span class="atm-tok-punctuation">}</span>
+<span class="atm-tok-keyword">enum</span> E <span class="atm-tok-punctuation">{</span> A <span class="atm-tok-operator">=</span> <span class="atm-tok-number">1</span> <span class="atm-tok-punctuation">}</span>
+<span class="atm-tok-meta">@Component</span><span class="atm-tok-punctuation">({})</span> <span class="atm-tok-keyword">class</span> C <span class="atm-tok-keyword">implements</span> I <span class="atm-tok-punctuation">{</span> <span class="atm-tok-keyword">private</span> <span class="atm-tok-keyword">readonly</span> n<span class="atm-tok-operator">:</span> <span class="atm-tok-type">number</span> <span class="atm-tok-operator">=</span> <span class="atm-tok-number">1</span><span class="atm-tok-punctuation">;</span> <span class="atm-tok-punctuation">}</span>
+<span class="atm-tok-keyword">type</span> U <span class="atm-tok-operator">=</span> A <span class="atm-tok-operator">|</span> B<span class="atm-tok-punctuation">;</span>"
+`;
+
+exports[`snapshots of realistic code > yaml 1`] = `
+"<span class="atm-tok-comment"># c</span>
+<span class="atm-tok-property">name</span><span class="atm-tok-punctuation">:</span> x
+<span class="atm-tok-property">list</span><span class="atm-tok-punctuation">:</span>
+  <span class="atm-tok-punctuation">-</span> <span class="atm-tok-property">a</span><span class="atm-tok-punctuation">:</span> <span class="atm-tok-number">1</span>
+    <span class="atm-tok-property">b</span><span class="atm-tok-punctuation">:</span> <span class="atm-tok-string">&quot;s: t&quot;</span>
+<span class="atm-tok-property">anchors</span><span class="atm-tok-punctuation">:</span> <span class="atm-tok-variable">&amp;a</span> <span class="atm-tok-punctuation">[</span><span class="atm-tok-number">1</span><span class="atm-tok-punctuation">,</span> <span class="atm-tok-number">2.5</span><span class="atm-tok-punctuation">,</span> <span class="atm-tok-literal">~</span><span class="atm-tok-punctuation">]</span>
+<span class="atm-tok-property">url</span><span class="atm-tok-punctuation">:</span> http://x.y#frag <span class="atm-tok-comment"># trailing</span>"
+`;
