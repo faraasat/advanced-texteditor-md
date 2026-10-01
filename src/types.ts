@@ -96,6 +96,11 @@ export type InlineSyntax = {
   attrs?: Record<string, string>;
   /** Parse the inner text as inline markdown. Default true. */
   nested?: boolean;
+  /**
+   * Pattern-only syntax cannot be inverted automatically. Provide this to write
+   * a node back to markdown; without it the original matched source is kept.
+   */
+  serialize?: (inner: string, data?: Record<string, string>) => string;
   /** Toolbar/shortcut helpers: wrap the selection in open/close. */
   toolbar?: Omit<ToolbarItem, "command" | "id"> & { id?: string };
 };
