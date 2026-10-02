@@ -9,7 +9,6 @@ import type { Doc } from "../../types";
 import type { Ctx } from "./ctx";
 import { docToText, parse, stringify } from "../../parser/index";
 import { renderHtml } from "../../render/index";
-import { looksLikeMarkdown } from "../../features/markdown-sniff";
 import { chunks } from "../lazy-chunks";
 import { domToDoc } from "../dom-to-doc";
 import { closest, leafOf } from "./dom";
@@ -18,20 +17,29 @@ import { getCommand } from "../commands";
 import { isEl, offsetOf, pointAt, setSelection } from "../selection";
 
 /**
- * Clipboard HTML to Markdown. The converter is a lazy chunk: when it has been downloaded this runs
- * at once, otherwise `done` runs when it arrives. If it cannot be fetched `done` gets null and the
- * caller falls back to the plain text.
+ * Run `use` with the paste chunk (clipboard HTML to Markdown, and the "does this text look like
+ * Markdown" check): at once when it has been downloaded, otherwise when it arrives. If it cannot be
+ * fetched `fail` runs and the caller falls back to the plain text.
  */
-function htmlToMd(ctx: Ctx, html: string, done: (md: string | null) => void): void {
-  const convert = (m: typeof import("../../features/paste")) => done(m.htmlToMarkdown(html, { links: ctx.opts.render.links }, ctx.doc));
+function withPaste(ctx: Ctx, use: (m: typeof import("../../features/paste")) => void, fail: () => void): void {
   const cached = chunks.paste.get();
-  if (cached) return convert(cached);
+  if (cached) return use(cached);
   // The caret may move while the chunk downloads (a drop, a click): insert where the paste happened.
   const at = ctx.save();
   chunks.paste.load().then(
-    (m) => (ctx.restore(at), convert(m)),
-    () => (ctx.restore(at), done(null)),
+    (m) => (ctx.restore(at), use(m)),
+    () => (ctx.restore(at), fail()),
   );
+}
+
+const htmlToMd = (ctx: Ctx, html: string, done: (md: string | null) => void): void =>
+  withPaste(ctx, (m) => done(m.htmlToMarkdown(html, { links: ctx.opts.render.links }, ctx.doc)), () => done(null));
+
+/** Plain text that may be Markdown. A single line never is, so that stays synchronous; the check is in the chunk. */
+function plainOrMd(ctx: Ctx, text: string, done: () => void): void {
+  const put = (md?: boolean) => (md ? insertMarkdown(ctx, text) : insertPlain(ctx, text), done());
+  if (/\n/.test(text.trim())) withPaste(ctx, (m) => put(m.looksLikeMarkdown(text)), put);
+  else put();
 }
 
 const URL_ONLY = /^\s*((?:https?:\/\/|mailto:)[^\s<>]+)\s*$/i;
@@ -155,10 +163,7 @@ export function onPaste(ctx: Ctx, ev: ClipboardEvent): void {
       ctx.commit("paste");
     });
     return;
-  } else if (text) {
-    if (looksLikeMarkdown(text)) insertMarkdown(ctx, text);
-    else insertPlain(ctx, text);
-  }
+  } else if (text) return plainOrMd(ctx, text, () => ctx.commit("paste"));
   ctx.commit("paste");
 }
 
@@ -273,7 +278,6 @@ export function onDrop(ctx: Ctx, ev: DragEvent, drag: DragState): void {
       ctx.commit("drop");
     });
     return;
-  } else if (looksLikeMarkdown(text)) insertMarkdown(ctx, text);
-  else insertPlain(ctx, text);
+  } else return plainOrMd(ctx, text, () => ctx.commit("drop"));
   ctx.commit("drop");
 }

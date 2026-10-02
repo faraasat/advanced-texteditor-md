@@ -118,6 +118,37 @@ export function mergeText(nodes: InlineNode[]): InlineNode[] {
   return out;
 }
 
+export const isMark = (t: string) => t === "emphasis" || t === "strong" || t === "strike";
+
+/**
+ * The canonical form of inline content, the one place that decides it (stringify and dom-to-doc
+ * both call it): adjacent text merges; adjacent emphasis/strong/strike, code, and custom nodes with
+ * one name and the same data merge into one node; a mark inside a mark of its own type (through
+ * other marks, not through a link or custom node) dissolves; a mark holding only whitespace becomes that whitespace. Idempotent.
+ */
+export function normalizeInline(nodes: InlineNode[], within: string[] = []): InlineNode[] {
+  // Nodes that merge with a neighbour of the same key.
+  const key = (n: any) => (isMark(n.type) || n.type === "code" ? n.type : n.type === "custom" && !n.data?._raw ? n.name + JSON.stringify(n.data) : "");
+  const joined: any[] = [];
+  const add = (n: any) => {
+    const l = joined[joined.length - 1];
+    if (within.includes(n.type)) n.children.forEach(add);
+    else if (l && key(n) && key(l) === key(n)) {
+      if (n.type === "code") l.value += n.value;
+      else l.children = [...l.children, ...n.children];
+    } else if (n.type !== "text" || n.value) joined.push({ ...n });
+  };
+  nodes.forEach(add);
+  return mergeText(
+    joined.flatMap((n) => {
+      if (!n.children) return [n];
+      const kids = normalizeInline(n.children, isMark(n.type) ? [...within, n.type] : []);
+      // A mark holding only whitespace is just that whitespace.
+      return !isMark(n.type) ? [{ ...n, children: kids }] : kids.every((k: any) => k.type === "text" && !k.value.trim()) ? kids : [{ ...n, children: kids }];
+    }),
+  );
+}
+
 export function inlineToText(nodes: InlineNode[]): string {
   let s = "";
   for (const n of nodes) {

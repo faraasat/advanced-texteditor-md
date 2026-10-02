@@ -94,6 +94,9 @@
 .atm-ts-sw[data-kind="bg"][data-name="purple"]{background:var(--atm-ts-bg-purple,transparent)}
 .atm-ts-sw[data-kind="bg"][data-name="pink"]{background:var(--atm-ts-bg-pink,transparent)}
 .atm-ts-sw[data-kind="bg"][data-name="gray"]{background:var(--atm-ts-bg-gray,transparent)}
+.atm-menu .atm-ts-menu{display:contents}
+.atm-menu .atm-ts-pop{position:static;flex:1 0 100%;order:2;margin-top:.2rem;box-shadow:none;animation:none}
+.atm-menu-custom .atm-menu-label{order:1}
 @media (prefers-reduced-motion:no-preference){.atm-ts-pop{animation:atm-ts-in .08s ease-out}}@keyframes atm-ts-in{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:none}}
 
 /* ── shortcodes ── */

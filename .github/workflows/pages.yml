@@ -1,0 +1,63 @@
+name: Deploy site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Allow one concurrent deployment, never cancel a running one mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Use Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      # The site imports the library from dist/, so it always reflects this
+      # commit rather than the last npm release.
+      - name: Install & build package
+        run: |
+          npm ci
+          npm run build
+
+      # Project pages are served from /<repo>/, so every URL carries that base.
+      - name: Build site
+        env:
+          SITE_BASE: /advanced-texteditor-md/
+        run: npm run site:build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        # Pages is enabled once with the source set to "GitHub Actions" (build_type: workflow); this step only reads it.
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site/out
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

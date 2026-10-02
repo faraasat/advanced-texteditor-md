@@ -97,6 +97,36 @@
   margin: 0 0 0.75em;
   padding-inline-start: 1.6em;
 }
+/* Markers are written out, not left to the browser: a CSS reset (Tailwind's preflight) sets
+   `list-style: none` on every list. The rules are as specific as the ones above, so a rule of the
+   host's own for `ul` still wins by coming later, and rendered output (renderHtml,
+   the preview pane, a read-only view) carries `.atm-ul` / `.atm-ol` and gets the same. */
+.atm-surface ul,
+.atm-ul {
+  list-style-type: disc;
+}
+.atm-surface ol,
+.atm-ol {
+  list-style-type: decimal;
+}
+.atm-surface :is(ul, ol) ul,
+:is(.atm-ul, .atm-ol) .atm-ul {
+  list-style-type: circle;
+}
+.atm-surface :is(ul, ol) :is(ul, ol) ul,
+:is(.atm-ul, .atm-ol) :is(.atm-ul, .atm-ol) .atm-ul {
+  list-style-type: square;
+}
+/* Room for the markers in rendered lists; a reset's `padding: 0` is one element selector, this is one class. */
+.atm-ul,
+.atm-ol {
+  padding-inline-start: 1.6em;
+}
+/* Task items carry a checkbox instead of a marker. */
+.atm-surface li.atm-task,
+.atm-li.atm-task {
+  list-style: none;
+}
 .atm-surface li > p {
   margin: 0 0 0.35em;
 }

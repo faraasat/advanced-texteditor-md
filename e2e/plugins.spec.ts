@@ -316,12 +316,19 @@ test.describe("table of contents", () => {
 
 /* ───────────────────────────── text colour ───────────────────────────── */
 
+/** The colour button. On a narrow toolbar it lives in the More menu: open that first, and the menu hosts the same button. */
+async function colourButton(page: Page) {
+  const btn = page.locator('#editor-host button[aria-label="Text colour and highlight"]');
+  if (!(await btn.isVisible())) await page.locator('#editor-host button[data-id="more"]').click();
+  await expect(btn).toBeVisible(); // the menu is a lazy chunk: it opens a moment after the click
+  return btn;
+}
+
 test.describe("text colour", () => {
-  test("toolbar swatch applies a colour that is stored as [text]{.c-red} and round-trips", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "on a phone the colour button sits in the More menu, where a plugin's custom toolbar item does nothing yet (DECISIONS.md, \"The mobile project's skips\")");
+  test("toolbar swatch applies a colour that is stored as [text]{.c-red} and round-trips", async ({ page }) => {
     const { errors } = await open(page, q({ p: "style", value: "Paint this word.\n" }));
     await select(page, "word");
-    await page.locator('#editor-host button[aria-label="Text colour and highlight"]').click();
+    await (await colourButton(page)).click();
     await page.getByRole("button", { name: "Text colour: red" }).click();
     expect(await value(page)).toBe("Paint this [word]{.c-red}.");
     const span = page.locator("#editor-host .atm-ts");
@@ -330,7 +337,7 @@ test.describe("text colour", () => {
 
     // a background on the same span
     await select(page, "word");
-    await page.locator('#editor-host button[aria-label="Text colour and highlight"]').click();
+    await (await colourButton(page)).click();
     await page.getByRole("button", { name: "Highlight: yellow" }).click();
     expect(await value(page)).toBe("Paint this [word]{.c-red .bg-yellow}.");
     await expect(span).toHaveCSS("background-color", "rgb(255, 243, 191)");
@@ -343,7 +350,7 @@ test.describe("text colour", () => {
 
     // clear
     await select(page, "word");
-    await page.locator('#editor-host button[aria-label="Text colour and highlight"]').click();
+    await (await colourButton(page)).click();
     await page.getByRole("button", { name: "Clear" }).click();
     expect(await value(page)).toBe("Paint this word.");
     expect(errors).toEqual([]);
@@ -357,11 +364,10 @@ test.describe("text colour", () => {
     expect(await page.locator("#editor-host .atm-surface").evaluate((e) => e.textContent)).toContain("[a]{.c-magenta}");
   });
 
-  test("the swatch popover is keyboard operable and labelled", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "on a phone the colour button sits in the More menu, where a plugin's custom toolbar item does nothing yet (DECISIONS.md, \"The mobile project's skips\")");
+  test("the swatch popover is keyboard operable and labelled", async ({ page }) => {
     await open(page, q({ p: "style", value: "word\n" }));
     await select(page, "word");
-    const btn = page.locator('#editor-host button[aria-label="Text colour and highlight"]');
+    const btn = await colourButton(page);
     await btn.focus();
     await page.keyboard.press("Enter");
     await expect(btn).toHaveAttribute("aria-expanded", "true");

@@ -1,0 +1,82 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. A minimal reproduction is the fastest way to a fix: the
+        [live playground](https://faraasat.github.io/advanced-texteditor-md/) is a good place to start, and a
+        Markdown string that triggers the bug is often enough.
+
+        **Security problem?** Do not file it here. Use a [private advisory](https://github.com/faraasat/advanced-texteditor-md/security/advisories/new).
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: Output of `npm ls advanced-texteditor-md`.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      multiple: true
+      options:
+        - Chrome / Chromium / Edge
+        - Firefox
+        - Safari / WebKit
+        - Android browser
+        - iOS browser
+        - Not browser-related (Node / server rendering)
+    validations:
+      required: true
+  - type: input
+    id: browser-version
+    attributes:
+      label: Browser version
+      placeholder: "e.g. Firefox 140, Safari 18.5"
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "e.g. macOS 15, Windows 11, Ubuntu 24.04, iOS 18"
+    validations:
+      required: true
+  - type: input
+    id: bundler
+    attributes:
+      label: Bundler and Node version
+      description: Skip if you use the editor straight from a script tag.
+      placeholder: "e.g. Vite 7, Node 22"
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, or a link to a repository, StackBlitz or CodeSandbox. Include the options you pass to `createEditor`.
+      placeholder: |
+        1. createEditor(el, { layout: "bubble", ... })
+        2. Type "..."
+        3. Press Enter
+    validations:
+      required: true
+  - type: textarea
+    id: markdown
+    attributes:
+      label: Markdown involved
+      description: The `getValue()` output before and after, if the bug is about what is stored.
+      render: markdown
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output
+      description: Errors or warnings from the browser console.
+      render: shell

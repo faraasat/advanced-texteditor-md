@@ -550,6 +550,14 @@ img[data-atm-zoom]:focus-visible {
 .atm-menu-item[aria-checked="true"] .atm-menu-label {
   font-weight: 600;
 }
+/* A custom-drawn toolbar item (a colour picker, a select) shown in the "more" menu: its control, then its label. */
+.atm-menu-custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 2px 4px;
+}
 .atm-menu-shortcut,
 .atm-menu-desc {
   color: var(--atm-muted, #59636e);

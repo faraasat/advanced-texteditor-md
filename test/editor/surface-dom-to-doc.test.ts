@@ -146,3 +146,39 @@ describe("pattern syntax with serialize", () => {
     t.s.destroy();
   });
 });
+
+describe("adjacent formatting from the DOM is one run (never saved as escaped delimiters)", () => {
+  const cases: [string, string, string][] = [
+    ["two <strong> runs then text", "<p><strong>a</strong><strong>b</strong>start</p>", "**ab**start"],
+    ["<b> and <strong> mixed", "<p><b>a</b><strong>b</strong>start</p>", "**ab**start"],
+    ["<i> and <em> mixed", "<p><i>a</i><em>b</em>start</p>", "*ab*start"],
+    ["strike runs", "<p><s>a</s><del>b</del>x</p>", "~~ab~~x"],
+    ["code runs", "<p><code>a</code><code>b</code>x</p>", "`ab`x"],
+    ["bold then italic then text", "<p><strong>a</strong><em>b</em>c</p>", "**a***b*c"],
+    ["a bold run split by an empty span", "<p><strong>a</strong><span></span><strong>b</strong>z</p>", "**ab**z"],
+    ["text split in two text nodes inside bold", "<p><strong>a</strong><strong>b</strong> and <strong>c</strong></p>", "**ab** and **c**"],
+  ];
+  for (const [name, html, md] of cases)
+    it(name, () => {
+      const t = make("x");
+      t.root.innerHTML = html;
+      t.root.dispatchEvent(new Event("input", { bubbles: true }));
+      const got = t.s.getValue();
+      expect(got).toBe(md);
+      expect(got).not.toMatch(/\\_/);
+      // Loading what was saved draws the same thing again.
+      const u = make(got);
+      expect(u.root.textContent).toBe(t.root.textContent);
+      expect(u.s.getValue()).toBe(got);
+    });
+
+  it("the repro: bold a, bold b, plain start", () => {
+    const t = make("x");
+    t.root.innerHTML = "<p><strong>a</strong><strong>b</strong>start</p>";
+    t.root.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(t.s.getValue()).toBe("**ab**start");
+    expect(domToDoc(t.root, { classPrefix: "atm" }).children).toEqual([
+      { type: "paragraph", children: [{ type: "strong", children: [{ type: "text", value: "ab" }] }, { type: "text", value: "start" }] },
+    ]);
+  });
+});

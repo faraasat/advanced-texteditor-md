@@ -41,7 +41,8 @@ export const ICONS: Record<string, string> = {
 /* ───────────────────────────── items ───────────────────────────── */
 
 export type MenuEntry = { id: string; label: string; command: string; shortcut?: string };
-export type MenuRow = MenuEntry & { item?: ToolbarEntryItem };
+/** `host` is set for a custom-drawn item (`ToolbarItem.render`): the menu shows its live element instead of a button. */
+export type MenuRow = MenuEntry & { item?: ToolbarEntryItem; host?: HTMLElement };
 
 /** A toolbar item plus the bits only built-ins need. */
 export type ToolbarEntryItem = ToolbarItem & {
@@ -409,7 +410,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
       if (e.kind !== "item" || !e.overflowed || !e.item) continue;
       const it = e.item;
       if (it.menu) rows.push(...it.menu.map((m) => ({ ...m, item: it })));
-      else rows.push({ id: it.id, label: it.label, command: typeof it.command === "string" ? it.command : "", shortcut: it.shortcut, item: it });
+      else rows.push({ id: it.id, label: it.label, command: typeof it.command === "string" ? it.command : "", shortcut: it.shortcut, item: it, host: it.render ? e.el : undefined });
     }
     return rows;
   }

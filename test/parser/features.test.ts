@@ -210,9 +210,11 @@ describe("stringify canonical form", () => {
     expect(d.children).toHaveLength(2);
     expect(parse(stringify(d)).children).toHaveLength(2);
   });
-  it("adjacent emphasis keeps its nodes", () => {
+  it("adjacent emphasis is one node after a save (the formatting is the same)", () => {
     const d = parse("*a*_b_");
-    expect(parse(stringify(d)).children).toEqual(d.children);
+    expect(d.children).toEqual([{ type: "paragraph", children: [{ type: "emphasis", children: [{ type: "text", value: "a" }] }, { type: "emphasis", children: [{ type: "text", value: "b" }] }] }]);
+    expect(stringify(d)).toBe("*ab*");
+    expect(parse(stringify(d)).children).toEqual([{ type: "paragraph", children: [{ type: "emphasis", children: [{ type: "text", value: "ab" }] }] }]);
   });
   it("text that looks like markup is escaped and survives", () => {
     const text = "# not heading\n> not quote\n- not list\n1. not ordered\n```\n*x* _y_ [z] `c` ~~s~~ <http://a.b> &amp; $a$ | \\";

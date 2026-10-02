@@ -7,7 +7,7 @@
  * never reaches this function (paste goes through `htmlToMarkdown`).
  */
 import type { BlockNode, Doc, InlineNode, InlineSyntax } from "../types";
-import { mergeText } from "../parser/util";
+import { normalizeInline } from "../parser/util";
 import { BLOCK_TAGS, isEl, isText, trailingBr } from "./selection";
 import { IMG_X, LINK_X } from "./surface/render";
 
@@ -198,14 +198,8 @@ function inlineOf(nodes: ArrayLike<Node>, x: X): InlineNode[] {
     out.push(...kids);
   };
   for (let i = 0; i < nodes.length; i++) visit(nodes[i]);
-  return tidy(out);
-}
-
-/** Merge adjacent text, normalise nbsp, drop empty marks. */
-function tidy(ns: InlineNode[]): InlineNode[] {
-  const kept = ns.filter((n) => !("children" in n) || n.type === "link" || n.type === "custom" || n.children.length);
-  const merged = mergeText(kept);
-  return merged.map((n) => (n.type === "text" ? { type: "text", value: normText(n.value) } : n));
+  // nbsp is normalised, then the canonical form: adjacent text and same-type marks merge, empty marks go.
+  return normalizeInline(out.map((n) => (n.type === "text" ? { type: "text", value: normText(n.value) } : n)));
 }
 
 function isEmptyInline(ns: InlineNode[]): boolean {

@@ -1,5 +1,6 @@
 import type { BlockNode, Doc, InlineNode, ListItem } from "../types";
-import { PUNCT_RE, makeCtx, type Ctx } from "./util";
+import { after, before, isWord } from "./inline";
+import { PUNCT_RE, isMark, makeCtx, normalizeInline, type Ctx } from "./util";
 import { chipHref } from "./chip";
 import { bareEnd } from "./gfm";
 import { blockOpen, fenceFor, fmtData } from "./custom-syntax";
@@ -44,11 +45,6 @@ function esc(v: string, x: Ctx, e: E): string {
   return s;
 }
 
-const wrap = (d: string, inner: string) => {
-  const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(inner)!;
-  return m[2] ? m[1] + d + m[2] + d + m[3] : m[1] + m[3];
-};
-
 function dest(h: string): string {
   const esc2 = h.replace(/[\\$]/g, "\\$&").replace(/&(?=(?:#[xX][0-9a-fA-F]+|#\d+|[A-Za-z][A-Za-z0-9]*);)/g, "\\&");
   if (!h || /[\s\x00-\x1f\x7f]/.test(h) || h[0] === "<") return "<" + esc2.replace(/[<>]/g, "\\$&").replace(/\n/g, "%0A") + ">";
@@ -92,12 +88,34 @@ function codeSpan(v: string, e: E): string {
   return f + pad + v + pad + f;
 }
 
-function inl(nodes: InlineNode[], x: Ctx, e: E, pt = "", pch = ""): string {
-  if (e.d === undefined) e = { ...e, d: count$(nodes) >= 2 };
+const charRef = (c: string) => "&#" + c.codePointAt(0) + ";";
+
+/** The first character a run of nodes shows; with `deep`, looking through marks (their opening run may join ours). */
+function headCh(ns: InlineNode[], deep?: boolean): string {
+  const n = ns[0];
+  return !n ? " " : n.type === "text" ? after(n.value, 0) : deep && isMark(n.type) ? headCh((n as { children: InlineNode[] }).children, deep) : " ";
+}
+
+/** Where the run of `d` characters ending `s` begins (an escaped one included: it is punctuation either way). */
+function runStart(s: string, d: string): number {
+  let i = s.length;
+  while (i > 0 && s[i - 1] === d) i--;
+  return i;
+}
+
+function inl(nodes: InlineNode[], x: Ctx, e: E, pch = ""): string {
+  // The root of a paragraph, heading or cell is where the formatting is made canonical; everything below it already is.
+  if (e.d === undefined) e = { ...e, d: count$((nodes = normalizeInline(nodes))) >= 2 };
   let out = "";
   let prevCh = "";
+  let enc = "";
   nodes.forEach((nd, k) => {
     let ch = "";
+    const at = out.length;
+    const wasEnc = enc;
+    enc = "";
+    // A `!` before a link or chip would make it an image.
+    if ((nd.type === "link" || nd.type === "chip") && out.endsWith("!")) out = out.slice(0, -1) + "\\!";
     switch (nd.type) {
       case "text":
         out += esc(nd.value, x, e);
@@ -105,15 +123,52 @@ function inl(nodes: InlineNode[], x: Ctx, e: E, pt = "", pch = ""): string {
       case "emphasis":
       case "strong":
       case "strike": {
-        let d = "~~";
-        if (nd.type !== "strike") {
-          const bad = new Set<string>();
-          if (prevCh) bad.add(prevCh);
-          if (pt === nd.type && (k === 0 || k === nodes.length - 1) && pch) bad.add(pch);
-          ch = bad.has("*") && !bad.has("_") ? "_" : "*";
-          d = nd.type === "strong" ? ch + ch : ch;
+        const strike = nd.type === "strike";
+        const rest = nodes.slice(k + 1);
+        const real = nodes.filter((n) => n.type !== "text" || n.value.trim());
+        const atEdge = real.length > 1 && (nd === real[0] || nd === real[real.length - 1]);
+        const bad = (c: string) => prevCh === c || (atEdge && pch === c);
+        // Marks whose delimiters would share a run take different characters: `_` after a `*` mark
+        // or at the edge of one. `_` never opens or closes beside a letter or digit, so there it
+        // needs those letters written as character references (below); that is done only where
+        // the shared run would hold more marks, and the rest keep `*`.
+        let dc = "~";
+        if (!strike) dc = bad("*") && !bad("_") && ((atEdge && pch === "*") || nd.children.some((c) => isMark(c.type)) || (!isWord(before(out, out.length)) && !isWord(headCh(rest)))) ? "_" : "*";
+        ch = dc;
+        const d = strike ? "~~" : nd.type === "strong" ? dc + dc : dc;
+        // Whitespace on the edge of a mark goes outside it: Markdown cannot bold it.
+        const raw = inl(nd.children, x, e, dc);
+        const inner = raw.trim();
+        const lead = raw.indexOf(inner);
+        const trail = raw.slice(lead + inner.length);
+        out += raw.slice(0, lead);
+        if (!inner) {
+          out += trail;
+          break;
         }
-        out += wrap(d, inl(nd.children, x, e, nd.type, ch));
+        // A run of punctuation inside the mark, with a letter or digit just outside it, is not a
+        // delimiter to CommonMark (`a*.*b` is plain text), and delimiters that share a character
+        // are one run. The letter is written as a character reference, which reads back as the
+        // same letter and settles it.
+        const i = runStart(out, dc);
+        const b = before(out, i);
+        let h = 0;
+        while (inner[h] === dc) h++;
+        if (isWord(b) && (dc === "_" || !isWord(after(inner, h)))) {
+          // A literal `_` before the letter was only text because it sat between two letters.
+          const head = out.slice(0, i - b.length).replace(/([\p{L}\p{N}])_$/u, "$1\\_");
+          out = head + charRef(b) + out.slice(i);
+          // The letter may have been the first thing inside a mark: its opener, beside a letter, needs the same.
+          for (let r = head.length, w; head[r - 1] === dc; ) {
+            while (head[r - 1] === dc) r--;
+            w = before(out, r);
+            if (!isWord(w)) break;
+            out = out.slice(0, r - w.length) + charRef(w) + out.slice(r);
+            r -= w.length;
+          }
+        }
+        if (!trail && isWord(headCh(rest, dc !== "_")) && (dc === "_" || !isWord(before(inner, runStart(inner, dc))))) enc = dc;
+        out += d + inner + d + trail;
         break;
       }
       case "code":
@@ -144,28 +199,15 @@ function inl(nodes: InlineNode[], x: Ctx, e: E, pt = "", pch = ""): string {
         break;
       }
       case "link": {
-        const only = nd.children.length === 1 && nd.children[0].type === "text" ? nd.children[0].value : null;
-        if (only !== null && !nd.title && only === nd.href && /^[a-z][a-z0-9+.-]{1,31}:[^\s<>]*$/i.test(only)) {
-          const nx = nodes[k + 1];
-          const bare =
-            /^https?:/i.test(only) &&
-            bareEnd(only, 0) === only.length &&
-            BARE_BEFORE.test(out) &&
-            (!nx || (nx.type === "text" && BARE_AFTER.test(nx.value)));
-          out += bare ? only : `<${only}>`;
-        } else if (
-          only !== null &&
-          !nd.title &&
-          /^www\./i.test(only) &&
-          nd.href === "http://" + only &&
-          bareEnd(only, 0) === only.length &&
-          BARE_BEFORE.test(out) &&
-          (!nodes[k + 1] || (nodes[k + 1].type === "text" && BARE_AFTER.test((nodes[k + 1] as { value: string }).value)))
-        ) {
-          out += only;
-        } else {
-          out += `[${inl(nd.children, x, e)}](${dest(nd.href)}${title(nd.title)})`;
-        }
+        const only = nd.children.length === 1 && nd.children[0].type === "text" && !nd.title ? nd.children[0].value : null;
+        const nx = nodes[k + 1];
+        const bare = only !== null && bareEnd(only, 0) === only.length && BARE_BEFORE.test(out) && (!nx || (nx.type === "text" && BARE_AFTER.test(nx.value)));
+        out +=
+          only !== null && only === nd.href && /^[a-z][a-z0-9+.-]{1,31}:[^\s<>]*$/i.test(only)
+            ? bare && /^https?:/i.test(only) ? only : `<${only}>`
+            : only !== null && bare && /^www\./i.test(only) && nd.href === "http://" + only
+              ? only
+              : `[${inl(nd.children, x, e)}](${dest(nd.href)}${title(nd.title)})`;
         break;
       }
       case "custom": {
@@ -187,6 +229,17 @@ function inl(nodes: InlineNode[], x: Ctx, e: E, pt = "", pch = ""): string {
         } else if (nd.data?._raw !== undefined) out += nd.data._raw;
         else out += inl(nd.children, x, e);
         break;
+      }
+    }
+    if (wasEnc) {
+      let j = at;
+      while (out[j] === wasEnc) j++;
+      const c = after(out, j);
+      if (isWord(c)) {
+        const tail = out.slice(j + c.length);
+        out = out.slice(0, j) + charRef(c) + tail.replace(/^_(?=[\p{L}\p{N}])/u, "\\_");
+        // The letter was the last thing inside a mark: its closer now follows punctuation, so the letter after it gets the same treatment.
+        if (/^[*_~]+$/.test(out.slice(j + charRef(c).length))) enc = wasEnc;
       }
     }
     prevCh = ch;

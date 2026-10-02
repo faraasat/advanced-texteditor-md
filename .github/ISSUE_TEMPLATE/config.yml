@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation and live demo
+    url: https://faraasat.github.io/advanced-texteditor-md/
+    about: Check the docs and try the playground before opening an issue.
+  - name: Security vulnerability
+    url: https://github.com/faraasat/advanced-texteditor-md/security/advisories/new
+    about: Report a vulnerability privately. Please do not open a public issue.

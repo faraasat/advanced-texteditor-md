@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest an idea or an improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Please check the [roadmap and known gaps](https://github.com/faraasat/advanced-texteditor-md#roadmap-and-known-gaps) and the open issues first.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the problem, not only the solution. A concrete use case helps most.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to see?
+      description: The API or behaviour you have in mind, with a code sketch if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Plugins, options or other libraries you tried, and why they were not enough.
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you like to work on it?
+      options:
+        - "No, I am only suggesting it"
+        - "Yes, I would open a pull request"
+    validations:
+      required: true

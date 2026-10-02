@@ -45,6 +45,10 @@
   leave a dialog.
 
 ### Fixed
+- **List bullets and numbers vanished under a CSS reset** (Tailwind's preflight sets `list-style: none`). `surface.css` now sets `disc` / `circle` / `square` and `decimal` on the editing surface (and so read-only editors) and on rendered output (`.atm-ul`, `.atm-ol`: `renderHtml`, the preview pane), with the room they need; task items stay marker-less. A host's own `ul { list-style-type }` still wins by coming later at the same specificity.
+- A plain-text paste of several lines is checked for Markdown in the lazy `paste` chunk (single lines are unchanged); a cold first multi-line paste waits for that chunk like an HTML paste does.
+- **Adjacent bold (or italic, strike, code) was saved as escaped underscores.** `**a**` then `**b**` then plain text came back as `**a**\_\_b\_\_start`. Adjacent same-type marks now merge before saving (editor and `stringify`), the `_` delimiter is never used beside a letter or digit, and punctuation-ended marks next to a letter (`**Note:**text`) keep their formatting. `stringify` of `*a*_b_` is now `*ab*`.
+- **The text-colour button (any `ToolbarItem.render` item) did nothing from the More menu** on a narrow toolbar. The menu now hosts the item's own element, and function-command items run from it too.
 - Bundlers no longer warn about ignored bare imports (`import "./chunk-X.js"`): the build removes them after proving each such chunk
   has no side effects (`scripts/strip-bare-imports.mjs`), and `npm run check:package` fails if a split bundle warns again.
 - Link-preview card styles were written against the bare `.atm-preview` class, which is also the editor's read-only preview pane, so

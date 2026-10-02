@@ -5,10 +5,12 @@ import { defineConfig, devices } from "@playwright/test";
 // reproduce, so this layer is where editor regressions are actually caught.
 export default defineConfig({
   testDir: "./e2e",
+  // The demo site has its own config (playwright.site.config.ts): it needs a different server and base path.
+  testIgnore: /site\.spec\.ts/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  reporter: process.env.CI ? "github" : "list",
+  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: { baseURL: "http://127.0.0.1:4319", trace: "on-first-retry" },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },

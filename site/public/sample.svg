@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" role="img" aria-label="Bar chart of three quarters">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs>
+  <rect width="640" height="360" fill="#eef4ff"/>
+  <g stroke="#c7d6ee"><path d="M60 300H600M60 230H600M60 160H600M60 90H600"/></g>
+  <rect x="110" y="190" width="90" height="110" rx="6" fill="url(#g)"/>
+  <rect x="270" y="130" width="90" height="170" rx="6" fill="url(#g)"/>
+  <rect x="430" y="70" width="90" height="230" rx="6" fill="url(#g)"/>
+  <g font-family="ui-sans-serif,system-ui,sans-serif" font-size="18" fill="#334155" text-anchor="middle"><text x="155" y="328">Q1</text><text x="315" y="328">Q2</text><text x="475" y="328">Q3</text></g>
+</svg>

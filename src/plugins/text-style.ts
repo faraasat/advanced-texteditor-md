@@ -183,6 +183,10 @@ export function textStyleCss(options: Pick<TextStyleOptions, "colors" | "backgro
     `.atm-ts-clear{width:100%;padding:.3rem .5rem;border:1px solid var(--atm-border,#d0d7de);border-radius:.4rem;background:transparent;color:inherit;font:inherit;cursor:pointer}`,
     ...names.c.map((n) => `.atm-ts-sw[data-kind="c"][data-name="${n}"]{color:var(--atm-ts-${n},inherit)}`),
     ...names.bg.map((n) => `.atm-ts-sw[data-kind="bg"][data-name="${n}"]{background:var(--atm-ts-bg-${n},transparent)}`),
+    // In the "more" menu the picker opens inline under its button instead of floating over a scrolling list.
+    `.atm-menu .atm-ts-menu{display:contents}`,
+    `.atm-menu .atm-ts-pop{position:static;flex:1 0 100%;order:2;margin-top:.2rem;box-shadow:none;animation:none}`,
+    `.atm-menu-custom .atm-menu-label{order:1}`,
     `@media (prefers-reduced-motion:no-preference){.atm-ts-pop{animation:atm-ts-in .08s ease-out}}@keyframes atm-ts-in{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:none}}`,
   );
   return rules.join("\n");

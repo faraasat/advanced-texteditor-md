@@ -1,3 +1,38 @@
+<!-- site:skip -->
+<p align="center">
+  <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/.github/assets/banner.svg" alt="advanced-texteditor-md" width="100%" />
+</p>
+
+<p align="center">
+  A dependency-free WYSIWYG editor that <b>stores Markdown</b>: mentions, uploads, math, code highlighting, embeds, plugins and syntax of your own.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/advanced-texteditor-md"><img alt="npm version" src="https://img.shields.io/npm/v/advanced-texteditor-md?color=cb3837&label=npm&logo=npm"></a>
+  <a href="https://www.npmjs.com/package/advanced-texteditor-md"><img alt="downloads" src="https://img.shields.io/npm/dm/advanced-texteditor-md?color=cb3837&label=downloads"></a>
+  <a href="https://bundlephobia.com/package/advanced-texteditor-md"><img alt="bundle size" src="https://img.shields.io/bundlephobia/minzip/advanced-texteditor-md?label=minzipped"></a>
+  <a href="https://github.com/faraasat/advanced-texteditor-md/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/faraasat/advanced-texteditor-md/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="types" src="https://img.shields.io/badge/types-included-3178c6?logo=typescript&logoColor=white">
+  <img alt="zero dependencies" src="https://img.shields.io/badge/dependencies-0-brightgreen">
+  <a href="https://github.com/faraasat/advanced-texteditor-md/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/npm/l/advanced-texteditor-md?color=blue"></a>
+</p>
+
+<p align="center">
+  <a href="https://faraasat.github.io/advanced-texteditor-md/"><b>Live demo</b></a> ·
+  <a href="https://faraasat.github.io/advanced-texteditor-md/docs/">Docs</a> ·
+  <a href="https://www.npmjs.com/package/advanced-texteditor-md">npm</a> ·
+  <a href="https://github.com/faraasat/react-advanced-texteditor-md">React bindings</a> ·
+  <a href="https://github.com/faraasat/advanced-texteditor-md/blob/main/CHANGELOG.md">Changelog</a> ·
+  <a href="https://github.com/faraasat/advanced-texteditor-md/issues">Issues</a>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/hero.png" alt="The editor in the classic layout, with mentions, a callout, an image with a caption, and math" width="860" />
+</p>
+
+---
+<!-- /site:skip -->
+
 # advanced-texteditor-md
 
 A dependency-free WYSIWYG editor that **stores Markdown**. You see and edit rendered content; what you
@@ -12,8 +47,24 @@ a Write / Markdown / Split switch, and a plugin system.
 - Accessible: ARIA toolbar, combobox mention menu, focus handling, axe-checked in CI.
 
 ```bash
-npm i advanced-texteditor-md
+npm i advanced-texteditor-md      # or: pnpm add advanced-texteditor-md / yarn add advanced-texteditor-md / bun add advanced-texteditor-md
 ```
+
+Try it first in the **[live playground](https://faraasat.github.io/advanced-texteditor-md/)**. Using React? See
+[react-advanced-texteditor-md](https://github.com/faraasat/react-advanced-texteditor-md).
+
+<!-- site:skip -->
+## Screenshots
+
+| | |
+|---|---|
+| <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/theme-dark.png" alt="Dark theme" /><br><sub>Dark theme (five themes: light, dark, sepia, slate, contrast)</sub> | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/theme-sepia.png" alt="Sepia theme" /><br><sub>Sepia theme</sub> |
+| <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/layout-split.png" alt="Split layout with a live preview" /><br><sub>The split layout, Markdown beside the preview</sub> | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/layout-bottom-bar.png" alt="Bottom-bar layout for comments and chat" /><br><sub>The bottom-bar layout (comments, chat)</sub> |
+| <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/mentions-menu.png" alt="The mention menu, grouped by badge" /><br><sub>Mentions: grouped, badged, coloured</sub> | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/slash-menu.png" alt="The slash menu" /><br><sub>The slash menu</sub> |
+| <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/image-tools.png" alt="A selected image with its resize handles and toolbar" /><br><sub>Image tools: resize, align, caption, alt text</sub> | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/layout-bubble.png" alt="Bubble layout" /><br><sub>The bubble layout</sub> |
+| <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/dark-mode.png" alt="The demo site in dark mode" /><br><sub>The demo site, dark mode</sub> | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/mobile-editor.png" alt="The editor on a phone" width="260" /><br><sub>On a phone (390 px)</sub> |
+
+<!-- /site:skip -->
 
 ## Quick start
 
@@ -335,13 +386,13 @@ the keyboard.
 
 ## Size and lazy loading
 
-Gzip, after minification (`npm run size`; the enforced figure is the concatenated closure, "bundled"):
+Gzip, after minification, measured 2026-10-02 (`npm run size`; the enforced figure is the concatenated closure, "bundled"):
 
 | Entry | Eager | Budget |
 |---|---|---|
-| `index` (editor) | 61.5 kB | 62 kB (target 48 kB) |
-| `parser` | 11 kB | 14 kB |
-| `render` | 12 kB | 14 kB |
+| `index` (editor) | 62.0 kB | 62 kB (target 48 kB) |
+| `parser` | 12.1 kB | 14 kB |
+| `render` | 13.1 kB | 14 kB |
 | `math` | 5.0 kB | 5 kB |
 | each `highlight/<lang>` | under 2 kB | 2 kB |
 
@@ -349,7 +400,7 @@ Lazy chunks, downloaded on first use: `popovers` 5.1 kB (link, image, table and 
 `mentions` 5.5 kB, `uploads` 3.1 kB, `markdown-pane` 7.0 kB (Markdown and split modes), `math` 5.0 kB, `paste` 7.0 kB
 (HTML paste conversion), `rich-links` 8.0 kB (only when `linkPreview` or `embeds` is set), `image-tools` 5.1 kB (when an
 image is selected), `table-tools` 2.9 kB (when the caret enters a table), `block-handles` 5.1 kB (on the first pointer move or
-Alt+Shift+H), `zoom` 2.1 kB (the lightbox, when read-only), `bubble` 0.5 kB and `toolbar-menu` 0.9 kB. Each of the last six has a
+Alt+Shift+H), `zoom` 2.1 kB (the lightbox, when read-only), `bubble` 0.5 kB and `toolbar-menu` 1.2 kB. Each of the last six has a
 12 kB budget. `/lightbox` on its own is 3.4 kB.
 
 Your bundler needs `import()` support (ESM builds split into chunks; CJS builds also use `import()`). A failed download
@@ -401,27 +452,119 @@ picker pass `emoji: { open: (editor) => ... }`, or `emoji: false` to remove the 
 
 ## Browser support
 
-Current Chrome, Edge, Firefox and Safari (ES2020, `Selection`, `ResizeObserver`). The test suite runs jsdom unit tests and
-Playwright specs in Chromium (desktop and mobile emulation), Firefox and WebKit (`npx playwright install firefox webkit` once,
-then `npx playwright test --project=firefox` or `--project=webkit`). Every editing spec runs in all three engines; the engine
-differences the editor smooths over are listed in docs/DECISIONS.md ("Cross-engine editing"). Real iOS or Android devices are not run. On
-Android keyboards most keys arrive as composition, which is handled but only emulated in tests.
+| Engine | Tested how | Versions |
+|---|---|---|
+| Chromium (Chrome, Edge) | Playwright, desktop and a Pixel 7 mobile emulation, every spec | Playwright's bundled Chromium (current stable) |
+| Firefox | Playwright, every editing spec | Playwright's bundled Firefox (current stable) |
+| WebKit (Safari) | Playwright, every editing spec | Playwright's bundled WebKit (current stable) |
+| iOS Safari, Android Chrome | **Not run on real devices.** Mobile emulation only; on Android most keys arrive as composition, which is handled but emulated | not claimed |
+
+The code targets ES2020, `Selection` and `ResizeObserver`. jsdom unit tests run on Node 20, 22 and 24 in CI. Install the browsers once with
+`npx playwright install chromium firefox webkit`, then `npx playwright test --project=firefox` (or `webkit`). The engine differences the
+editor smooths over are listed in [docs/DECISIONS.md](docs/DECISIONS.md) ("Cross-engine editing"). Some specs are skipped on the mobile
+project, each with its reason (hardware-keyboard shortcuts, block handles that are hidden on touch by design, and so on).
 
 ## Demo
+
+The **[live site](https://faraasat.github.io/advanced-texteditor-md/)** has a playground with every layout and theme, twelve small live
+demos (mentions, uploads, math, highlighting, embeds, plugins, your own syntax, drafts, find and replace, images, block handles,
+collapsible sections), and the docs below rendered with this library's own `renderHtml`. It is a static, framework-free site built from
+`site/` with esbuild:
+
+```bash
+npm run build && npm run site:build && npm run site:serve    # http://127.0.0.1:4320/advanced-texteditor-md/
+```
+
+The older single-page demo used by the end-to-end tests is `example/index.html`:
 
 ```bash
 node scripts/build-example.mjs --serve
 ```
 
-Opens `example/index.html`: all layouts and themes, mentions, uploads, plugins, math and highlighting. Add `?rich=1` to turn on
-link previews and embeds with a fake resolver; `window.__previewMode = "slow" | "offline" | "xss" | "ok"` changes how it answers.
-More parameters are in [example/README.md](example/README.md).
+Add `?rich=1` to turn on link previews and embeds with a fake resolver; `window.__previewMode = "slow" | "offline" | "xss" | "ok"` changes
+how it answers. More parameters are in [example/README.md](example/README.md).
 
 ## Docs
 
 [Architecture](docs/ARCHITECTURE.md) · [Decisions](docs/DECISIONS.md) · [Custom syntax](docs/CUSTOM_SYNTAX.md) ·
-[Plugins](docs/PLUGINS.md) · [Theming](docs/THEMING.md) · [Changelog](CHANGELOG.md)
+[Plugins](docs/PLUGINS.md) · [Theming](docs/THEMING.md) · [Changelog](CHANGELOG.md) · [Rendered on the site](https://faraasat.github.io/advanced-texteditor-md/docs/)
+
+## How it compares
+
+Measured, not guessed. Method (2026-10-02): the smallest setup of each library that creates an editor holding a Markdown document, bundled with
+esbuild (`--bundle --minify`, ESM, code splitting on), then gzip -9 of the **initial** JavaScript (the entry plus the chunks it imports statically).
+Versions: Tiptap 3.31.4 (`@tiptap/core` + `starter-kit` + `@tiptap/markdown`), Lexical 0.52.0 (`lexical`, rich-text, history, list, link, code and
+`@lexical/markdown` with the default transformers), Milkdown 7.22.2 (`@milkdown/kit` core + commonmark + gfm), and this package's `createEditor`.
+Dependency counts are the transitive packages in the lockfile of that install.
+
+| | advanced-texteditor-md | Tiptap | Lexical | Milkdown |
+|---|---|---|---|---|
+| Initial JS, gzip | **62.4 kB** (106.6 kB with every lazy chunk, which load on first use) | 139.4 kB | 137.3 kB | 137.0 kB |
+| Transitive dependencies of that setup | **0** | 44 | 19 | 146 |
+| Markdown | the stored document, always | a separate package, `@tiptap/markdown` (built on `marked`) | a separate package, `@lexical/markdown` | built on remark and unified |
+| Toolbar, slash menu, mentions, uploads in that number | included (toolbar and slash menu eager, the rest lazy) | **not**: headless, you build them | **not**: headless | **not**: headless |
+
+Read it fairly: the others are **toolkits** and their numbers are for a bare editor with no toolbar or UI, while ours includes a toolbar, the
+slash menu and a stylesheet-driven chrome. A larger editor built from them also has capabilities this package does not (see below). We have
+not compared speed, memory, accessibility or editing quality, and make no claim about them.
+
+**Choose Tiptap, Lexical or Milkdown instead** when you need real-time collaboration, a rich-text document model beyond what Markdown can
+express, a large extension ecosystem, years of production use, or a framework other than the ones this package binds (this one ships React
+bindings, [react-advanced-texteditor-md](https://github.com/faraasat/react-advanced-texteditor-md), and plain DOM). **Choose this package** when
+Markdown must stay the stored form, you want zero dependencies and a small first download, and the built-in set (mentions, uploads, math,
+highlighting, embeds, plugins and custom syntax) is what you would otherwise assemble by hand.
+
+
+## Roadmap and known gaps
+
+Honest list, taken from [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/DECISIONS.md](docs/DECISIONS.md):
+
+- **Out of scope for 0.x:** collaborative editing, comments and suggestions, nested block drag-and-drop, HTML passthrough, a footnote editing UI
+  beyond text.
+- **No OS emoji panel:** a web page cannot open it; the button explains the shortcut, and `emoji.open` lets you plug your own picker.
+- **Real devices:** iOS and Android are emulated, not run. Report what you see.
+- **Link-preview and embed fetching** is yours: `resolve` must run on your server (SSRF protection is not something a browser library can do).
+- **Plugin toolbar items on a phone:** a custom item with its own `render` (the text-colour swatch) does nothing from the narrow toolbar's More
+  menu yet.
+- **Size:** the editor entry is about 62 kB gzip against a 48 kB target; the last 13 kB cannot be lazy without making typing asynchronous
+  (see "Size budget" in the decisions).
+- **Pre-1.0:** the API can still change between minor versions; see the changelog.
+
+Ideas and gaps you hit are welcome as [issues](https://github.com/faraasat/advanced-texteditor-md/issues).
+
+## Privacy
+
+The demo site uses privacy-respecting analytics: Aptabase (cookieless) and, only with your consent, Google Analytics. The npm package itself
+collects nothing: it makes no network request on its own, loads no script, and sends no telemetry. Details, and how to change your choice:
+[the site's Privacy page](https://faraasat.github.io/advanced-texteditor-md/privacy/) and [SECURITY.md](SECURITY.md).
+
+## Contributing
+
+Bug reports, reproductions and pull requests are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[Code of Conduct](CODE_OF_CONDUCT.md). Security problems go through a [private advisory](https://github.com/faraasat/advanced-texteditor-md/security/advisories/new),
+not a public issue ([SECURITY.md](SECURITY.md)).
+
+```bash
+git clone https://github.com/faraasat/advanced-texteditor-md.git && cd advanced-texteditor-md
+npm ci && npm run build
+npm run typecheck && npm test -- --run && npm run size && npm run check:package
+```
+
+## Maintainers
+
+Releases are deliberate; nothing publishes on a push to `main`.
+
+1. `npm run release` bumps the version, writes `CHANGELOG.md` and creates the tag (standard-version, from Conventional Commits).
+2. `git push --follow-tags`. The **Release** workflow runs on the `v*` tag: typecheck, tests, build, size budget, package check, then
+   `npm publish --provenance --access public`, and creates the GitHub Release.
+3. It needs one repository secret, **`NPM_TOKEN`**: an npm *Automation* token with publish rights (Settings, Secrets and variables, Actions).
+   Provenance needs no further setup: the workflow has `id-token: write`.
+
+**Actions, Release, "Run workflow"** with `dry-run` ticked builds and packs without publishing. The **Deploy site to GitHub Pages** workflow
+needs no secrets; Pages must use the "GitHub Actions" source.
 
 ## License
 
 MIT
+
+Made by [Farasat Ali](https://github.com/faraasat).

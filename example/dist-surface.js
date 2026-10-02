@@ -72,6 +72,26 @@ function mergeText(nodes) {
   }
   return out;
 }
+function normalizeInline(nodes, within = []) {
+  const key = (n) => isMark(n.type) || n.type === "code" ? n.type : n.type === "custom" && !n.data?._raw ? n.name + JSON.stringify(n.data) : "";
+  const joined = [];
+  const add = (n) => {
+    const l = joined[joined.length - 1];
+    if (within.includes(n.type)) n.children.forEach(add);
+    else if (l && key(n) && key(l) === key(n)) {
+      if (n.type === "code") l.value += n.value;
+      else l.children = [...l.children, ...n.children];
+    } else if (n.type !== "text" || n.value) joined.push({ ...n });
+  };
+  nodes.forEach(add);
+  return mergeText(
+    joined.flatMap((n) => {
+      if (!n.children) return [n];
+      const kids = normalizeInline(n.children, isMark(n.type) ? [...within, n.type] : []);
+      return !isMark(n.type) ? [{ ...n, children: kids }] : kids.every((k) => k.type === "text" && !k.value.trim()) ? kids : [{ ...n, children: kids }];
+    })
+  );
+}
 function inlineToText(nodes) {
   let s = "";
   for (const n of nodes) {
@@ -100,7 +120,7 @@ function inlineToText(nodes) {
   }
   return s;
 }
-var chipDefOf, DETAILS, escRe, isBlank, PUNCT_RE, ENT, ENT_RE, normLabel;
+var chipDefOf, DETAILS, escRe, isBlank, PUNCT_RE, ENT, ENT_RE, normLabel, isMark;
 var init_util = __esm({
   "src/parser/util.ts"() {
     "use strict";
@@ -148,6 +168,7 @@ var init_util = __esm({
     };
     ENT_RE = /&(#[xX][0-9a-fA-F]{1,6}|#\d{1,7}|[A-Za-z][A-Za-z0-9]{1,31});/y;
     normLabel = (s) => s.trim().replace(/\s+/g, " ").toLowerCase();
+    isMark = (t) => t === "emphasis" || t === "strong" || t === "strike";
   }
 });
 
@@ -250,7 +271,7 @@ function matchEmbed(url, providers) {
 function embedSpec(match, labels, prefix = "atm") {
   const p = match.provider;
   const fixed = !!p.height;
-  const wrap2 = {
+  const wrap = {
     class: `${prefix}-embed` + (fixed ? ` ${prefix}-embed--fixed` : ""),
     "data-embed": p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
     "data-atm-embed-url": match.source,
@@ -273,7 +294,7 @@ function embedSpec(match, labels, prefix = "atm") {
     target: "_blank",
     rel: "noopener noreferrer nofollow"
   };
-  return { wrap: wrap2, frame, open, openText: labels?.openOriginal ?? "Open original" };
+  return { wrap, frame, open, openText: labels?.openOriginal ?? "Open original" };
 }
 function findStandaloneUrl(block2) {
   if (block2.type !== "paragraph") return null;
@@ -315,34 +336,6 @@ var init_platform = __esm({
   "src/editor/platform.ts"() {
     "use strict";
     isApple = (nav) => detectPlatform(nav) === "mac";
-  }
-});
-
-// src/features/markdown-sniff.ts
-function looksLikeMarkdown(text2) {
-  if (typeof text2 !== "string") return false;
-  if (/^ {0,3}(```|~~~)[^\n]*\n[\s\S]*?\n {0,3}\1[ \t]*$/m.test(text2)) return true;
-  if (text2.split("\n").filter((l) => l.trim()).length < 2) return false;
-  const signals = [
-    /^ {0,3}#{1,6}[ \t]+\S/m,
-    /^ {0,3}[-*+][ \t]+\S/m,
-    /^ {0,3}\d{1,9}[.)][ \t]+\S/m,
-    /^ {0,3}>[ \t]?\S/m,
-    /^ {0,3}[-*+][ \t]+\[[ xX]\][ \t]/m,
-    /(^|[^!])\[[^\]\n]+\]\([^)\s]+\)/,
-    /!\[[^\]\n]*\]\([^)\s]+\)/,
-    /\*\*[^*\n]+\*\*|__[^_\n]+__/,
-    /~~[^~\n]+~~/,
-    /`[^`\n]+`/,
-    /^\|.*\|[ \t]*\n\|?[ \t]*:?-{3,}:?[ \t]*\|/m
-  ];
-  let n = 0;
-  for (const re of signals) if (re.test(text2) && ++n >= 2) return true;
-  return false;
-}
-var init_markdown_sniff = __esm({
-  "src/features/markdown-sniff.ts"() {
-    "use strict";
   }
 });
 
@@ -3422,6 +3415,34 @@ var init_math = __esm({
   }
 });
 
+// src/features/markdown-sniff.ts
+function looksLikeMarkdown(text2) {
+  if (typeof text2 !== "string") return false;
+  if (/^ {0,3}(```|~~~)[^\n]*\n[\s\S]*?\n {0,3}\1[ \t]*$/m.test(text2)) return true;
+  if (text2.split("\n").filter((l) => l.trim()).length < 2) return false;
+  const signals = [
+    /^ {0,3}#{1,6}[ \t]+\S/m,
+    /^ {0,3}[-*+][ \t]+\S/m,
+    /^ {0,3}\d{1,9}[.)][ \t]+\S/m,
+    /^ {0,3}>[ \t]?\S/m,
+    /^ {0,3}[-*+][ \t]+\[[ xX]\][ \t]/m,
+    /(^|[^!])\[[^\]\n]+\]\([^)\s]+\)/,
+    /!\[[^\]\n]*\]\([^)\s]+\)/,
+    /\*\*[^*\n]+\*\*|__[^_\n]+__/,
+    /~~[^~\n]+~~/,
+    /`[^`\n]+`/,
+    /^\|.*\|[ \t]*\n\|?[ \t]*:?-{3,}:?[ \t]*\|/m
+  ];
+  let n = 0;
+  for (const re of signals) if (re.test(text2) && ++n >= 2) return true;
+  return false;
+}
+var init_markdown_sniff = __esm({
+  "src/features/markdown-sniff.ts"() {
+    "use strict";
+  }
+});
+
 // src/features/paste.ts
 var paste_exports = {};
 __export(paste_exports, {
@@ -4604,12 +4625,12 @@ function createEmbedElement(match, doc, labels, prefix = "atm") {
     for (const k in attrs) e.setAttribute(k, attrs[k]);
     return e;
   };
-  const wrap2 = make2("div", spec.wrap);
-  wrap2.appendChild(make2("iframe", spec.frame));
+  const wrap = make2("div", spec.wrap);
+  wrap.appendChild(make2("iframe", spec.frame));
   const a = make2("a", spec.open);
   a.textContent = spec.openText;
-  wrap2.appendChild(a);
-  return wrap2;
+  wrap.appendChild(a);
+  return wrap;
 }
 var ID11, tail, BUILTIN_EMBEDS;
 var init_embeds = __esm({
@@ -4736,9 +4757,9 @@ function createRichLinks(init) {
     const text2 = found.textContent ?? "";
     return text2 === href || href === "http://" + text2 || href === "https://" + text2 ? found : null;
   }
-  function addToolbar(wrap2) {
-    if (wrap2.querySelector(`.${prefix}-embed__toolbar`)) return;
-    const url = wrap2.getAttribute("data-atm-embed-url") ?? "";
+  function addToolbar(wrap) {
+    if (wrap.querySelector(`.${prefix}-embed__toolbar`)) return;
+    const url = wrap.getAttribute("data-atm-embed-url") ?? "";
     const bar = doc.createElement("div");
     bar.className = `${prefix}-embed__toolbar`;
     bar.setAttribute("role", "toolbar");
@@ -4755,11 +4776,11 @@ function createRichLinks(init) {
     open.setAttribute("rel", "noopener noreferrer nofollow");
     open.textContent = labels.embedOpen;
     bar.append(convert2, open);
-    wrap2.appendChild(bar);
+    wrap.appendChild(bar);
   }
-  function toLink(wrap2) {
-    if (!editable || !editable.contains(wrap2)) return;
-    const url = wrap2.getAttribute("data-atm-embed-url") ?? "";
+  function toLink(wrap) {
+    if (!editable || !editable.contains(wrap)) return;
+    const url = wrap.getAttribute("data-atm-embed-url") ?? "";
     let host = url;
     try {
       host = new URL(url).hostname.replace(/^www\./, "");
@@ -4767,7 +4788,7 @@ function createRichLinks(init) {
     }
     const [p] = init.renderBlocks([{ type: "paragraph", children: [{ type: "link", href: url, children: [{ type: "text", value: host }] }] }]);
     if (!p) return;
-    wrap2.replaceWith(p);
+    wrap.replaceWith(p);
     const r = doc.createRange();
     r.selectNodeContents(p);
     r.collapse(false);
@@ -4827,8 +4848,8 @@ function createRichLinks(init) {
     const b = e.target?.closest?.("[data-atm-embed-action='convert']");
     if (!b) return;
     e.preventDefault();
-    const wrap2 = b.closest(`.${prefix}-embed`);
-    if (wrap2) toLink(wrap2);
+    const wrap = b.closest(`.${prefix}-embed`);
+    if (wrap) toLink(wrap);
   };
   return {
     attachSurface(el2) {
@@ -6008,7 +6029,18 @@ function openToolbarMenu(o) {
     "aria-label": anchor.getAttribute("aria-label") ?? void 0
   });
   const els = [];
+  const hosted = [];
   for (const r of rows) {
+    const live = r.host?.firstElementChild;
+    if (r.host && live) {
+      hosted.push([live, r.host]);
+      const slot = h("div", { document: doc, role: "group", "aria-label": r.label, class: `${p}-menu-custom` }, live, h("span", { document: doc, class: `${p}-menu-label`, "aria-hidden": "true" }, r.label));
+      slot.addEventListener("click", (e) => e.target.closest("button") && !slot.querySelector(OPEN2) && close(false));
+      slot.addEventListener("change", () => close(false));
+      els.push((live.matches(FOCUSABLE2) ? live : live.querySelector(FOCUSABLE2)) ?? slot);
+      menu.appendChild(slot);
+      continue;
+    }
     const sc = r.shortcut ? formatShortcut(r.shortcut, platform) : "";
     const active = !isMore && ctx.isActive(r.command);
     const b = h(
@@ -6028,7 +6060,7 @@ function openToolbarMenu(o) {
     b.addEventListener("mousedown", (e) => e.preventDefault());
     b.addEventListener("click", () => {
       close(false);
-      if (r.item) ctx.run(r.item, anchor, r.command);
+      if (r.item) ctx.run(r.item, anchor, r.command || void 0);
     });
     els.push(b);
     menu.appendChild(b);
@@ -6039,7 +6071,10 @@ function openToolbarMenu(o) {
   if (win) placeNear(menu, ar, win, { gap: 4 });
   const onKey = (e) => {
     const i = els.indexOf(doc.activeElement);
+    const t = e.target;
+    const owned = hosted.some(([live]) => live.contains(t)) && !(els.includes(t) && t.tagName === "BUTTON" && t.getAttribute("aria-expanded") !== "true");
     let n = -1;
+    if (owned && e.key !== "Escape" && e.key !== "Tab") return;
     if (e.key === "ArrowDown") n = (i + 1) % els.length;
     else if (e.key === "ArrowUp") n = (i - 1 + els.length) % els.length;
     else if (e.key === "Home") n = 0;
@@ -6070,6 +6105,10 @@ function openToolbarMenu(o) {
     o.onClose();
     doc.removeEventListener("mousedown", onDown, true);
     menu.removeEventListener("keydown", onKey);
+    for (const [live, host] of hosted) {
+      (live.matches(OPEN2) ? live : live.querySelector(OPEN2))?.click();
+      host.appendChild(live);
+    }
     menu.remove();
     anchor.setAttribute("aria-expanded", "false");
     if (restoreFocus) anchor.focus();
@@ -6077,10 +6116,13 @@ function openToolbarMenu(o) {
   (els.find((b) => b.getAttribute("aria-checked") === "true") ?? els[0]).focus();
   return { close };
 }
+var OPEN2, FOCUSABLE2;
 var init_toolbar_menu = __esm({
   "src/editor/toolbar-menu.ts"() {
     "use strict";
     init_dom();
+    OPEN2 = '[aria-expanded="true"]';
+    FOCUSABLE2 = "button,select,input,textarea,a[href],[tabindex]";
   }
 });
 
@@ -6838,6 +6880,7 @@ init_chip();
 var IMG_SUFFIX = /(?:\\?\|(?:[1-9]\d{0,3}|left|center|right))+$/;
 var WS = /^\s$/;
 var PU = /^[\p{P}\p{S}]$/u;
+var isWord = (c) => !WS.test(c) && !PU.test(c);
 var AUTO = /<([A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>]*)>/y;
 var MAIL = /<([A-Za-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*)>/y;
 var FNREF = /\[\^([^\s\]\[]+)\]/y;
@@ -7418,10 +7461,6 @@ function esc(v, x, e) {
   }
   return s;
 }
-var wrap = (d, inner) => {
-  const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(inner);
-  return m[2] ? m[1] + d + m[2] + d + m[3] : m[1] + m[3];
-};
 function dest(h2) {
   const esc22 = h2.replace(/[\\$]/g, "\\$&").replace(/&(?=(?:#[xX][0-9a-fA-F]+|#\d+|[A-Za-z][A-Za-z0-9]*);)/g, "\\&");
   if (!h2 || /[\s\x00-\x1f\x7f]/.test(h2) || h2[0] === "<") return "<" + esc22.replace(/[<>]/g, "\\$&").replace(/\n/g, "%0A") + ">";
@@ -7458,12 +7497,27 @@ function codeSpan(v, e) {
   const pad = /^`|`$/.test(v) || /^ .* $/.test(v) && /[^ ]/.test(v) ? " " : "";
   return f + pad + v + pad + f;
 }
-function inl(nodes, x, e, pt = "", pch = "") {
-  if (e.d === void 0) e = { ...e, d: count$(nodes) >= 2 };
+var charRef = (c) => "&#" + c.codePointAt(0) + ";";
+function headCh(ns, deep) {
+  const n = ns[0];
+  return !n ? " " : n.type === "text" ? after(n.value, 0) : deep && isMark(n.type) ? headCh(n.children, deep) : " ";
+}
+function runStart(s, d) {
+  let i = s.length;
+  while (i > 0 && s[i - 1] === d) i--;
+  return i;
+}
+function inl(nodes, x, e, pch = "") {
+  if (e.d === void 0) e = { ...e, d: count$(nodes = normalizeInline(nodes)) >= 2 };
   let out = "";
   let prevCh = "";
+  let enc2 = "";
   nodes.forEach((nd, k) => {
     let ch = "";
+    const at = out.length;
+    const wasEnc = enc2;
+    enc2 = "";
+    if ((nd.type === "link" || nd.type === "chip") && out.endsWith("!")) out = out.slice(0, -1) + "\\!";
     switch (nd.type) {
       case "text":
         out += esc(nd.value, x, e);
@@ -7471,15 +7525,41 @@ function inl(nodes, x, e, pt = "", pch = "") {
       case "emphasis":
       case "strong":
       case "strike": {
-        let d = "~~";
-        if (nd.type !== "strike") {
-          const bad = /* @__PURE__ */ new Set();
-          if (prevCh) bad.add(prevCh);
-          if (pt === nd.type && (k === 0 || k === nodes.length - 1) && pch) bad.add(pch);
-          ch = bad.has("*") && !bad.has("_") ? "_" : "*";
-          d = nd.type === "strong" ? ch + ch : ch;
+        const strike = nd.type === "strike";
+        const rest = nodes.slice(k + 1);
+        const real = nodes.filter((n) => n.type !== "text" || n.value.trim());
+        const atEdge = real.length > 1 && (nd === real[0] || nd === real[real.length - 1]);
+        const bad = (c) => prevCh === c || atEdge && pch === c;
+        let dc = "~";
+        if (!strike) dc = bad("*") && !bad("_") && (atEdge && pch === "*" || nd.children.some((c) => isMark(c.type)) || !isWord(before(out, out.length)) && !isWord(headCh(rest))) ? "_" : "*";
+        ch = dc;
+        const d = strike ? "~~" : nd.type === "strong" ? dc + dc : dc;
+        const raw = inl(nd.children, x, e, dc);
+        const inner = raw.trim();
+        const lead = raw.indexOf(inner);
+        const trail = raw.slice(lead + inner.length);
+        out += raw.slice(0, lead);
+        if (!inner) {
+          out += trail;
+          break;
         }
-        out += wrap(d, inl(nd.children, x, e, nd.type, ch));
+        const i = runStart(out, dc);
+        const b = before(out, i);
+        let h2 = 0;
+        while (inner[h2] === dc) h2++;
+        if (isWord(b) && (dc === "_" || !isWord(after(inner, h2)))) {
+          const head = out.slice(0, i - b.length).replace(/([\p{L}\p{N}])_$/u, "$1\\_");
+          out = head + charRef(b) + out.slice(i);
+          for (let r = head.length, w; head[r - 1] === dc; ) {
+            while (head[r - 1] === dc) r--;
+            w = before(out, r);
+            if (!isWord(w)) break;
+            out = out.slice(0, r - w.length) + charRef(w) + out.slice(r);
+            r -= w.length;
+          }
+        }
+        if (!trail && isWord(headCh(rest, dc !== "_")) && (dc === "_" || !isWord(before(inner, runStart(inner, dc))))) enc2 = dc;
+        out += d + inner + d + trail;
         break;
       }
       case "code":
@@ -7508,16 +7588,10 @@ function inl(nodes, x, e, pt = "", pch = "") {
         break;
       }
       case "link": {
-        const only = nd.children.length === 1 && nd.children[0].type === "text" ? nd.children[0].value : null;
-        if (only !== null && !nd.title && only === nd.href && /^[a-z][a-z0-9+.-]{1,31}:[^\s<>]*$/i.test(only)) {
-          const nx = nodes[k + 1];
-          const bare = /^https?:/i.test(only) && bareEnd(only, 0) === only.length && BARE_BEFORE.test(out) && (!nx || nx.type === "text" && BARE_AFTER.test(nx.value));
-          out += bare ? only : `<${only}>`;
-        } else if (only !== null && !nd.title && /^www\./i.test(only) && nd.href === "http://" + only && bareEnd(only, 0) === only.length && BARE_BEFORE.test(out) && (!nodes[k + 1] || nodes[k + 1].type === "text" && BARE_AFTER.test(nodes[k + 1].value))) {
-          out += only;
-        } else {
-          out += `[${inl(nd.children, x, e)}](${dest(nd.href)}${title(nd.title)})`;
-        }
+        const only = nd.children.length === 1 && nd.children[0].type === "text" && !nd.title ? nd.children[0].value : null;
+        const nx = nodes[k + 1];
+        const bare = only !== null && bareEnd(only, 0) === only.length && BARE_BEFORE.test(out) && (!nx || nx.type === "text" && BARE_AFTER.test(nx.value));
+        out += only !== null && only === nd.href && /^[a-z][a-z0-9+.-]{1,31}:[^\s<>]*$/i.test(only) ? bare && /^https?:/i.test(only) ? only : `<${only}>` : only !== null && bare && /^www\./i.test(only) && nd.href === "http://" + only ? only : `[${inl(nd.children, x, e)}](${dest(nd.href)}${title(nd.title)})`;
         break;
       }
       case "custom": {
@@ -7538,6 +7612,16 @@ function inl(nodes, x, e, pt = "", pch = "") {
         } else if (nd.data?._raw !== void 0) out += nd.data._raw;
         else out += inl(nd.children, x, e);
         break;
+      }
+    }
+    if (wasEnc) {
+      let j = at;
+      while (out[j] === wasEnc) j++;
+      const c = after(out, j);
+      if (isWord(c)) {
+        const tail2 = out.slice(j + c.length);
+        out = out.slice(0, j) + charRef(c) + tail2.replace(/^_(?=[\p{L}\p{N}])/u, "\\_");
+        if (/^[*_~]+$/.test(out.slice(j + charRef(c).length))) enc2 = wasEnc;
       }
     }
     prevCh = ch;
@@ -8918,12 +9002,7 @@ function inlineOf(nodes, x) {
     out.push(...kids);
   };
   for (let i = 0; i < nodes.length; i++) visit(nodes[i]);
-  return tidy(out);
-}
-function tidy(ns) {
-  const kept = ns.filter((n) => !("children" in n) || n.type === "link" || n.type === "custom" || n.children.length);
-  const merged = mergeText(kept);
-  return merged.map((n) => n.type === "text" ? { type: "text", value: normText(n.value) } : n);
+  return normalizeInline(out.map((n) => n.type === "text" ? { type: "text", value: normText(n.value) } : n));
 }
 function isEmptyInline(ns) {
   return ns.every((n) => n.type === "text" ? !n.value.trim() : n.type === "break");
@@ -9491,7 +9570,7 @@ function sameShell(a, b) {
   for (const at of Array.from(a.attributes)) if (b.getAttribute(at.name) !== at.value) return false;
   return true;
 }
-function normalizeInline(el2) {
+function normalizeInline2(el2) {
   removeEmptyInline(el2);
   for (let c = el2.firstChild; c; ) {
     const next = c.nextSibling;
@@ -9500,7 +9579,7 @@ function normalizeInline(el2) {
       next.remove();
       continue;
     }
-    if (isEl(c) && !isAtom(c) && !isSkip(c)) normalizeInline(c);
+    if (isEl(c) && !isAtom(c) && !isSkip(c)) normalizeInline2(c);
     c = next;
   }
   el2.normalize();
@@ -10441,7 +10520,7 @@ function applyMark(ctx, seg, spec, add) {
     const nodes = isolate(seg.leaf, seg);
     for (const n of nodes) unwrapDeep(n, spec.test);
   }
-  normalizeInline(seg.leaf);
+  normalizeInline2(seg.leaf);
   tidyLeaf(seg.leaf);
 }
 function markActive(ctx, spec) {
@@ -10499,7 +10578,7 @@ function clearFormat(ctx) {
   const sel = ctx.save();
   for (const seg of segments(ctx, r).reverse()) {
     for (const n of isolate(seg.leaf, seg)) unwrapDeep(n, test);
-    normalizeInline(seg.leaf);
+    normalizeInline2(seg.leaf);
   }
   ctx.restore(sel);
   return true;
@@ -10572,7 +10651,7 @@ function unlink2(ctx) {
   for (const el2 of found) {
     const leaf = leafOf(ctx.root, el2);
     unwrap(el2);
-    if (leaf) normalizeInline(leaf);
+    if (leaf) normalizeInline2(leaf);
   }
   ctx.restore(sel);
   return true;
@@ -11307,9 +11386,6 @@ function enterRule(ctx) {
   return false;
 }
 
-// src/editor/surface/clipboard.ts
-init_markdown_sniff();
-
 // src/editor/lazy-chunks.ts
 function lazy(load) {
   let mod = null;
@@ -11357,15 +11433,20 @@ var chunks = {
 };
 
 // src/editor/surface/clipboard.ts
-function htmlToMd(ctx, html, done) {
-  const convert2 = (m) => done(m.htmlToMarkdown(html, { links: ctx.opts.render.links }, ctx.doc));
+function withPaste(ctx, use, fail2) {
   const cached = chunks.paste.get();
-  if (cached) return convert2(cached);
+  if (cached) return use(cached);
   const at = ctx.save();
   chunks.paste.load().then(
-    (m) => (ctx.restore(at), convert2(m)),
-    () => (ctx.restore(at), done(null))
+    (m) => (ctx.restore(at), use(m)),
+    () => (ctx.restore(at), fail2())
   );
+}
+var htmlToMd = (ctx, html, done) => withPaste(ctx, (m) => done(m.htmlToMarkdown(html, { links: ctx.opts.render.links }, ctx.doc)), () => done(null));
+function plainOrMd(ctx, text2, done) {
+  const put = (md) => (md ? insertMarkdown(ctx, text2) : insertPlain(ctx, text2), done());
+  if (/\n/.test(text2.trim())) withPaste(ctx, (m) => put(m.looksLikeMarkdown(text2)), put);
+  else put();
 }
 var URL_ONLY = /^\s*((?:https?:\/\/|mailto:)[^\s<>]+)\s*$/i;
 function filesOf(dt) {
@@ -11480,10 +11561,7 @@ function onPaste(ctx, ev) {
       ctx.commit("paste");
     });
     return;
-  } else if (text2) {
-    if (looksLikeMarkdown(text2)) insertMarkdown(ctx, text2);
-    else insertPlain(ctx, text2);
-  }
+  } else if (text2) return plainOrMd(ctx, text2, () => ctx.commit("paste"));
   ctx.commit("paste");
 }
 function selectionDoc(ctx, r) {
@@ -11585,8 +11663,7 @@ function onDrop(ctx, ev, drag) {
       ctx.commit("drop");
     });
     return;
-  } else if (looksLikeMarkdown(text2)) insertMarkdown(ctx, text2);
-  else insertPlain(ctx, text2);
+  } else return plainOrMd(ctx, text2, () => ctx.commit("drop"));
   ctx.commit("drop");
 }
 

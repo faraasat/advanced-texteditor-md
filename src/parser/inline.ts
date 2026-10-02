@@ -17,16 +17,19 @@ export const IMG_SUFFIX = /(?:\\?\|(?:[1-9]\d{0,3}|left|center|right))+$/;
 
 const WS = /^\s$/;
 const PU = /^[\p{P}\p{S}]$/u;
+/** Neither whitespace nor punctuation: a letter, digit or the like. */
+export const isWord = (c: string) => !WS.test(c) && !PU.test(c);
 const AUTO = /<([A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>]*)>/y;
 const MAIL = /<([A-Za-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*)>/y;
 const FNREF = /\[\^([^\s\]\[]+)\]/y;
 
-const before = (s: string, i: number) => {
+/** The character before / at index `i` (a space past either end): what decides whether a delimiter run opens or closes. */
+export const before = (s: string, i: number) => {
   if (i <= 0) return " ";
   const c = s.charCodeAt(i - 1);
   return c >= 0xdc00 && c <= 0xdfff && i > 1 ? s.slice(i - 2, i) : s[i - 1];
 };
-const after = (s: string, i: number) => (i >= s.length ? " " : String.fromCodePoint(s.codePointAt(i)!));
+export const after = (s: string, i: number) => (i >= s.length ? " " : String.fromCodePoint(s.codePointAt(i)!));
 
 /** Replace nested links by their text (links may not contain links). */
 function unlink(nodes: InlineNode[]): InlineNode[] {

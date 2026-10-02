@@ -11,6 +11,7 @@
     "drag and drop",
     "editor",
     "embeds",
+    "framework agnostic",
     "gfm",
     "github flavored markdown",
     "image resize",
@@ -20,22 +21,26 @@
     "link preview",
     "markdown",
     "markdown editor",
+    "markdown wysiwyg editor",
     "markdown-wysiwyg",
     "mathml",
     "mention",
     "mentions",
     "plugin",
     "rich text",
+    "rich text editor",
     "ssr",
     "tailwind",
     "text editor",
     "themeable",
     "typescript",
+    "vanilla js",
+    "web editor",
     "wysiwyg",
     "wysiwyg-markdown",
     "zero dependencies"
   ],
-  "homepage": "https://github.com/faraasat/advanced-texteditor-md",
+  "homepage": "https://faraasat.github.io/advanced-texteditor-md",
   "bugs": {
     "url": "https://github.com/faraasat/advanced-texteditor-md/issues"
   },
@@ -45,6 +50,10 @@
   },
   "license": "MIT",
   "author": "Farasat Ali <63093876+faraasat@users.noreply.github.com>",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/faraasat"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -210,7 +219,11 @@
     "test:e2e": "playwright test",
     "release": "standard-version",
     "prepublishOnly": "npm run typecheck && vitest run && npm run build && npm run size && npm run check:package",
-    "check:package": "node scripts/check-package.mjs"
+    "check:package": "node scripts/check-package.mjs",
+    "site:build": "node scripts/build-site.mjs",
+    "site:serve": "node scripts/serve-site.mjs",
+    "site:screenshots": "node scripts/site-screenshots.mjs",
+    "test:site": "playwright test -c playwright.site.config.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
