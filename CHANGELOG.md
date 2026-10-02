@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2026-10-03
 
 ### Added
 - **Source pane** (`advanced-texteditor-md/source`): `createSourcePanePlugin` turns the Markdown pane into a small source editor: syntax tint, line numbers that follow wrapped lines, soft-wrap toggle, current-line band, bracket and emphasis pairing, Tab / Shift+Tab indent, Alt+ArrowUp / Alt+ArrowDown move lines, Mod-D duplicate, and the find plugin's matches drawn over the tint. The stored Markdown is untouched. 11.6 kB gzip, lazy. Code folding is not offered.
