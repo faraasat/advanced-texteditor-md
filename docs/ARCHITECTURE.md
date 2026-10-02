@@ -84,7 +84,7 @@ Lazy chunks (`src/editor/lazy-chunks.ts`, loaded with `import()` on first use): 
 uploads, markdown-pane, math, paste, rich-links, image-tools, table-tools, block-handles, zoom, bubble, toolbar-menu, and the
 chrome v2 chunks: palette, context-menu, settings, status-extra, ribbon, sidebar, focus, tabs, mobile. `chunks.<name>.use(fn)` runs
 `fn` now when the chunk is loaded and once it arrives otherwise (never, when it cannot load). `preloadChunks()` loads them all. The editor entry loads none of
-them statically (`scripts/size.mjs` checks it). See DECISIONS.md, "Size budget and lazy chunks".
+them statically (`scripts/size.mjs` checks it). See DECISIONS.md, "Size budget and lazy chunks". Anything appended to `document.body` (menus, popovers, tooltips, dialogs) must call `mirrorTheme(editorElement, el)` from `features/theme-mirror` so it carries the editor theme, density and `dir`.
 `./parser`, `./render`, `./math` and `./highlight` import NO DOM globals at module
 load and are server-safe. The editor reads `document` only when `createEditor` runs.
 
@@ -117,7 +117,7 @@ load and are server-safe. The editor reads `document` only when `createEditor` r
 5. Accessibility is part of "done": roles, names, keyboard operation, focus
    handling, `prefers-reduced-motion`.
 6. Size budgets (gzip, measured by `npm run size`): parse+render ≤ 14 kB,
-   math ≤ 5 kB, editor entry ≤ 62 kB (target 48), each lazy chunk ≤ 15 kB, each
+   math ≤ 5 kB, editor entry ≤ 63 kB (target 48; about 0.03 kB of headroom on 2026-10-03), each lazy chunk ≤ 15 kB, each
    highlight language ≤ 2 kB.
 7. Document decisions in `docs/DECISIONS.md` (append; date them).
 8. Only edit files in your own module directory unless this file says otherwise.
