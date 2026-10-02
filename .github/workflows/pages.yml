@@ -46,7 +46,7 @@ jobs:
         # Pages is enabled once with the source set to "GitHub Actions" (build_type: workflow); this step only reads it.
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site/out
 
