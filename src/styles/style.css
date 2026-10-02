@@ -329,6 +329,48 @@
   border-radius: var(--atm-r, 8px);
   box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
 }
+/* The library's own tooltip for an icon-only control: `data-atm-tip` carries the text (the
+   accessible name stays `aria-label`). Shown on hover and keyboard focus, never as a native title. */
+[data-atm-tip] {
+  position: relative;
+}
+[data-atm-tip]::after {
+  content: attr(data-atm-tip);
+  position: absolute;
+  inset-block-start: calc(100% + 6px);
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  z-index: 60;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--atm-tip-bg, #1f2328);
+  color: var(--atm-tip-fg, #fff);
+  font: 500 0.75rem/1.3 var(--atm-font-family, ui-sans-serif, system-ui, sans-serif);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+[dir="rtl"] [data-atm-tip]::after {
+  translate: 50% 0;
+}
+[data-atm-tip]:hover::after,
+[data-atm-tip]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  [data-atm-tip]:hover::after {
+    transition: opacity 0.12s ease 0.4s, visibility 0s linear 0.4s;
+  }
+}
+@media (forced-colors: active) {
+  [data-atm-tip]::after {
+    background: Canvas;
+    color: CanvasText;
+    border: 1px solid CanvasText;
+  }
+}
 .atm-tool-pop {
   width: min(20rem, calc(100vw - 16px));
 }
@@ -388,6 +430,9 @@
   color: var(--atm-muted, #59636e);
   cursor: grab;
   touch-action: none;
+}
+.atm-block-handle:active {
+  cursor: grabbing;
 }
 .atm-block-handle:hover,
 .atm-block-handle[aria-expanded="true"] {

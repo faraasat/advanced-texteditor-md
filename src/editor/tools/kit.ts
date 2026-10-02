@@ -66,7 +66,7 @@ export type FloatingBar = {
 export function floatingBar(doc: Document, cls: string, label: string, buttons: BarButton[], onEscape: () => void): FloatingBar {
   const el = h("div", { document: doc, role: "toolbar", "aria-label": label, "aria-orientation": "horizontal", class: cls, hidden: true });
   const btns = buttons.map((b) => {
-    const e = h("button", { document: doc, type: "button", class: "atm-btn atm-tool-btn", "data-tool": b.id, "aria-label": b.label, title: b.label, tabindex: "-1" });
+    const e = h("button", { document: doc, type: "button", class: "atm-btn atm-tool-btn", "data-tool": b.id, "aria-label": b.label, "data-atm-tip": b.label, tabindex: "-1" });
     e.appendChild(svgIcon(doc, PATHS[b.icon] ?? []));
     e.addEventListener("click", () => {
       if (e.getAttribute("aria-disabled") === "true") return;

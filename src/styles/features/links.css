@@ -385,3 +385,90 @@
     text-decoration: underline wavy;
   }
 }
+
+/* ── link affordances (createLinkAffordances) ──
+ * A plain click in the editor places the caret, so links show the text cursor; with Ctrl or Cmd
+ * held (the class is set by the plugin) a click opens the link, and the cursor says so. */
+.atm-surface.atm-mod-down a[href],
+.atm-surface.atm-mod-down a[href] * {
+  cursor: pointer;
+}
+.atm-link-hint {
+  z-index: 1000;
+  max-width: min(26rem, calc(100vw - 16px));
+  padding: 6px 10px;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-r, 6px);
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  box-shadow: var(--atm-shadow, 0 4px 14px rgb(31 35 40 / 0.14));
+  font: 0.8125rem/1.35 var(--atm-font-family, ui-sans-serif, system-ui, sans-serif);
+  pointer-events: none;
+}
+.atm-link-hint-url {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.atm-link-hint-key {
+  color: var(--atm-muted, #59636e);
+}
+
+/* ── heading anchors (createHeadingAnchors) ── */
+.atm-h-has-anchor {
+  position: relative;
+}
+.atm-h-anchor {
+  margin-inline-start: 0.35em;
+  padding-inline: 0.2em;
+  border-radius: 4px;
+  color: var(--atm-muted, #59636e);
+  font-weight: 400;
+  text-decoration: none;
+  cursor: pointer;
+  opacity: 0;
+}
+.atm-h-has-anchor:hover > .atm-h-anchor,
+.atm-h-anchor:focus-visible,
+.atm-h-anchor[data-state] {
+  opacity: 1;
+}
+.atm-h-anchor:hover {
+  color: var(--atm-accent, #2563eb);
+  background: color-mix(in srgb, var(--atm-accent, #2563eb) 12%, transparent);
+}
+.atm-h-anchor:focus-visible {
+  outline: 2px solid var(--atm-ring, var(--atm-accent, #2563eb));
+  outline-offset: 1px;
+}
+.atm-h-anchor[data-state="copied"] {
+  color: var(--atm-success, #1a7f37);
+}
+.atm-h-anchor[data-state="failed"] {
+  color: var(--atm-danger, #cf222e);
+}
+.atm-h-anchor-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (hover: none) {
+  .atm-h-anchor {
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .atm-h-anchor {
+    transition: opacity 0.12s ease;
+  }
+}
+@media (forced-colors: active) {
+  .atm-h-anchor:focus-visible {
+    outline-color: Highlight;
+  }
+  .atm-h-anchor:hover {
+    color: LinkText;
+  }
+}

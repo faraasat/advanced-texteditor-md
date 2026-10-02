@@ -90,6 +90,11 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+/* While editing, a click on a link places the caret (Ctrl/Cmd+click opens it, see createLinkAffordances);
+   some engines would show their link pointer or the arrow, so it is stated. */
+.atm-surface[contenteditable="true"] a {
+  cursor: text;
+}
 
 /* Lists */
 .atm-surface ul,
@@ -374,6 +379,11 @@
   }
 }
 
+/* The editable area shows the text cursor; links, chips and handles inside set their own. */
+.atm-surface[contenteditable="true"] {
+  cursor: text;
+}
+
 /* Chips and mentions: a tinted pill (palette slot via --atm-chip-color). */
 .atm-surface .atm-chip {
   --atm-c: var(--atm-chip-color, var(--atm-s-accent));
@@ -469,6 +479,7 @@
 }
 .atm-surface .atm-footnote-ref a {
   text-decoration: none;
+  cursor: pointer;
 }
 .atm-surface .atm-footnotes {
   margin-top: 1.5em;
