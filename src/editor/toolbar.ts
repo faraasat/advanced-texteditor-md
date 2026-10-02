@@ -525,7 +525,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     const gap = px(win?.getComputedStyle(bar).columnGap);
     const room = (el: HTMLElement) => {
       const st = win?.getComputedStyle(el);
-      return el.getBoundingClientRect().width + gap + px(st?.marginLeft) + px(st?.marginRight);
+      return el.offsetWidth + gap + px(st?.marginLeft) + px(st?.marginRight);
     };
     const widths = entries.map((e) => room(e.el));
     moreBtn.hidden = false;
@@ -549,7 +549,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     // Verify against the real layout (fractional widths, late fonts): while the row still overflows
     // its box, send the last visible item to More as well.
     for (let i = entries.length; bar.scrollWidth > bar.clientWidth + 1 && i--; ) {
-      if (!entries[i].overflowed && entries[i].kind === "item") entries[i].el.hidden = entries[i].overflowed = true;
+      entries[i].el.hidden = entries[i].overflowed = true;
     }
     // Drop separators that now touch each other or the edges of the visible run.
     const vis = entries.filter((e) => !e.overflowed);
