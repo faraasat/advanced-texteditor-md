@@ -213,117 +213,93 @@ function textBefore(block: Node, node: Node, offset: number): string {
 }
 
 type Revert = { node: Text; offset: number; text: string; original: string };
+type State = { last: Revert | null; busy: boolean };
 
 /** Smart quotes, dashes, ellipsis, symbols and arrows as you type. See the file header. */
 export function createSmartTypographyPlugin(options: SmartTypographyOptions = {}): Plugin {
   const rules = resolveTypography(options);
+  // One plugin object can serve several editors: what the last replacement was is kept per editor.
+  const states = new WeakMap<EditorInstance, State>();
+  const stateOf = (ed: EditorInstance): State => {
+    let s = states.get(ed);
+    if (!s) states.set(ed, (s = { last: null, busy: false }));
+    return s;
+  };
+  const surfaceOf = (ed: EditorInstance) => (ed.getMode() === "wysiwyg" ? ed.element.querySelector<HTMLElement>(".atm-surface") : null);
+  const caretOf = (ed: EditorInstance, surface: HTMLElement): { node: Text; offset: number } | null => {
+    const sel = ed.element.ownerDocument.getSelection();
+    if (!sel || !sel.rangeCount || !sel.isCollapsed) return null;
+    const n = sel.anchorNode;
+    if (!n || n.nodeType !== 3 || !surface.contains(n)) return null;
+    return { node: n as Text, offset: sel.anchorOffset };
+  };
+  const select = (ed: EditorInstance, node: Text, from: number, to: number) => {
+    const doc = ed.element.ownerDocument;
+    const r = doc.createRange();
+    r.setStart(node, from);
+    r.setEnd(node, to);
+    const sel = doc.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(r);
+  };
+
   return definePlugin({
     name: "smart-typography",
-    setup(ed: EditorInstance) {
-      const doc = ed.element.ownerDocument;
-      let surface: HTMLElement | null = null;
-      let last: Revert | null = null;
-      let busy = false;
-
-      const caret = (): { node: Text; offset: number } | null => {
-        const sel = doc.getSelection();
-        if (!sel || !sel.rangeCount || !sel.isCollapsed) return null;
-        const n = sel.anchorNode;
-        if (!n || n.nodeType !== 3 || !surface || !surface.contains(n)) return null;
-        return { node: n as Text, offset: sel.anchorOffset };
-      };
-      const select = (node: Text, from: number, to: number) => {
-        const r = doc.createRange();
-        r.setStart(node, from);
-        r.setEnd(node, to);
-        const sel = doc.getSelection()!;
-        sel.removeAllRanges();
-        sel.addRange(r);
-      };
-
-      // The surface inserts some characters itself (the first one in an empty block, a replaced
-      // selection) and cancels `beforeinput`, so no `input` event follows. Those arrive here.
-      const onBeforeInput = (e: Event) => {
-        if (e.defaultPrevented) onInput(e);
-      };
-      const onInput = (e: Event) => {
-        if (busy) return;
-        const ie = e as InputEvent;
-        last = null;
-        if (ie.isComposing || ie.inputType !== "insertText" || !ie.data || ie.data.length !== 1) return;
-        const c = caret();
-        if (!c || !surface) return;
-        const parent = c.node.parentElement;
-        if (!parent || parent.closest(BLOCKED)) return;
-        const block = blockOf(c.node, surface);
-        if (!block) return;
-        const before = textBefore(block, c.node, c.offset);
-        if (!before.endsWith(ie.data)) return;
-        const rule = typographyRule(before, rules);
-        if (!rule) return;
-        const tail = before.slice(rule.to);
-        const start = c.offset - (before.length - rule.from);
-        // The whole replaced run has to live in this text node.
-        if (start < 0 || c.node.data.slice(start, c.offset) !== before.slice(rule.from)) return;
-        const out = rule.text + tail;
-        busy = true;
-        try {
-          select(c.node, start, c.offset);
-          ed.insertText(out);
-        } finally {
-          busy = false;
-        }
-        const after = caret();
-        if (rule.revertible && after && after.node.data.slice(after.offset - out.length, after.offset) === out) {
-          last = { node: after.node, offset: after.offset, text: out, original: rule.original };
-        }
-      };
-
-      const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key !== "Backspace" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || !last) {
-          if (e.key !== "Shift" && e.key !== "Control" && e.key !== "Meta" && e.key !== "Alt") last = null;
-          return;
-        }
-        const c = caret();
-        const l = last;
-        last = null;
-        if (!c || c.node !== l.node || c.offset !== l.offset) return;
-        if (c.node.data.slice(c.offset - l.text.length, c.offset) !== l.text) return;
-        e.preventDefault();
-        e.stopPropagation();
-        busy = true;
-        try {
-          select(c.node, c.offset - l.text.length, c.offset);
-          ed.insertText(l.original);
-        } finally {
-          busy = false;
-        }
-      };
-
-      const attach = () => {
-        const s = ed.element.querySelector<HTMLElement>(".atm-surface");
-        if (s === surface) return;
-        detach();
-        surface = s;
-        if (!s) return;
-        s.addEventListener("input", onInput);
-        s.addEventListener("beforeinput", onBeforeInput);
-        s.addEventListener("keydown", onKeyDown, true);
-      };
-      const detach = () => {
-        if (!surface) return;
-        surface.removeEventListener("input", onInput);
-        surface.removeEventListener("beforeinput", onBeforeInput);
-        surface.removeEventListener("keydown", onKeyDown, true);
-        surface = null;
-        last = null;
-      };
-      attach();
-      const off = ed.on("mode", attach);
-      return () => {
-        off();
-        detach();
-      };
+    // Runs after every content change the surface makes, including the characters it inserts itself.
+    afterInput(ed, info) {
+      const st = stateOf(ed);
+      if (st.busy) return;
+      st.last = null;
+      const surface = surfaceOf(ed);
+      if (!surface || !info || info.inputType !== "insertText" || !info.data || info.data.length !== 1) return;
+      const c = caretOf(ed, surface);
+      if (!c) return;
+      const parent = c.node.parentElement;
+      if (!parent || parent.closest(BLOCKED)) return;
+      const block = blockOf(c.node, surface);
+      if (!block) return;
+      const before = textBefore(block, c.node, c.offset);
+      if (!before.endsWith(info.data)) return;
+      const rule = typographyRule(before, rules);
+      if (!rule) return;
+      const tail = before.slice(rule.to);
+      const start = c.offset - (before.length - rule.from);
+      // The whole replaced run has to live in this text node.
+      if (start < 0 || c.node.data.slice(start, c.offset) !== before.slice(rule.from)) return;
+      const out = rule.text + tail;
+      st.busy = true;
+      try {
+        select(ed, c.node, start, c.offset);
+        ed.insertText(out);
+      } finally {
+        st.busy = false;
+      }
+      const after = caretOf(ed, surface);
+      if (rule.revertible && after && after.node.data.slice(after.offset - out.length, after.offset) === out) {
+        st.last = { node: after.node, offset: after.offset, text: out, original: rule.original };
+      }
+    },
+    // Backspace straight after a replacement puts back what was typed (one undo step).
+    keydown(e, ed) {
+      const st = stateOf(ed);
+      if (e.key !== "Backspace" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || !st.last) {
+        if (e.key !== "Shift" && e.key !== "Control" && e.key !== "Meta" && e.key !== "Alt") st.last = null;
+        return false;
+      }
+      const surface = surfaceOf(ed);
+      const l = st.last;
+      st.last = null;
+      const c = surface && caretOf(ed, surface);
+      if (!c || c.node !== l.node || c.offset !== l.offset) return false;
+      if (c.node.data.slice(c.offset - l.text.length, c.offset) !== l.text) return false;
+      st.busy = true;
+      try {
+        select(ed, c.node, c.offset - l.text.length, c.offset);
+        ed.insertText(l.original);
+      } finally {
+        st.busy = false;
+      }
+      return true;
     },
   });
 }

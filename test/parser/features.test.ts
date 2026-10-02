@@ -99,6 +99,18 @@ describe("custom inline syntax", () => {
     expect(rt("{b@a}", o3)).toBe("{b@a}");
     expect(seen.every((d) => d && !("_raw" in (d as object)))).toBe(true);
   });
+  it("serialize receives the children as Markdown when nested, and the literal text when nested: false", () => {
+    const seen: string[] = [];
+    const nested: ParseOptions = { syntax: { inline: [{ name: "n", pattern: /<<(.+?)>>/y, serialize: (i) => (seen.push(i), `<<${i}>>`) }] } };
+    expect(rt("<<a **b** `c` [d](https://x.io)>>", nested)).toBe("<<a **b** `c` [d](https://x.io)>>");
+    expect(seen.at(-1)).toBe("a **b** `c` [d](https://x.io)");
+    const lit: ParseOptions = { syntax: { inline: [{ name: "l", pattern: /<<(.+?)>>/y, nested: false, serialize: (i) => (seen.push(i), `<<${i}>>`) }] } };
+    expect(rt("<<a **b** *c*>>", lit)).toBe("<<a **b** *c*>>");
+    expect(seen.at(-1)).toBe("a **b** *c*");
+    // literal text is never escaped, so the output is a fixed point however many passes run
+    const md = rt("<<1*2\\3>>", lit);
+    expect(rt(md, lit)).toBe(md);
+  });
   it("a throwing serialize falls back to the matched source", () => {
     const oo: ParseOptions = { syntax: { inline: [{ name: "kbd", pattern: /\[\[(.+?)\]\]/y, serialize: () => { throw new Error("x"); } }] } };
     expect(rt("[[A]]", oo)).toBe("[[A]]");

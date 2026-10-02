@@ -18,3 +18,23 @@ What the page shows: all six layouts, five themes plus `auto`, the Write / Markd
 rest carry Team A / Team B badges and colours), an in-memory uploader with progress and editable
 allow / deny lists, two library plugins and one plugin written in `main.js`, math, highlighting in four
 languages, a live Markdown panel, a read-only switch and a "set value" box.
+
+## `plugins.html`
+
+The ready-made feature plugins (`advanced-texteditor-md/plugins`) in one editor, importing the built `../dist/plugins.js`:
+find and replace, drafts, a table of contents block, text colour and highlight, smart typography and `:shortcodes:`.
+It also shows the Markdown that is stored, live, under the editor. URL parameters (all optional):
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `p` | `find,drafts,toc,style,typo,codes` | Comma-separated plugins to install: `find`, `drafts`, `toc`, `style`, `typo`, `codes`. |
+| `value` | a short demo text | The starting Markdown. |
+| `mode` | `wysiwyg` | Starting mode: `wysiwyg`, `markdown` or `split`. |
+| `restore` | `ask` | Drafts `restorePrompt`: `ask`, `auto` or `never`. |
+| `key` | `atm-demo-draft` | Drafts storage key (use a different one per tab you want to keep apart). |
+| `debounce` | `200` | Drafts autosave delay in milliseconds. |
+| `underline` | off | `1` registers `++text++` underline in the text-style plugin. |
+| `hl` | on | `0` forces the overlay boxes instead of `CSS.highlights` for find matches. |
+| `locale` | `en` | Smart typography quotes: `en`, `de` or `fr`. |
+
+`fractions=1` and `mult=1` turn on the two optional typography rules. The page exposes the editor as `window.__editor`.

@@ -284,9 +284,14 @@ export const FIND_REPLACE_CSS = `.atm-find{display:flex;flex-direction:column;ga
 .atm-find-overlay{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}
 .atm-find-mark{position:absolute;border-radius:2px;background:rgba(250,204,21,.45);mix-blend-mode:multiply}
 .atm-find-mark.atm-find-current{background:rgba(249,115,22,.55);outline:2px solid rgba(234,88,12,.9)}
-::highlight(atm-find){background-color:rgba(250,204,21,.5);color:inherit}
-::highlight(atm-find-current){background-color:rgba(249,115,22,.65);color:inherit}
 @media (prefers-color-scheme:dark){.atm-find-mark{mix-blend-mode:screen;background:rgba(250,204,21,.3)}}`;
+
+/** The `::highlight()` rules for one editor's two registry names (see `highlightNames`). */
+export function highlightCss(names: { all: string; current: string }): string {
+  return `::highlight(${names.all}){background-color:rgba(250,204,21,.5);color:inherit}\n::highlight(${names.current}){background-color:rgba(249,115,22,.65);color:inherit}`;
+}
+
+let editorSeq = 0;
 
 const ICON =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>';
@@ -340,7 +345,11 @@ export function createFindReplacePlugin(options: FindReplaceOptions = {}): Plugi
       const surface = () => el.querySelector<HTMLElement>(".atm-surface");
       const textarea = () => el.querySelector<HTMLTextAreaElement>("textarea");
       const wysiwyg = () => ed.getMode() === "wysiwyg" && !!surface();
-      const readOnly = () => el.classList.contains("atm-readonly");
+      const readOnly = () => ed.isReadOnly();
+      // Each editor registers its own highlight names, so two editors on a page never clobber each other.
+      const hlId = `${++editorSeq}`;
+      const hlNames = { all: `atm-find-${hlId}`, current: `atm-find-${hlId}-current` };
+      let hlStyle: HTMLStyleElement | null = null;
 
       /* ── the document side ── */
 
@@ -353,25 +362,18 @@ export function createFindReplacePlugin(options: FindReplaceOptions = {}): Plugi
         return r;
       };
 
-      // The Markdown pane is loaded on demand: right after a switch to Markdown mode its textarea
-      // may not exist yet. Look again shortly instead of reporting "no results".
-      let paneTimer: ReturnType<typeof setTimeout> | null = null;
-      let paneTries = 0;
-
       const compute = (reset: boolean) => {
         const query = qIn ? qIn.value : lastQuery;
         lastQuery = query;
         hits = [];
         error = null;
         truncated = false;
-        if (paneTimer) clearTimeout(paneTimer);
-        paneTimer = null;
-        if (!wysiwyg() && !textarea() && isOpen && paneTries++ < 200) {
-          paneTimer = setTimeout(() => !destroyed && compute(reset), 25);
+        // The Markdown pane is loaded on demand: right after a switch to Markdown mode its textarea
+        // may not exist yet. The editor's `pane` event calls compute again when it arrives.
+        if (!wysiwyg() && !textarea() && isOpen) {
           renderCounter();
           return;
         }
-        paneTries = 0;
         const c = compileQuery(query, opts);
         if (!c.ok) {
           if (c.error !== "empty") error = c.error;
@@ -429,8 +431,8 @@ export function createFindReplacePlugin(options: FindReplaceOptions = {}): Plugi
       const clearPaint = () => {
         const api = useApi();
         if (api) {
-          api.highlights.delete("atm-find");
-          api.highlights.delete("atm-find-current");
+          api.highlights.delete(hlNames.all);
+          api.highlights.delete(hlNames.current);
         }
         overlay?.replaceChildren();
       };
@@ -442,9 +444,15 @@ export function createFindReplacePlugin(options: FindReplaceOptions = {}): Plugi
           const others: Range[] = [];
           let current: Range | null = null;
           hits.forEach((h, i) => (i === index ? (current = rangeOf(h)) : others.push(rangeOf(h))));
-          if (others.length) api.highlights.set("atm-find", new api.H(...others));
-          else api.highlights.delete("atm-find");
-          if (current) api.highlights.set("atm-find-current", new api.H(current));
+          if (others.length) api.highlights.set(hlNames.all, new api.H(...others));
+          else api.highlights.delete(hlNames.all);
+          if (current) api.highlights.set(hlNames.current, new api.H(current));
+          if (!hlStyle) {
+            hlStyle = doc.createElement("style");
+            hlStyle.setAttribute("data-atm-find-highlight", hlId);
+            hlStyle.textContent = highlightCss(hlNames);
+            (doc.head ?? doc.documentElement).appendChild(hlStyle);
+          }
           return;
         }
         paintOverlay();
@@ -613,42 +621,31 @@ export function createFindReplacePlugin(options: FindReplaceOptions = {}): Plugi
         if (!hits.length || error) return 0;
         const n = hits.length;
         const texts = hits.map((h) => expandReplacement(rIn.value, { text: matchText(h), groups: h.groups }, opts.regex));
-        if (wysiwyg() && !texts.some((t) => t.includes("\n"))) {
-          const surf = surface()!;
-          // Park a collapsed caret first: the empty insertText below ends any typing group (and must delete nothing).
-          const s = doc.getSelection();
-          const first = pointIn(hits[0].run!, hits[0].start, false);
-          if (s) {
-            const r = doc.createRange();
-            r.setStart(first.node, first.offset);
-            r.collapse(true);
-            s.removeAllRanges();
-            s.addRange(r);
+        // One undo step and one change event, whichever way the text is replaced.
+        ed.transact(() => {
+          if (wysiwyg() && !texts.some((t) => t.includes("\n"))) {
+            // Straight into the text nodes: a call per match would re-serialise the document N times.
+            const surf = surface()!;
+            for (let i = hits.length - 1; i >= 0; i--) mutate(hits[i], texts[i]);
+            surf.dispatchEvent(new (win.InputEvent ?? win.Event)("input", { inputType: "insertReplacementText", bubbles: true } as InputEventInit));
+          } else if (wysiwyg()) {
+            // Later matches first: earlier ranges stay valid, no need to find them again.
+            for (let i = hits.length - 1; i >= 0; i--) if (selectHit(hits[i])) ed.insertText(texts[i]);
+          } else {
+            const ta = textarea();
+            if (!ta) return;
+            const from = hits[0].start;
+            const to = hits[n - 1].end;
+            let out = "";
+            let pos = from;
+            hits.forEach((h, i) => {
+              out += ta.value.slice(pos, h.start) + texts[i];
+              pos = h.end;
+            });
+            ta.setSelectionRange(from, to);
+            ed.insertText(out);
           }
-          ed.insertText("");
-          for (let i = hits.length - 1; i >= 0; i--) mutate(hits[i], texts[i]);
-          surf.dispatchEvent(new (win.InputEvent ?? win.Event)("input", { inputType: "insertReplacementText", bubbles: true } as InputEventInit));
-          // Flush the edit into history, then end the group so typing afterwards is a step of its own.
-          ed.insertText("");
-        } else if (wysiwyg()) {
-          for (let i = hits.length - 1; i >= 0; i--) {
-            // Later matches first: earlier ranges stay valid. Re-find after each edit is unnecessary then.
-            if (selectHit(hits[i])) ed.insertText(texts[i]);
-          }
-        } else {
-          const ta = textarea();
-          if (!ta) return 0;
-          const from = hits[0].start;
-          const to = hits[n - 1].end;
-          let out = "";
-          let pos = from;
-          hits.forEach((h, i) => {
-            out += ta.value.slice(pos, h.start) + texts[i];
-            pos = h.end;
-          });
-          ta.setSelectionRange(from, to);
-          ed.insertText(out);
-        }
+        });
         compute(false);
         flash = labels.replaced(n);
         renderCounter();
@@ -847,6 +844,10 @@ export function createFindReplacePlugin(options: FindReplaceOptions = {}): Plugi
       const offMode = ed.on("mode", () => {
         if (isOpen) compute(true);
       });
+      // The Markdown pane arrives a moment after a switch to it: search again once it is there.
+      const offPane = ed.on("pane", () => {
+        if (isOpen) compute(true);
+      });
       // Escape anywhere in the editor (not just in the bar) closes the bar, unless a menu took the key.
       const onEscape = (e: KeyboardEvent) => {
         if (e.key === "Escape" && isOpen && !e.defaultPrevented && bar && !bar.contains(e.target as Node)) close_();
@@ -874,14 +875,15 @@ export function createFindReplacePlugin(options: FindReplaceOptions = {}): Plugi
         destroyed = true;
         if (timer) clearTimeout(timer);
         if (raf) clearTimeout(raf);
-        if (paneTimer) clearTimeout(paneTimer);
         offChange();
         offMode();
+        offPane();
         offs.forEach((o) => o());
         el.removeEventListener("keydown", onEscape);
         el.removeEventListener("scroll", onScroll, true);
         win.removeEventListener("resize", onScroll);
         clearPaint();
+        hlStyle?.remove();
         overlay?.remove();
         bar?.remove();
       };

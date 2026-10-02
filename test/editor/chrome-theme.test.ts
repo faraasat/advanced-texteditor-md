@@ -189,6 +189,12 @@ describe("build script", () => {
     expect(built.split(".atm-surface{").length).toBe(2); // once
     expect(existsSync(resolve(dir, "dist/tailwind.css"))).toBe(true);
     expect(out).toContain("dist/style.css");
+    // plugins.css is copied as it is (no @import, not part of style.css) when the source exists
+    expect(existsSync(resolve(dir, "dist/plugins.css"))).toBe(false); // this temp tree has none: skipped, with a warning
+    writeFileSync(resolve(dir, "src/styles/plugins.css"), ".atm-find{color:red}\n");
+    execFileSync("node", [resolve(__dirname, "../../scripts/copy-css.mjs")], { cwd: dir, encoding: "utf8" });
+    expect(rf(resolve(dir, "dist/plugins.css"), "utf8")).toBe(".atm-find{color:red}\n");
+    expect(rf(resolve(dir, "dist/style.css"), "utf8")).not.toContain(".atm-find{");
   });
   it("a missing sheet is skipped with a warning, not a failure", async () => {
     const { spawnSync } = await import("node:child_process");

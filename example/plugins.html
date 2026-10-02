@@ -27,7 +27,7 @@
       <p class="lead">
         Find and replace (<kbd>Ctrl/⌘ F</kbd>), drafts, a table of contents block, text colour and highlight, smart typography
         and <code>:shortcodes:</code>. Choose plugins with <code>?p=find,drafts,toc,style,typo,codes</code>; other URL
-        parameters: <code>value</code>, <code>hl=0</code> (overlay highlights), <code>mode</code>, <code>restore</code>, <code>key</code>, <code>debounce</code>, <code>underline</code>.
+        parameters: <code>value</code>, <code>hl=0</code> (overlay highlights), <code>mode</code>, <code>restore</code>, <code>key</code>, <code>debounce</code>, <code>underline=1</code>, <code>locale</code>.
       </p>
       <div id="editor-host" data-testid="editor-host"></div>
       <section class="card" aria-labelledby="md-h">
@@ -38,18 +38,7 @@
 
     <script type="module">
       import * as lib from "../dist/index.js";
-
-      // The plugins come from the built library once src/plugins/index.ts exports them; until then
-      // e2e/plugins.spec.ts bundles src/plugins/*.ts into dist/plugins-e2e.js with esbuild.
-      let P = lib;
-      if (typeof lib.createFindReplacePlugin !== "function") {
-        try {
-          P = await import("../dist/plugins-e2e.js");
-        } catch (e) {
-          document.getElementById("output-md").textContent = "plugins are not built: " + e.message;
-          throw e;
-        }
-      }
+      import * as P from "../dist/plugins.js";
 
       const q = new URLSearchParams(location.search);
       const want = new Set((q.get("p") ?? "find,drafts,toc,style,typo,codes").split(",").filter(Boolean));

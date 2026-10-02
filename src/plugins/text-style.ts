@@ -19,10 +19,15 @@ import type { EditorInstance, InlineSyntax, Plugin, ToolbarItem } from "../types
  * DOM assumptions: WYSIWYG mode is the `.atm-surface` element inside
  * `editor.element`; Markdown mode is the `textarea` inside it.
  *
- * Limitation: the span body is literal text (`nested: false`). The plugin hook
- * that writes a pattern syntax back (`InlineSyntax.serialize`) only receives
- * plain text, so allowing `**bold**` inside would silently drop it on the first
- * edit. Colouring a selection therefore applies to its plain text.
+ * The span body is Markdown (`nested: true`): `**bold**` inside a coloured span and a colour
+ * inside bold both survive, because `InlineSyntax.serialize` receives the children written as
+ * Markdown. Colouring a selection goes through `editor.getSelectionMarkdown()` and
+ * `replaceSelectionMarkdown()`, so the inline formatting of the selection is kept.
+ *
+ * Limitation: a link, image or chip cannot sit INSIDE a coloured span (the span's brackets and the
+ * link's would clash). Selected links and chips are left uncoloured and the text around them is
+ * coloured; if one ends up inside a span anyway, the span's colour is dropped on save rather
+ * than corrupting the link.
  */
 
 export type TextStyleLabels = {
@@ -203,14 +208,63 @@ function applyInMarkdown(ed: EditorInstance, names: Names, kind: "c" | "bg" | "a
     return true;
   }
   if (s === e) return false;
-  const next = mergeStyleSpec(null, kind, name);
-  if (!next) return false;
   const sel = value.slice(s, e);
-  ed.insertText(sel.split("\n").map((l) => (l.trim() ? wrapStyle(l, next) : l)).join("\n"));
+  const next = restyleMarkdown(sel, names, kind, name);
+  if (next === sel) return false;
+  ed.insertText(next);
   return true;
 }
 
-function applyInSurface(ed: EditorInstance, kind: "c" | "bg" | "all", name: string | null): boolean {
+const LINE_PREFIX = /^(?:\s*>[> ]*)?(?:\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?)?(?:#{1,6}\s+)?/;
+// A link, an image or a chip: brackets the style span cannot wrap around.
+const LINKISH = String.raw`!?\[(?:\\.|[^\]\\])*\]\((?:\\.|[^)\\])*\)`;
+
+/**
+ * Apply a style change to a piece of Markdown (the selection). Existing spans have their classes
+ * merged (colour kept when only the background changes, and so on); unstyled text is wrapped;
+ * links, images and chips are left alone; block markers (`#`, `-`, `1.`, `>`), table rows and
+ * code fences are never wrapped. Exported for tests.
+ */
+export function restyleMarkdown(md: string, names: Names, kind: "c" | "bg" | "all", name: string | null): string {
+  const spanRe = buildPattern(names);
+  const combined = new RegExp(spanRe ? `(?:${spanRe.source})|(?:${LINKISH})` : LINKISH, "g");
+  const fresh = mergeStyleSpec(null, kind, name);
+  let fenced = false;
+  const wrapPlain = (seg: string): string => {
+    if (!fresh || !seg.trim()) return seg;
+    const lead = /^\s*/.exec(seg)![0];
+    const trail = /\s*$/.exec(seg)![0];
+    return lead + wrapStyle(seg.slice(lead.length, seg.length - trail.length), fresh) + trail;
+  };
+  return md
+    .split("\n")
+    .map((line) => {
+      if (/^\s*(```|~~~)/.test(line)) {
+        fenced = !fenced;
+        return line;
+      }
+      if (fenced || /^\s*\|/.test(line)) return line;
+      const prefix = LINE_PREFIX.exec(line)![0];
+      const rest = line.slice(prefix.length);
+      let out = "";
+      let at = 0;
+      combined.lastIndex = 0;
+      for (let m = combined.exec(rest); m; m = combined.exec(rest)) {
+        out += wrapPlain(rest.slice(at, m.index));
+        const ts = m.groups?.ts;
+        if (spanRe && ts !== undefined) {
+          const merged = mergeStyleSpec(ts, kind, name);
+          out += merged ? wrapStyle(m[1], merged) : m[1];
+        } else out += m[0];
+        at = m.index + m[0].length;
+        if (m[0] === "") combined.lastIndex++;
+      }
+      return prefix + out + wrapPlain(rest.slice(at));
+    })
+    .join("\n");
+}
+
+function applyInSurface(ed: EditorInstance, names: Names, kind: "c" | "bg" | "all", name: string | null): boolean {
   const surface = surfaceOf(ed);
   const doc = ed.element.ownerDocument;
   const sel = doc.getSelection();
@@ -220,21 +274,17 @@ function applyInSurface(ed: EditorInstance, kind: "c" | "bg" | "all", name: stri
   const base = r.commonAncestorContainer.nodeType === 1 ? (r.commonAncestorContainer as Element) : r.commonAncestorContainer.parentElement;
   const span = base?.closest<HTMLElement>(".atm-ts[data-ts]") ?? null;
   if (span && surface.contains(span)) {
-    const next = mergeStyleSpec(span.getAttribute("data-ts"), kind, name);
-    const text = span.textContent ?? "";
+    // The caret (or selection) is inside a styled span: the whole span changes.
     const whole = doc.createRange();
     whole.selectNode(span);
     sel.removeAllRanges();
     sel.addRange(whole);
-    if (next) ed.insertMarkdown(wrapStyle(text, next));
-    else ed.insertText(text);
-    return true;
-  }
-  const text = ed.getSelectionText();
-  if (!text) return false;
-  const next = mergeStyleSpec(null, kind, name);
-  if (!next) return false;
-  ed.insertMarkdown(text.split("\n").map((l) => (l.trim() ? wrapStyle(l, next) : l)).join("\n"));
+  } else if (!ed.getSelectionText()) return false;
+  const md = ed.getSelectionMarkdown();
+  if (!md) return false;
+  const next = restyleMarkdown(md, names, kind, name);
+  if (next === md) return false;
+  ed.replaceSelectionMarkdown(next);
   return true;
 }
 
@@ -338,8 +388,9 @@ export function createTextStylePlugin(options: TextStyleOptions = {}): Plugin {
       pattern,
       tag: "span",
       className: "atm-ts",
-      nested: false,
-      serialize: (inner, data) => wrapStyle(inner, data?.ts ?? ""),
+      nested: true,
+      // A bare bracket in the body cannot be written inside `[...]{...}`: keep the content, drop the colour.
+      serialize: (inner, data) => (/(?<!\\)[[\]]/.test(inner) || !data?.ts ? inner : wrapStyle(inner, data.ts)),
     });
   }
   if (options.underline) {
@@ -366,7 +417,7 @@ export function createTextStylePlugin(options: TextStyleOptions = {}): Plugin {
         const name = a.name ? String(a.name) : null;
         if (!a.kind || !allowed(a.kind, name)) return false;
         const kind = a.kind as "c" | "bg" | "all";
-        return ed.getMode() === "wysiwyg" ? applyInSurface(ed, kind, name) : applyInMarkdown(ed, names, kind, name);
+        return ed.getMode() === "wysiwyg" ? applyInSurface(ed, names, kind, name) : applyInMarkdown(ed, names, kind, name);
       },
     },
     keymap: options.underline ? { "Mod-u": "syntax:underline" } : undefined,

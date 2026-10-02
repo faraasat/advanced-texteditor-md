@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { parse, stringify, renderHtml } from "../../src/index";
-import { createTextStylePlugin, DEFAULT_STYLE_NAMES, mergeStyleSpec, textStyleCss, styleSpecOf, wrapStyle } from "../../src/plugins/text-style";
-import { mount, selectText, textareaReady, tick, type Mounted } from "./helpers";
+import { createTextStylePlugin, DEFAULT_STYLE_NAMES, mergeStyleSpec, restyleMarkdown, textStyleCss, styleSpecOf, wrapStyle } from "../../src/plugins/text-style";
+import { mount, selectText, setSel, textareaReady, tick, typeInto, type Mounted } from "./helpers";
 
 let m: Mounted | null = null;
 afterEach(() => {
@@ -185,5 +185,84 @@ describe("in the editor", () => {
     expect(names).toContain("Text colour: red");
     expect(names).toContain("Highlight: yellow");
     expect(pop.textContent).toContain("Clear");
+  });
+});
+
+describe("nested content (serialize receives Markdown)", () => {
+  const p = createTextStylePlugin();
+  const o = { syntax: p.syntax };
+  const rt2 = (md: string) => stringify(parse(md, o), o);
+  it("bold inside a colour survives parse -> stringify and the DOM round trip", () => {
+    expect(rt2("[**bold** and *it*]{.c-red}")).toBe("[**bold** and *it*]{.c-red}");
+    const html = renderHtml(parse("[**bold**]{.c-red}", o), o);
+    expect(html).toMatch(/<strong[^>]*>bold<\/strong>/);
+    expect(html).toContain('data-ts=".c-red"');
+  });
+  it("a colour inside bold survives", () => {
+    expect(rt2("**a [b]{.c-red} c**")).toBe("**a [b]{.c-red} c**");
+    expect(rt2("*[x]{.bg-yellow}*")).toBe("*[x]{.bg-yellow}*");
+  });
+  it("inline code and escapes inside a span are kept", () => {
+    expect(rt2("[`x` and 1\\*2]{.c-blue}")).toBe("[`x` and 1\\*2]{.c-blue}");
+  });
+  it("is stable: a second pass changes nothing", () => {
+    for (const md of ["[**a**]{.c-red}", "**[a]{.c-red}**", "[a *b* ~~c~~]{.c-red .bg-yellow}", "- [**x**]{.bg-green}"]) {
+      const once = rt2(md);
+      expect(rt2(once)).toBe(once);
+    }
+  });
+  it("a bold edit inside a span in the surface is written back, nothing is lost", async () => {
+    m = mount({ plugins: [p], value: "a [one two]{.c-red} b" });
+    selectText(m.surface, "two");
+    m.ed.exec("bold");
+    await tick();
+    expect(m.ed.getValue()).toBe("a [one **two**]{.c-red} b");
+    // an unrelated edit elsewhere re-serialises the document: the nested bold is still there
+    await typeInto(m.surface, "");
+    m.ed.setValue(m.ed.getValue());
+    expect(m.surface.querySelector(".atm-ts strong")!.textContent).toBe("two");
+  });
+  it("colouring a selection that holds bold keeps the bold", async () => {
+    m = mount({ plugins: [p], value: "x **bold** and plain y" });
+    const w = m.surface.querySelector("p")!;
+    setSel(w.firstChild!, 2, w.lastChild!, (w.lastChild as Text).data.length - 2);
+    expect(m.ed.exec("textStyle", { kind: "c", name: "red" })).toBe(true);
+    await tick();
+    expect(m.ed.getValue()).toBe("x [**bold** and plain]{.c-red} y");
+    expect(m.surface.querySelector(".atm-ts strong")!.textContent).toBe("bold");
+  });
+  it("colouring bold text that is already inside a bold run", async () => {
+    m = mount({ plugins: [p], value: "**one two three**" });
+    selectText(m.surface, "two");
+    m.ed.exec("textStyle", { kind: "c", name: "blue" });
+    await tick();
+    // The selection's own context (bold) travels with it, so the span repeats the bold; harmless and stable.
+    expect(m.ed.getValue()).toBe("**one [**two**]{.c-blue} three**");
+    expect(m.surface.querySelector("strong .atm-ts")!.textContent).toBe("two");
+    m.ed.setValue(m.ed.getValue());
+    expect(m.ed.getValue()).toBe("**one [**two**]{.c-blue} three**");
+  });
+  it("a selection with a link colours the text around it and leaves the link intact", async () => {
+    m = mount({ plugins: [p], value: "go [there](https://a.io) now" });
+    const w = m.surface.querySelector("p")!;
+    setSel(w.firstChild!, 0, w.lastChild!, (w.lastChild as Text).data.length);
+    expect(m.ed.exec("textStyle", { kind: "c", name: "green" })).toBe(true);
+    await tick();
+    expect(m.ed.getValue()).toBe("[go]{.c-green} [there](https://a.io) [now]{.c-green}");
+  });
+  it("a span that ends up holding a link drops its colour instead of corrupting the link", () => {
+    const ser = p.syntax!.inline![0].serialize!;
+    expect(ser("[a](https://x.io)", { ts: ".c-red" })).toBe("[a](https://x.io)");
+    expect(ser("ok", { ts: ".c-red" })).toBe("[ok]{.c-red}");
+  });
+  it("restyleMarkdown wraps only text, merges existing spans, skips block markers, tables and fences", () => {
+    const names = { c: ["red", "blue"], bg: ["yellow"] } as const;
+    expect(restyleMarkdown("- item\n# Head", names, "c", "red")).toBe("- [item]{.c-red}\n# [Head]{.c-red}");
+    expect(restyleMarkdown("1. [x] done", names, "c", "red")).toBe("1. [x] [done]{.c-red}");
+    expect(restyleMarkdown("a [b]{.c-blue} c", names, "bg", "yellow")).toBe("[a]{.bg-yellow} [b]{.c-blue .bg-yellow} [c]{.bg-yellow}");
+    expect(restyleMarkdown("a [b]{.c-blue .bg-yellow} c", names, "all", null)).toBe("a b c");
+    expect(restyleMarkdown("| a | b |\n```\ncode\n```", names, "c", "red")).toBe("| a | b |\n```\ncode\n```");
+    expect(restyleMarkdown("a\n\nb", names, "c", "red")).toBe("[a]{.c-red}\n\n[b]{.c-red}");
+    expect(restyleMarkdown("  lead and trail  ", names, "c", "red")).toBe("  [lead and trail]{.c-red}  ");
   });
 });

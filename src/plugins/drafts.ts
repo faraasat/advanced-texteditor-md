@@ -21,8 +21,10 @@ import type { EditorInstance, Plugin } from "../types";
  *    `subscribe`) raises a banner offering to sync. Text is never replaced
  *    without an answer.
  *  - The status ("saved" | "saving" | "unsaved") is shown in the status bar,
- *    passed to `onStatus`, and dispatched as a bubbling `CustomEvent` named
- *    `atm-draft-status` (detail `{ status, savedAt? }`) on `editor.element`.
+ *    passed to `onStatus`, emitted as the editor event `plugin:drafts:status`
+ *    (`editor.on("plugin:drafts:status", ({ status, savedAt }) => ...)`), and
+ *    still dispatched as a bubbling `CustomEvent` named `atm-draft-status`
+ *    (detail `{ status, savedAt? }`) on `editor.element`.
  *
  * DOM assumptions: the banner is inserted as the first child of
  * `editor.element`; the status item goes into its `.atm-statusbar`, if it has one.
@@ -43,6 +45,8 @@ export type DraftSaveResult = "saved" | "too-large" | "quota" | "error";
 
 /** The name of the DOM event dispatched on `editor.element` when the status changes. */
 export const DRAFT_STATUS_EVENT = "atm-draft-status";
+/** The editor event (`editor.on(DRAFT_EDITOR_EVENT, ({ status, savedAt }) => ...)`) fired on every status change. */
+export const DRAFT_EDITOR_EVENT = "plugin:drafts:status";
 
 /* ───────────────────────────── envelope ───────────────────────────── */
 
@@ -273,6 +277,8 @@ export function createDraftsPlugin(options: DraftsOptions = {}): Plugin {
           item.setAttribute("data-status", next);
           item.textContent = labels[next];
         }
+        // The editor event is the supported channel; the bubbling DOM event stays for hosts that listen on the element.
+        ed.emit(DRAFT_EDITOR_EVENT, { status: next, savedAt });
         ed.element.dispatchEvent(new CustomEvent(DRAFT_STATUS_EVENT, { bubbles: true, detail: { status: next, savedAt } }));
         options.onStatus?.(next, { savedAt });
       };

@@ -94,11 +94,19 @@ export type InlineSyntax = {
   tag?: string;
   className?: string;
   attrs?: Record<string, string>;
-  /** Parse the inner text as inline markdown. Default true. */
+  /**
+   * Parse the inner text as inline markdown. Default true. With `false` the inner text is literal:
+   * `serialize` then receives it as plain text.
+   */
   nested?: boolean;
   /**
    * Pattern-only syntax cannot be inverted automatically. Provide this to write
    * a node back to markdown; without it the original matched source is kept.
+   *
+   * `inner` is the node's children written as Markdown when `nested !== false` (so a coloured span
+   * holding bold gets `**x**`, not `x`, and nothing is lost on the first edit), and the literal text
+   * when `nested === false`. `data` holds the named groups of `pattern`; keys that start with `_`
+   * are internal and never passed. A throw falls back to the matched source.
    */
   serialize?: (inner: string, data?: Record<string, string>) => string;
   /** Toolbar/shortcut helpers: wrap the selection in open/close. */
@@ -166,6 +174,23 @@ export type RenderOptions = ParseOptions & {
   linkPreview?: LinkPreviewOptions;
   /** Text labels the output needs. Defaults are English. */
   labels?: { code?: string; openOriginal?: string };
+  /**
+   * Called by `renderDom` once the output exists, with the element that holds it (a detached
+   * wrapper whose children are then moved into the returned fragment) and the document that was
+   * rendered. This is where a plugin fills in what static markup cannot hold (a table of contents).
+   * `renderHtml` returns a string and never calls these; hosts that insert that string run
+   * `hydrateAll(root, plugins, doc)` from `advanced-texteditor-md/plugins` after inserting it.
+   * Errors thrown by a callback are caught and logged.
+   */
+  postRender?: ((root: HTMLElement, ctx: PostRenderContext) => void)[];
+};
+
+/** What `Plugin.postRender` and `RenderOptions.postRender` receive besides the root. */
+export type PostRenderContext = {
+  /** The document that was rendered. */
+  doc: Doc;
+  /** "editor": the WYSIWYG surface. "view": any other render (split preview, `renderDom`, `hydrateAll`). */
+  mode: "editor" | "view";
 };
 
 /* ───────────────────────────── Highlight / math ───────────────────────────── */
@@ -220,6 +245,12 @@ export type MentionOptions = {
   minChars?: number;
   debounceMs?: number;
   maxResults?: number;
+  /**
+   * Show no menu at all while there is nothing to list (no "No results" row, no "Searching..."
+   * row). Useful for a trigger that is ordinary text most of the time, like `:` for shortcodes.
+   * Default false.
+   */
+  hideWhenEmpty?: boolean;
   /** Allow spaces inside the query ("@Jane Do"). Default true. */
   allowSpaces?: boolean;
   emptyText?: string;
@@ -348,6 +379,9 @@ export type UploadOptions = {
 
 /* ───────────────────────────── Editor ───────────────────────────── */
 
+export type { Pane, PaneEvents } from "./editor/pane-types";
+import type { Pane } from "./editor/pane-types";
+
 export type EditorMode = "wysiwyg" | "markdown" | "split";
 
 export type LayoutName =
@@ -432,6 +466,30 @@ export type Plugin = {
   highlight?: LanguageDef[];
   /** CSS injected once into the document head. */
   css?: string;
+  /**
+   * Called after the WYSIWYG surface has drawn the document (`setValue`, undo and redo, late
+   * renderers) and after the split preview is re-rendered, with the root that was just filled.
+   * `ctx.mode` says which. It must be idempotent and must not edit the stored content: whatever
+   * it adds to the surface is not content (give it `contenteditable="false"` or keep it in a
+   * shadow root, as the toc plugin does).
+   */
+  postRender?: (root: HTMLElement, ctx: PostRenderContext) => void;
+  /**
+   * Called for every keydown in the active pane BEFORE the keymap (after the mention and slash
+   * menus and the layout). Return true when the key is consumed: the pane then calls
+   * `preventDefault()` and `stopPropagation()` itself, the same contract as `beforeKeyDown`. It is
+   * also called during an IME composition: check `ev.isComposing` if that matters. Plugins run in
+   * the order they were passed; the first `true` wins.
+   */
+  keydown?: (ev: KeyboardEvent, editor: EditorInstance) => boolean;
+  /**
+   * Called after EVERY content change the user makes in the active pane, including characters the
+   * surface inserts itself (so no `input` event follows), Enter, deletions, paste and drop. It is
+   * not called for `setValue`. Calls made from inside this hook that change the content again do
+   * not re-enter it. `info` says what happened when the surface knows (`inputType` as in
+   * `InputEvent`); it is undefined for paste and drop.
+   */
+  afterInput?: (editor: EditorInstance, info?: { inputType: string; data: string | null }) => void;
 };
 
 export type EditorLabels = Partial<Record<
@@ -507,6 +565,11 @@ export type EditorOptions = {
     | { type: "rejected"; file: File; reason: UploadRejectReason }) => void;
 };
 
+/**
+ * Typed built-in events. Plugins may also emit and listen to their own events through
+ * `editor.emit(type, payload)` / `editor.on(type, fn)` with a namespaced name such as
+ * `"plugin:drafts:status"`; the built-in names below cannot be emitted from outside.
+ */
 export type EditorEvents = {
   change: string;
   mode: EditorMode;
@@ -514,6 +577,12 @@ export type EditorEvents = {
   blur: undefined;
   selection: undefined;
   mentions: Extract<InlineNode, { type: "chip" }>[];
+  /**
+   * The active pane was (re)mounted: at start, on a mode switch, and when the lazily loaded
+   * Markdown pane has arrived. The payload is which kind of pane is active now ("markdown" for
+   * both the Markdown and the split mode). `editor.getPane()` is the new pane.
+   */
+  pane: "wysiwyg" | "markdown";
 };
 
 export interface EditorInstance {
@@ -552,5 +621,45 @@ export interface EditorInstance {
   uploadFiles(files: File[]): Promise<void>;
 
   on<K extends keyof EditorEvents>(type: K, fn: (payload: EditorEvents[K]) => void): () => void;
+  /** Listen to a plugin-defined event (see `emit`). Returns the unsubscribe function. */
+  on(type: string, fn: (payload: unknown) => void): () => void;
+  /**
+   * Emit a plugin-defined event to everyone who listens to `type` through `on`. Use a namespaced
+   * name, `"plugin:<plugin name>:<event>"`. The built-in names (`change`, `mode`, `focus`, `blur`,
+   * `selection`, `mentions`, `pane`) are reserved: emitting one is ignored. A listener that throws
+   * is logged and does not stop the others. Does nothing after `destroy()`.
+   */
+  emit(type: string, payload?: unknown): void;
+
+  /**
+   * Run `fn` and batch every edit it makes (insertText, insertMarkdown, exec of an editing command,
+   * direct DOM edits followed by an `input` event, ...) into ONE undo step and ONE `change` /
+   * `onChange` emission, fired after `fn` returns with the final value (and only when the value
+   * changed). Calls nested inside `fn` fold into the outermost one. If `fn` throws, what was done
+   * so far is still committed as one step and the error is re-thrown. Returns what `fn` returns.
+   * `setValue` inside `fn` works but resets the history like it always does.
+   */
+  transact<T>(fn: () => T): T;
+  /**
+   * The pane that is active now: the WYSIWYG surface in "wysiwyg" mode, the Markdown pane in
+   * "markdown" and "split". `null` after `destroy()` and while the lazily loaded Markdown pane has
+   * not arrived yet; the `pane` event fires when it does. Intended for plugins; it is the same
+   * object the chrome drives, so prefer the editor methods when one exists.
+   */
+  getPane(): Pane | null;
+  /** True while the editor is read-only (the `readOnly` or `disabled` option, or `setReadOnly(true)`). */
+  isReadOnly(): boolean;
+  /**
+   * The current selection as Markdown, with its inline formatting (bold, links, chips, ...), for a
+   * selection that sits inside one block or spans several. "" when nothing is selected.
+   * `getSelectionText()` is the same selection as plain text.
+   */
+  getSelectionMarkdown(): string;
+  /**
+   * Replace the selection with `markdown`, parsed like `insertMarkdown` (which, with a selection,
+   * already replaces it; this is the explicit name and also works in Markdown mode, where the text
+   * is inserted verbatim). A single paragraph is inserted inline, without a block break.
+   */
+  replaceSelectionMarkdown(markdown: string): void;
   destroy(): void;
 }

@@ -331,7 +331,22 @@ export function renderHtml(doc: Doc | string, opts: RenderOptions = {}): string 
 export function renderDom(doc: Doc | string, opts: RenderOptions = {}, document?: Document): DocumentFragment {
   const d = document ?? globalThis.document;
   const f = d.createDocumentFragment();
-  for (const v of toVN(asDoc(doc, opts), opts)) f.appendChild(build(v, d));
+  const parsed = asDoc(doc, opts);
+  for (const v of toVN(parsed, opts)) f.appendChild(build(v, d));
+  const hooks = opts.postRender;
+  if (hooks && hooks.length) {
+    // The hooks get a real element to work in; its children then move into the fragment.
+    const box = d.createElement("div");
+    box.appendChild(f);
+    for (const fn of hooks) {
+      try {
+        fn(box, { doc: parsed, mode: "view" });
+      } catch (e) {
+        if (typeof console !== "undefined") console.error(e);
+      }
+    }
+    while (box.firstChild) f.appendChild(box.firstChild);
+  }
   return f;
 }
 

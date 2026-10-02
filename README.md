@@ -52,8 +52,8 @@ else is a subpath so you only pay for what you import.
 | `/paste` | `htmlToMarkdown`, `looksLikeMarkdown` |
 | `/link-preview` | `createLinkPreviewController`, `sanitizePreview`, `checkPreviewUrl` |
 | `/embeds` | `BUILTIN_EMBEDS`, `defineEmbed`, `matchEmbed`, `createEmbedElement` |
-| `/plugins` | ready-made plugins (`highlightMark`, `callout`, `kbd`, `subSup`) and the `define*` helpers |
-| `/style.css`, `/style.min.css`, `/tailwind.css` | stylesheets |
+| `/plugins` | ready-made plugins: `highlightMark`, `callout`, `kbd`, `subSup`, and the feature plugins `createFindReplacePlugin`, `createDraftsPlugin`, `createTocPlugin`, `createTextStylePlugin`, `createSmartTypographyPlugin`, `createShortcodesPlugin`; `hydrateAll`; the `define*` helpers |
+| `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
 
 Server-only use never needs the editor:
 
@@ -119,13 +119,27 @@ See [docs/THEMING.md](docs/THEMING.md) for every variable, the Tailwind bridge a
 ### Plugins and custom syntax
 
 ```ts
-import { createEditor, definePlugin, defineInlineSyntax } from "advanced-texteditor-md";
-import { highlightMark, callout } from "advanced-texteditor-md/plugins";
+import { createEditor, defineInlineSyntax } from "advanced-texteditor-md";
+import {
+  highlightMark, callout, kbd,
+  createFindReplacePlugin, createDraftsPlugin, createTocPlugin,
+  createTextStylePlugin, createSmartTypographyPlugin, createShortcodesPlugin,
+} from "advanced-texteditor-md/plugins";
 
 const spoiler = defineInlineSyntax({ name: "spoiler", open: "||", tag: "span", className: "spoiler" });
 
-createEditor(el, { plugins: [highlightMark(), callout()], syntax: { inline: [spoiler] } });
+createEditor(el, {
+  // highlightMark, callout, kbd and subSup are ready-made plugin objects; the rest are factories.
+  plugins: [highlightMark, callout, kbd, createFindReplacePlugin(), createDraftsPlugin({ key: "post-42" }), createTocPlugin()],
+  syntax: { inline: [spoiler] },
+});
 ```
+
+`kbd` is written `[[Ctrl]]`. Underline from `createTextStylePlugin({ underline: true })` is `++text++`.
+
+A plugin can also hook the editor itself (`keydown`, `afterInput`, `postRender`) and use `editor.transact`,
+`getPane`, `emit` / `on` for its own events, `isReadOnly`, `getSelectionMarkdown` and `replaceSelectionMarkdown`; see
+[docs/PLUGINS.md](docs/PLUGINS.md#editor-api-for-plugin-authors).
 
 Details: [docs/CUSTOM_SYNTAX.md](docs/CUSTOM_SYNTAX.md) and [docs/PLUGINS.md](docs/PLUGINS.md).
 
@@ -252,9 +266,11 @@ reasons, embed actions) can be overridden with the same object.
 ### Events and API
 
 `onChange`, `onModeChange`, `onFocus`, `onBlur`, `onReady`, `onMentionsChange`, `onUpload`, plus `editor.on("change" | "mode" |
-"focus" | "blur" | "selection" | "mentions", fn)`. Methods: `getValue`, `setValue(md, { keepHistory })`, `getHtml`, `getText`,
-`getAst`, `getMentions`, `isEmpty`, `getStats`, `getMode`, `setMode`, `setReadOnly`, `setTheme`, `focus`, `blur`, `exec(command, args)`,
-`registerCommand`, `can`, `undo`, `redo`, `insertMarkdown`, `insertText`, `insertChip`, `uploadFiles`, `destroy`. `setValue` keeps the string verbatim (a trailing space stays, so typing `@` after `cc ` opens the menu).
+"focus" | "blur" | "selection" | "mentions" | "pane", fn)`. Methods: `getValue`, `setValue(md, { keepHistory })`, `getHtml`, `getText`,
+`getAst`, `getMentions`, `isEmpty`, `getStats`, `getMode`, `setMode`, `isReadOnly`, `setReadOnly`, `setTheme`, `focus`, `blur`, `exec(command, args)`,
+`registerCommand`, `can`, `undo`, `redo`, `insertMarkdown`, `insertText`, `insertChip`, `getSelectionText`, `getSelectionMarkdown`,
+`replaceSelectionMarkdown`, `transact(fn)` (many edits, one undo step and one `change`), `getPane`, `emit` / `on` for plugin events,
+`uploadFiles`, `destroy`. `setValue` keeps the string verbatim (a trailing space stays, so typing `@` after `cc ` opens the menu).
 
 ## Server rendering (render-only)
 
@@ -266,7 +282,9 @@ const html = renderHtml(md, { mathRenderer: createMathRenderer(), links: { allow
   classNames: { table: "my-table" }, chips: [{ scheme: "task", className: "task-chip" }] });
 ```
 
-`renderDom(md, options)` returns a `DocumentFragment` in the browser. `renderMarkdown(md)` normalises Markdown through the
+`renderDom(md, options)` returns a `DocumentFragment` in the browser. Pass `postRender: [plugin.postRender]` to it, or call
+`hydrateAll(root, plugins, doc)` from `advanced-texteditor-md/plugins` after inserting a `renderHtml` string, so plugins that
+generate content at display time (the table of contents) fill in a read-only view. `renderMarkdown(md)` normalises Markdown through the
 parser. Code blocks are `<pre class="atm-pre" tabindex="0" role="region" aria-label="Code (js)">` so they can be scrolled with
 the keyboard.
 
@@ -276,7 +294,7 @@ Gzip, after minification (`npm run size`; the enforced figure is the concatenate
 
 | Entry | Eager | Budget |
 |---|---|---|
-| `index` (editor) | about 60 kB | 62 kB (target 48 kB) |
+| `index` (editor) | about 61 kB | 62 kB (target 48 kB) |
 | `parser` | 11 kB | 14 kB |
 | `render` | 12 kB | 14 kB |
 | `math` | 5.0 kB | 5 kB |

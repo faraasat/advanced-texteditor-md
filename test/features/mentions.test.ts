@@ -322,6 +322,53 @@ describe("opening and closing", () => {
   });
 });
 
+describe("hideWhenEmpty", () => {
+  const live = () => (document.querySelector(".atm-mention-live") as HTMLElement).textContent;
+  it("never shows a No results row; the menu appears when something matches and goes when nothing does", async () => {
+    mount({ hideWhenEmpty: true, debounceMs: 0 });
+    type("hi @zz");
+    await flush(10);
+    expect(menu()).toBeNull();
+    expect(ctrl!.isOpen()).toBe(false);
+    expect(root.hasAttribute("aria-controls")).toBe(false);
+    expect(live()).toBe("");
+    // the trigger is still tracked: backspacing to a match brings the menu back
+    text.data = "hi @jane";
+    caretAt();
+    ctrl!.notifyInput();
+    await flush(10);
+    expect(ctrl!.isOpen()).toBe(true);
+    expect(labels()).toEqual(["Jane Doe"]);
+    // and typing on to a non-match hides it again, without a row
+    type("xx");
+    await flush(10);
+    expect(menu()).toBeNull();
+    expect(document.body.textContent).not.toContain("No results");
+  });
+  it("keys are not consumed while it is hidden", async () => {
+    mount({ hideWhenEmpty: true, debounceMs: 0 });
+    type("@zz");
+    await flush(10);
+    expect(ctrl!.handleKeyDown(key("Enter"))).toBe(false);
+    expect(ctrl!.handleKeyDown(key("ArrowDown"))).toBe(false);
+  });
+  it("an asynchronous search shows nothing while it is pending, either", async () => {
+    mount({ hideWhenEmpty: true, debounceMs: 0, search: () => new Promise<MentionItem[]>((r) => setTimeout(() => r([]), 20)) });
+    type("@a");
+    await flush(5);
+    expect(menu()).toBeNull();
+    await flush(30);
+    expect(menu()).toBeNull();
+  });
+  it("without it, the No results row is shown as before", async () => {
+    mount({ debounceMs: 0 });
+    type("@zz");
+    await flush(10);
+    expect(menu()).not.toBeNull();
+    expect(live()).toBe("No results");
+  });
+});
+
 describe("search ordering", () => {
   it("aborts the stale request and ignores out-of-order responses", async () => {
     const resolvers: Array<(items: MentionItem[]) => void> = [];

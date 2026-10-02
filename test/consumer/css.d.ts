@@ -2,3 +2,4 @@
 declare module "advanced-texteditor-md/style.css";
 declare module "advanced-texteditor-md/style.min.css";
 declare module "advanced-texteditor-md/tailwind.css";
+declare module "advanced-texteditor-md/plugins.css";

@@ -20,6 +20,7 @@ import type {
   MentionItem,
   MentionOptions,
   Plugin,
+  PostRenderContext,
   RenderOptions,
   Slot,
   SlashItem,
@@ -65,6 +66,9 @@ type Chip = Extract<InlineNode, { type: "chip" }>;
 type Features = NonNullable<EditorOptions["features"]>;
 
 const PREFIX = "atm";
+
+/** Built-in event names. `emit` refuses them: only the editor fires those. */
+const BUILTIN_EVENTS = new Set<string>(["change", "mode", "focus", "blur", "selection", "mentions", "pane"]);
 
 /** Chrome commands (popovers) that still need the pane to be able to apply the result. */
 const PANE_COMMANDS = new Set(["link", "image", "table", "math", "codeLanguage"]);
@@ -167,8 +171,14 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   const pluginSlash: SlashItem[] = [];
   const pluginLangs = [] as NonNullable<Plugin["highlight"]>;
   const cssReleases: (() => void)[] = [];
+  const keydownHooks: NonNullable<Plugin["keydown"]>[] = [];
+  const afterInputHooks: NonNullable<Plugin["afterInput"]>[] = [];
+  const postRenderHooks: NonNullable<Plugin["postRender"]>[] = [];
 
   for (const pl of plugins) {
+    if (pl.keydown) keydownHooks.push(pl.keydown);
+    if (pl.afterInput) afterInputHooks.push(pl.afterInput);
+    if (pl.postRender) postRenderHooks.push(pl.postRender);
     inlineSyntax.push(...(pl.syntax?.inline ?? []));
     blockSyntax.push(...(pl.syntax?.block ?? []));
     for (const [id, fn] of Object.entries(pl.commands ?? {})) commands.set(id, fn);
@@ -254,6 +264,16 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   // position model skips it). The split preview and getHtml() keep the paragraph marker.
   const surfaceRender: RenderOptions = { ...render, linkPreview: undefined };
 
+  const runPostRender = (root_: HTMLElement, d_: Doc, m: PostRenderContext["mode"]) => {
+    for (const fn of postRenderHooks) {
+      try {
+        fn(root_, { doc: d_, mode: m });
+      } catch (e) {
+        if (typeof console !== "undefined") console.error(e);
+      }
+    }
+  };
+
   /* ── state ── */
   // Assigned once the instance object exists; everything that needs it runs later.
   let api!: EditorInstance;
@@ -267,6 +287,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   let uploading = 0;
   const uploads = new Set<AbortController>();
   const events = new Emitter<{ [K in keyof EditorEvents]: EditorEvents[K] }>();
+  const customEvents = new Emitter<Record<string, unknown>>();
   const offs: (() => void)[] = [];
   const listen = (t: EventTarget, type: string, fn: (e: never) => void, capture = false) => {
     t.addEventListener(type, fn as EventListener, capture);
@@ -431,13 +452,41 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   };
   // Returning true makes the pane cancel the event itself (pane-types.ts), so nothing here calls
   // preventDefault.
+  const pluginKeydown = (ev: KeyboardEvent): boolean => {
+    for (const fn of keydownHooks) {
+      try {
+        if (fn(ev, api)) return true;
+      } catch (e) {
+        if (typeof console !== "undefined") console.error(e);
+      }
+    }
+    return false;
+  };
   const onKeyDown = (ev: KeyboardEvent): boolean =>
     (ev.key === "Escape" && slashLoading && (slashDismissed = true), false) ||
-    !!mentionCtl?.handleKeyDown(ev) || !!slash?.handleKeyDown(ev) || !!layout.onKeyDown?.(ev, layoutHost) || routeShortcut(ev);
-  const afterInput = () => {
+    !!mentionCtl?.handleKeyDown(ev) || !!slash?.handleKeyDown(ev) || !!layout.onKeyDown?.(ev, layoutHost) || pluginKeydown(ev) || routeShortcut(ev);
+  // Plugin hooks do not re-enter: an edit a hook makes does not call the hooks again.
+  let inAfterInput = false;
+  const runAfterInput = (info?: { inputType: string; data: string | null }) => {
+    if (inAfterInput || destroyed || !afterInputHooks.length) return;
+    inAfterInput = true;
+    try {
+      for (const fn of afterInputHooks) {
+        try {
+          fn(api, info);
+        } catch (e) {
+          if (typeof console !== "undefined") console.error(e);
+        }
+      }
+    } finally {
+      inAfterInput = false;
+    }
+  };
+  const afterInput = (info?: { inputType: string; data: string | null }) => {
     mentionCtl?.notifyInput();
     if (slash) slash.notifyInput();
     else loadSlashIfTyped();
+    runAfterInput(info);
   };
   const onFiles = (files: File[], source: "paste" | "drop") => {
     const up = options.upload;
@@ -460,6 +509,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       labels,
       beforeKeyDown: onKeyDown,
       afterInput,
+      postRender: postRenderHooks.length ? (r, d_) => runPostRender(r, d_, "editor") : undefined,
       onFiles,
       keymap,
       customCommands: commands,
@@ -599,8 +649,8 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       minHeight: options.minHeight,
       maxHeight: options.maxHeight,
       history: options.history,
-      beforeKeyDown: (ev) => layout.onKeyDown?.(ev, layoutHost) ?? false, // shortcuts go through runExternal
-      afterInput: undefined,
+      beforeKeyDown: (ev) => layout.onKeyDown?.(ev, layoutHost) || pluginKeydown(ev), // shortcuts go through runExternal
+      afterInput: afterInputHooks.length ? runAfterInput : undefined,
       onFiles,
       keymap,
       runExternal: (cmd, args) => exec(cmd, args),
@@ -610,6 +660,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       m.refreshSize();
       toolbar?.relayout();
       toolbar?.refresh();
+      if (mode !== "wysiwyg") events.emit("pane", "markdown");
     });
     md = m;
     regions.markdownPane.appendChild(m.el);
@@ -660,6 +711,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     const frag = renderDom(getDoc(), render, doc);
     regions.previewPane.textContent = "";
     regions.previewPane.appendChild(frag);
+    runPostRender(regions.previewPane, getDoc(), "view");
     rich?.previewRendered();
   }
 
@@ -728,7 +780,27 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     if (pane !== (mode === "wysiwyg" ? surface : md)) return;
     if (markdown === value) return;
     value = markdown;
+    // Inside transact() the value is tracked and the one `change` is emitted when it ends.
+    if (txDepth > 0) return;
     afterValueChange(true);
+  }
+
+  let txDepth = 0;
+  function transactImpl<T>(fn: () => T): T {
+    if (destroyed || txDepth > 0) return fn();
+    const from = value;
+    const pane = activePane();
+    let out!: T;
+    txDepth = 1;
+    try {
+      pane.transact(() => {
+        out = fn();
+      });
+    } finally {
+      txDepth = 0;
+      if (!destroyed && value !== from) afterValueChange(true);
+    }
+    return out;
   }
 
   function onPaneSelection() {
@@ -1215,6 +1287,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     slash?.close();
     const had = root.contains(doc.activeElement);
     const caret = captureCaret();
+    const prevKind = mode === "wysiwyg" ? "wysiwyg" : "markdown";
     mode = next;
     if (mode === "wysiwyg") {
       const s = ensureSurface();
@@ -1240,6 +1313,9 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       restoreCaret(caret);
     }
     pingLayout();
+    const kind = mode === "wysiwyg" ? "wysiwyg" : "markdown";
+    // The Markdown pane may still be downloading: its arrival fires `pane` instead.
+    if (kind !== prevKind && (kind === "wysiwyg" || md?.ready)) events.emit("pane", kind);
     events.emit("mode", mode);
     options.onModeChange?.(mode);
   }
@@ -1271,7 +1347,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   const live_: EditorInstance = {
     element: root,
     options,
-    getValue: () => value,
+    getValue: () => (txDepth > 0 ? activePane().getValue() : value),
     setValue: setValueImpl,
     getHtml: () => renderHtml(getDoc(), render),
     getText: () => docToText(getDoc()),
@@ -1281,6 +1357,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     getStats: statsOf,
     getMode: () => mode,
     setMode,
+    isReadOnly: () => readOnly,
     setReadOnly(v) {
       if (destroyed) return;
       readOnly = !!v || !!options.disabled;
@@ -1304,6 +1381,13 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       else ensureMd().insertText(stringKey(chip));
     },
     getSelectionText: () => activePane().getSelectionText(),
+    getSelectionMarkdown: () => activePane().getSelectionMarkdown(),
+    replaceSelectionMarkdown(markdown) {
+      if (readOnly) return;
+      activePane().replaceSelectionMarkdown(String(markdown ?? ""));
+    },
+    transact: transactImpl,
+    getPane: () => (destroyed ? null : mode === "wysiwyg" ? surface : md?.ready ? md : null),
     exec,
     registerCommand(id, command) {
       const prev = commands.get(id);
@@ -1332,7 +1416,12 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
         },
       );
     },
-    on: (type, fn) => events.on(type, fn),
+    on: ((type: string, fn: (payload: never) => void) =>
+      BUILTIN_EVENTS.has(type) ? events.on(type as keyof EditorEvents, fn as never) : customEvents.on(type, fn as (p: unknown) => void)) as EditorInstance["on"],
+    emit(type, payload) {
+      if (destroyed || typeof type !== "string" || BUILTIN_EVENTS.has(type)) return;
+      customEvents.emit(type, payload);
+    },
     destroy,
   };
   // Internal hook used by plugin-syntax commands (not part of the public type).
@@ -1359,6 +1448,12 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     insertText: () => undefined,
     insertChip: () => undefined,
     getSelectionText: () => "",
+    getSelectionMarkdown: () => "",
+    replaceSelectionMarkdown: () => undefined,
+    transact: <T>(fn: () => T) => fn(),
+    getPane: () => null,
+    isReadOnly: () => readOnly,
+    emit: () => undefined,
     exec: () => false,
     registerCommand: () => () => undefined,
     can: () => false,
@@ -1405,6 +1500,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     for (const r of cssReleases) r();
     root.remove();
     events.clear();
+    customEvents.clear();
     Object.assign(api, noops);
   }
 

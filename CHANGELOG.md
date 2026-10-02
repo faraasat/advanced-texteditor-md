@@ -37,6 +37,38 @@ First release.
 - `npm run check:package` verifies the exports map, a consumer type-check (`bundler` and `node16` resolution), loading every subpath
   in ESM and CJS without a DOM, tree-shaking probes and the minified CSS.
 
+### Feature plugins (`advanced-texteditor-md/plugins`)
+- `createFindReplacePlugin` (find and replace; Replace all is one undo step), `createDraftsPlugin` (autosave and restore),
+  `createTocPlugin` (a `::: toc` block that is never stored), `createTextStylePlugin` (`[text]{.c-red}` colour and highlight, optional
+  `++underline++`), `createSmartTypographyPlugin` and `createShortcodesPlugin`, with their pure helpers, option and label types and
+  CSS strings. `advanced-texteditor-md/plugins.css` is the stylesheet of all of them for hosts that bundle CSS themselves.
+- `hydrateAll(root, plugins, doc)` fills in generated content (a table of contents) in a read-only view built from `renderHtml`.
+
+### Editor API for plugin authors
+- `editor.transact(fn)`: many edits, one undo step, one `change` / `onChange`.
+- `editor.getPane()` and the `pane` event (`"wysiwyg" | "markdown"`), fired when the active pane is (re)mounted, including after the
+  lazily loaded Markdown pane arrives. Find-replace no longer polls for the textarea.
+- Plugin-defined events: `editor.emit("plugin:<name>:<event>", payload)` and `editor.on(type, fn)` with a string type. Built-in names are
+  reserved. The drafts plugin emits `plugin:drafts:status` (its DOM `atm-draft-status` event is kept).
+- `editor.isReadOnly()`, `editor.getSelectionMarkdown()` and `editor.replaceSelectionMarkdown(md)`.
+- Plugin fields `keydown(ev, editor)` (before the keymap; `true` consumes), `afterInput(editor, info?)` (after every content change,
+  including characters the surface inserts itself) and `postRender(root, { doc, mode })`; `RenderOptions.postRender` for `renderDom`.
+- `MentionOptions.hideWhenEmpty`: no "No results" row while nothing matches (used by shortcodes).
+- `InlineSyntax.serialize(inner, data)` now documents and guarantees that `inner` is Markdown when `nested !== false` and the literal text
+  when `nested: false` (a pattern syntax with `nested: false` no longer gets escaped text, which grew on every save).
+- Text colour spans hold Markdown: bold inside a colour and a colour inside bold both survive, and colouring a selection keeps its
+  inline formatting.
+- Find highlights are registered per editor (`atm-find-<id>`, `atm-find-<id>-current`), so two editors on a page do not clobber each other.
+
+### Changed in this release
+- **`kbd` now uses `[[Ctrl]]`, not `++Ctrl++`.** `++text++` is the underline of the text-style plugin and one marker cannot serve both. Existing
+  documents with `++Ctrl++` are not converted: they show as plain text (or as underline when the text-style plugin has `underline: true`).
+  The text between `[[` and `]]` is literal.
+- Plugin CSS strings no longer contain the `::highlight(atm-find...)` rules (the find plugin injects them per editor).
+- `Pane` gained `getSelectionMarkdown`, `replaceSelectionMarkdown` and `transact`; `SurfaceOptions.afterInput` receives an optional info
+  argument and `SurfaceOptions.postRender` exists. These are internal seams, listed for anyone who implements a pane.
+- The shortcodes `noResults` label is accepted but no longer shown.
+
 ### Fixes in this release
 - A paragraph with many soft line breaks parsed in quadratic time; now linear.
 - `setValue` keeps the string verbatim, so typing `@` after `cc ` opens the mention menu.

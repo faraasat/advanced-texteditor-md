@@ -1,5 +1,4 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, renameSync, statSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -10,10 +9,6 @@ import AxeBuilder from "@axe-core/playwright";
  *
  *   npm run build            (once)
  *   npx playwright test e2e/plugins.spec.ts --project=desktop
- *
- * The plugins are bundled from src/plugins into dist/plugins-e2e.js with esbuild before the run,
- * so this spec works whether or not src/plugins/index.ts exports them yet (the page prefers the
- * library's own exports when they exist).
  */
 
 test.skip(({ isMobile }) => isMobile, "these flows are keyboard driven");
@@ -22,26 +17,7 @@ const ROOT = process.cwd(); // playwright runs from the repository root (playwri
 const URL = "/example/plugins.html";
 
 test.beforeAll(() => {
-  if (!existsSync(join(ROOT, "dist/index.js"))) throw new Error("dist/ is missing: run `npm run build` first");
-  const out = join(ROOT, "dist/plugins-e2e.js");
-  const newest = (dir: string): number =>
-    readdirSync(dir, { withFileTypes: true }).reduce((t, f) => Math.max(t, f.isDirectory() ? newest(join(dir, f.name)) : statSync(join(dir, f.name)).mtimeMs), 0);
-  if (existsSync(out) && statSync(out).mtimeMs > newest(join(ROOT, "src"))) return;
-  const from = (name: string, file: string) => `export { ${name} } from ${JSON.stringify(join(ROOT, "src/plugins", file))};`;
-  const entry = [
-    from("createFindReplacePlugin", "find-replace"),
-    from("createDraftsPlugin", "drafts"),
-    from("createTocPlugin", "toc"),
-    from("createTextStylePlugin", "text-style"),
-    from("createSmartTypographyPlugin", "smart-typography"),
-    from("createShortcodesPlugin", "shortcodes"),
-  ].join("\n");
-  mkdirSync(join(ROOT, "dist"), { recursive: true });
-  const tmp = `${out}.${process.pid}.tmp`;
-  execFileSync(join(ROOT, "node_modules/.bin/esbuild"), ["--bundle", "--format=esm", "--target=es2020", "--loader=ts", `--outfile=${tmp}`, "--log-level=error"], {
-    input: entry,
-  });
-  renameSync(tmp, out);
+  if (!existsSync(join(ROOT, "dist/plugins.js"))) throw new Error("dist/ is missing: run `npm run build` first");
 });
 
 async function open(page: Page, query: string) {
@@ -100,8 +76,14 @@ test.describe("find and replace", () => {
     const count = bar.locator(".atm-find-count");
     await expect(count).toHaveText(/^\d of 3$/);
     // The highlights are registered in the browser (and are not in the document).
-    const h = await page.evaluate(() => ({ all: CSS.highlights.get("atm-find")?.size ?? 0, cur: CSS.highlights.get("atm-find-current")?.size ?? 0 }));
-    expect(h).toEqual({ all: 2, cur: 1 });
+    // Each editor registers its own names: `atm-find-<id>` and `atm-find-<id>-current`.
+    const h = await page.evaluate(() => {
+      const names = [...CSS.highlights.keys()];
+      const cur = names.find((n) => /^atm-find-\d+-current$/.test(n));
+      const all = names.find((n) => /^atm-find-\d+$/.test(n));
+      return { n: names.length, all: all ? CSS.highlights.get(all)!.size : 0, cur: cur ? CSS.highlights.get(cur)!.size : 0, paired: !!cur && !!all && cur === `${all}-current` };
+    });
+    expect(h).toEqual({ n: 2, all: 2, cur: 1, paired: true });
     expect(await value(page)).toBe("one two one two one");
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");

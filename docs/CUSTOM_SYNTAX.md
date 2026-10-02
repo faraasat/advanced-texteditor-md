@@ -60,6 +60,8 @@ A pattern cannot be inverted automatically, so give it a `serialize(inner, data)
 - If `serialize` throws, or you do not give one, the original matched source is written back unchanged. That is safe, but
   edits made inside the node (typing in the WYSIWYG surface) are lost on the next sync, so provide `serialize` for any pattern
   syntax you want to be editable.
+- `inner` is the node's children written as Markdown when `nested` is not `false` (so `**bold**` inside survives), and the
+  literal text when `nested: false`.
 - `serialize` must produce text that the same pattern matches again. `stringify` re-parses its output until it stops
   changing, so a `serialize` that does not round-trip converges on whatever the parser makes of it.
 

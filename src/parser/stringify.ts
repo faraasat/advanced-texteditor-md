@@ -169,7 +169,9 @@ function inl(nodes: InlineNode[], x: Ctx, e: E, pt = "", pch = ""): string {
           const data: Record<string, string> = {};
           for (const k in nd.data) if (k[0] !== "_") data[k] = nd.data[k];
           try {
-            out += sy.serialize(inl(nd.children, x, e), Object.keys(data).length ? data : undefined);
+            // nested: the children as Markdown (bold inside survives); literal: their plain text.
+            const inner = sy.nested === false ? nd.children.map((c) => (c.type === "text" ? c.value : "")).join("") : inl(nd.children, x, e);
+            out += sy.serialize(inner, Object.keys(data).length ? data : undefined);
           } catch {
             out += nd.data?._raw ?? inl(nd.children, x, e);
           }

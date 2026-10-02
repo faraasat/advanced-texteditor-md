@@ -7,7 +7,8 @@
 //      expose the same names;
 //   4. tree-shaking works for a consumer's bundler: importing one small thing from the main entry
 //      must not drag the editor in (esbuild, no splitting, the way most apps bundle);
-//   5. `style.min.css` is smaller than `style.css` and parses to the same rule count.
+//   5. `style.min.css` is smaller than `style.css` and parses to the same rule count;
+//   6. `plugins.css` contains the five plugin stylesheets exactly as the plugins inject them.
 //
 // publint and @arethetypeswrong/cli are run only when they are already installed or in the npx
 // cache (no network): `npx --no-install`. Otherwise they are skipped and the script says so.
@@ -112,7 +113,9 @@ try {
   probe("main-renderHtml", `import { renderHtml } from "${pkg.name}"; console.log(renderHtml);`, 13);
   probe("math-texToMathML", `import { texToMathML } from "${pkg.name}/math"; console.log(texToMathML);`, 5.2);
   probe("embeds-matchEmbed", `import { matchEmbed } from "${pkg.name}/embeds"; console.log(matchEmbed);`, 1.2);
-  probe("plugins-kbd", `import { kbd } from "${pkg.name}/plugins"; console.log(kbd);`, 0.6);
+  probe("plugins-kbd", `import { kbd } from "${pkg.name}/plugins"; console.log(kbd);`, 0.7);
+  probe("plugins-hydrateAll", `import { hydrateAll } from "${pkg.name}/plugins"; console.log(hydrateAll);`, 9);
+  probe("plugins-typography", `import { simulateTyping } from "${pkg.name}/plugins"; console.log(simulateTyping);`, 3);
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
@@ -125,6 +128,17 @@ try {
   if (b.length >= a.length) fail("style.min.css is not smaller than style.css");
   else if (count(a) !== count(b)) fail(`style.min.css has ${count(b)} blocks, style.css has ${count(a)}`);
   else ok(`style.min.css ${(b.length / 1024).toFixed(1)} kB (style.css ${(a.length / 1024).toFixed(1)} kB), same ${count(a)} blocks`);
+}
+
+/* ── 6. plugins.css is exactly what the plugins inject ── */
+{
+  const file = readFileSync(join(root, "dist/plugins.css"), "utf8");
+  const mod = await import(pathToFileURL(join(root, "dist/plugins.js")).href);
+  const strings = { FIND_REPLACE_CSS: mod.FIND_REPLACE_CSS, DRAFTS_CSS: mod.DRAFTS_CSS, TOC_CSS: mod.TOC_CSS, TEXT_STYLE_CSS: mod.TEXT_STYLE_CSS, SHORTCODES_CSS: mod.SHORTCODES_CSS };
+  const missing = Object.entries(strings).filter(([, css]) => typeof css !== "string" || !file.includes(css)).map(([k]) => k);
+  if (missing.length) fail(`dist/plugins.css does not contain ${missing.join(", ")} verbatim`);
+  else ok(`plugins.css ${(file.length / 1024).toFixed(1)} kB, contains the five plugin stylesheets verbatim`);
+  if (!pkg.exports["./plugins.css"]) fail('package.json has no "./plugins.css" export');
 }
 
 /* ── optional: publint, attw (only when they run offline) ── */

@@ -27,7 +27,7 @@ import { anchorFootnotes, renderBlockEls, renderFragment, renderInlineNodes, pre
 import { caretAt, closest, emptyP, ensureRoot, fixPre, itemOf, leafOf, normalizeTree, splitAt, topOf } from "./surface/dom";
 import { backspace, caret, del, deleteRange, enter, indent, insertNodes, insertTextAt, lineBreak, moveCell, outdent, setTask } from "./surface/structure";
 import { enterRule, inlineRule, spaceRule } from "./surface/rules";
-import { insertMarkdown as insertMd, insertPlain, onCopy, onDrop, onPaste, type DragState } from "./surface/clipboard";
+import { insertMarkdown as insertMd, insertPlain, onCopy, onDrop, onPaste, selectionDoc, type DragState } from "./surface/clipboard";
 import {
   getRange, indexOf, isAtom, isEl, isText, itemAt, leafOffset, lengthOf, offsetOf, pointAt, restorePath, restoreSelection,
   saveSelection, savePath, setSelection, type SelPath,
@@ -81,6 +81,10 @@ export function createSurface(options: SurfaceOptions): Surface {
   let syncKind = "typing";
   let lastRange: Range | null = null;
   let selBefore: SelPath | null = null;
+  let batchDepth = 0;
+  let batchChanged = false;
+  let batchFrom = "";
+  let batchSel: SelPath | null = null;
   let mathEdit: { el: HTMLElement; before: string } | null = null;
   const marked = new Set<Element>();
   const drag: DragState = { from: null };
@@ -125,6 +129,16 @@ export function createSurface(options: SurfaceOptions): Surface {
     ensureRoot(ctx);
     cachedDoc = doc;
     updateEmpty();
+    callPostRender(doc);
+  }
+
+  function callPostRender(doc: Doc): void {
+    if (!options.postRender) return;
+    try {
+      options.postRender(root, doc);
+    } catch (e) {
+      if (typeof console !== "undefined") console.error(e);
+    }
   }
 
   /**
@@ -217,6 +231,11 @@ export function createSurface(options: SurfaceOptions): Surface {
     lastMd = md;
     cachedDoc = doc;
     updateEmpty();
+    if (batchDepth > 0) {
+      // Inside transact(): the step is recorded and `input` emitted once, when the batch ends.
+      batchChanged = true;
+      return true;
+    }
     const group = kind === "typing" || kind === "delete" ? kind : undefined;
     history.record({ markdown: md }, savePath(root), { group, selectionBefore: selBefore ?? undefined });
     selBefore = null;
@@ -514,6 +533,10 @@ export function createSurface(options: SurfaceOptions): Surface {
         ctx.commit(kind);
       }
     }
+    if (ok) {
+      const ie = ev as InputEvent;
+      options.afterInput?.({ inputType: ie.inputType ?? "", data: ie.data ?? null });
+    }
     return ok;
   }
 
@@ -560,7 +583,7 @@ export function createSurface(options: SurfaceOptions): Surface {
         // Autolink may have committed; Enter itself is its own step.
         ctx.begin();
         if (enter(ctx)) ctx.commit("enter");
-        options.afterInput?.();
+        options.afterInput?.({ inputType: "insertParagraph", data: null });
         return;
       }
       case "insertLineBreak":
@@ -635,7 +658,7 @@ export function createSurface(options: SurfaceOptions): Surface {
           if (r.collapsed && insertPending(data)) {
             ev.preventDefault();
             queueSync("typing");
-            options.afterInput?.();
+            options.afterInput?.({ inputType: "insertText", data });
             return;
           }
           // Typing in an empty block whose only child is a <br>: the browser handles it.
@@ -676,13 +699,14 @@ export function createSurface(options: SurfaceOptions): Surface {
 
   function afterTyped(data: string | null, type: string): void {
     dirty = true;
+    const info = { inputType: type, data };
     if (type === "insertText" && data) {
       if (data === " " && spaceRule(ctx)) {
-        options.afterInput?.();
+        options.afterInput?.(info);
         return;
       }
       if (inlineRule(ctx, data)) {
-        options.afterInput?.();
+        options.afterInput?.(info);
         return;
       }
     }
@@ -690,7 +714,7 @@ export function createSurface(options: SurfaceOptions): Surface {
     const r = liveRange();
     const leaf = r ? leafOf(root, r.startContainer) : null;
     if (leaf?.tagName === "PRE") scheduleHighlight(leaf);
-    options.afterInput?.();
+    options.afterInput?.(info);
   }
 
   function onInput(ev: Event): void {
@@ -709,12 +733,13 @@ export function createSurface(options: SurfaceOptions): Surface {
     const data = ev.data ?? "";
     setTimeout(() => {
       if (destroyed || composing) return;
+      const info = { inputType: "insertCompositionText", data };
       if (data.endsWith(" ") && spaceRule(ctx)) {
-        options.afterInput?.();
+        options.afterInput?.(info);
         return;
       }
       queueSync("typing");
-      options.afterInput?.();
+      options.afterInput?.(info);
     }, 0);
   }
 
@@ -1177,6 +1202,41 @@ export function createSurface(options: SurfaceOptions): Surface {
       ctx.begin();
       insertMd(ctx, md);
       ctx.commit("insert");
+    },
+    getSelectionMarkdown() {
+      const r = ctx.range();
+      if (!r || r.collapsed) return "";
+      return stringify(selectionDoc(ctx, r), parseOpts).replace(/​/g, "").replace(/\n+$/, "");
+    },
+    replaceSelectionMarkdown(md: string) {
+      surface.insertMarkdown(md);
+    },
+    transact(fn: () => void) {
+      if (batchDepth === 0) {
+        if (!readOnly) ctx.begin();
+        batchFrom = lastMd;
+        batchSel = selBefore;
+        batchChanged = false;
+      }
+      batchDepth++;
+      try {
+        fn();
+      } finally {
+        if (batchDepth === 1) {
+          // Serialise what the batch left in the DOM (an `input` event that has not been
+          // processed yet, a direct DOM edit) while still deferring, then record once.
+          if (dirty && !composing) sync(syncKind);
+          batchDepth = 0;
+          if (batchChanged && lastMd !== batchFrom) {
+            history.record({ markdown: lastMd }, savePath(root), { selectionBefore: batchSel ?? undefined });
+            history.breakGroup();
+            selBefore = null;
+            batchChanged = false;
+            emit("input", lastMd);
+          }
+          batchChanged = false;
+        } else batchDepth--;
+      }
     },
     insertChip(chip: Omit<ChipNode, "type">) {
       if (readOnly) return;

@@ -1,4 +1,4 @@
-// Builds dist/style.css, dist/style.min.css and dist/tailwind.css.
+// Builds dist/style.css, dist/style.min.css, dist/plugins.css and dist/tailwind.css.
 //
 // style.css is ONE file with no @import: the entry (src/styles/style.css) says
 // what it needs, and this script inlines every `@import "./x.css"` it finds,
@@ -36,6 +36,13 @@ mkdirSync(resolve(root, "dist"), { recursive: true });
 writeFileSync(resolve(root, "dist/style.css"), out.replace(/\n{3,}/g, "\n\n"));
 // style.css stays the readable file; style.min.css is the same stylesheet through the tiny minifier.
 writeFileSync(resolve(root, "dist/style.min.css"), minifyCss(out));
+// plugins.css is the stylesheet of the ready-made plugins (find-replace, drafts, toc, text-style,
+// shortcodes), for hosts that bundle CSS themselves instead of letting each plugin inject its own.
+// A test (test/plugins/css.test.ts) and scripts/check-package.mjs keep it equal to the strings the plugins inject.
+const pluginsFile = resolve(root, "src/styles/plugins.css");
+const pluginsCss = existsSync(pluginsFile) ? readFileSync(pluginsFile, "utf8") : null;
+if (pluginsCss !== null) writeFileSync(resolve(root, "dist/plugins.css"), pluginsCss);
+else missing.push(pluginsFile);
 if (existsSync(resolve(root, "src/styles/tailwind.css"))) cpSync(resolve(root, "src/styles/tailwind.css"), resolve(root, "dist/tailwind.css"));
 for (const m of missing) console.warn(`copy-css: skipped missing ${m.replace(root + "/", "")}`);
-console.log(`copy-css: dist/style.css (${(out.length / 1024).toFixed(1)} kB, ${seen.size - missing.length} files), dist/style.min.css (${(minifyCss(out).length / 1024).toFixed(1)} kB)`);
+console.log(`copy-css: dist/style.css (${(out.length / 1024).toFixed(1)} kB, ${seen.size - missing.length} files), dist/style.min.css (${(minifyCss(out).length / 1024).toFixed(1)} kB), dist/plugins.css (${pluginsCss === null ? "skipped" : (pluginsCss.length / 1024).toFixed(1) + " kB"})`);

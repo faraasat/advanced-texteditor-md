@@ -258,8 +258,10 @@ describe("built-in plugins render", () => {
     }
   });
   it("kbd", () => {
-    expect(html("press ++Ctrl++ now", [kbd])).toContain("<kbd");
-    expect(html("press ++Ctrl++ now", [kbd])).toContain("Ctrl</kbd>");
+    expect(html("press [[Ctrl]] now", [kbd])).toContain("<kbd");
+    expect(html("press [[Ctrl]] now", [kbd])).toContain("Ctrl</kbd>");
+    // `++` is no longer the kbd marker: it belongs to underline (text-style).
+    expect(html("press ++Ctrl++ now", [kbd])).not.toContain("<kbd");
   });
   it("subSup keeps strikethrough working", () => {
     const out = html("H~2~O and x^2^ and ~~gone~~", [subSup]);

@@ -23,13 +23,17 @@ import type { EditorInstance, MentionItem, Plugin } from "../types";
  * without a menu (a textarea has no text nodes to anchor one to).
  *
  * Built on `createMentionController`, driven through its public options with
- * the trigger `:`.
+ * the trigger `:` and `hideWhenEmpty`. It listens through the editor's plugin hooks
+ * (`afterInput`, `keydown`) and its `pane` event, not through DOM listeners.
  */
 
 export type ShortcodesLabels = {
   /** Accessible name of the list. Default "Shortcodes". */
   menu: string;
-  /** Shown when nothing matches. Default "No matching shortcode". */
+  /**
+   * No longer shown: the menu stays closed while nothing matches (`hideWhenEmpty`), so a `:` that
+   * is just punctuation never flashes a "no results" row. Kept so existing configurations compile.
+   */
   noResults: string;
 };
 
@@ -108,6 +112,11 @@ export const SHORTCODES_CSS = `.atm-sc-item{display:flex;align-items:center;gap:
 .atm-sc-char{flex:none;min-width:1.4em;text-align:center;font-size:1.2em;line-height:1}
 .atm-sc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--atm-muted,#59636e)}`;
 
+type Instance = {
+  afterInput(info?: { inputType: string; data: string | null }): void;
+  keydown(ev: KeyboardEvent): boolean;
+};
+
 /** See the file header. Command: `insertShortcode`. */
 export function createShortcodesPlugin(options: ShortcodesOptions): Plugin {
   const table = clean(options.shortcodes);
@@ -116,11 +125,15 @@ export function createShortcodesPlugin(options: ShortcodesOptions): Plugin {
   const maxResults = options.maxResults ?? 8;
   const maxRecent = options.maxRecent ?? 20;
   const recentKey = options.recentKey ?? "atm-shortcodes-recent";
+  // The hooks of one plugin object serve every editor it is installed in.
+  const instances = new WeakMap<EditorInstance, Instance>();
 
   return definePlugin({
     name: "shortcodes",
     commands: {},
     css: SHORTCODES_CSS,
+    afterInput: (ed, info) => instances.get(ed)?.afterInput(info),
+    keydown: (ev, ed) => instances.get(ed)?.keydown(ev) ?? false,
     setup(ed: EditorInstance) {
       const el = ed.element;
       const doc = el.ownerDocument;
@@ -160,10 +173,8 @@ export function createShortcodesPlugin(options: ShortcodesOptions): Plugin {
       let ctl: MentionController | null = null;
       let root: HTMLElement | null = null;
 
-      const surfaceEl = () => el.querySelector<HTMLElement>(".atm-surface");
-
       const attach = () => {
-        const s = surfaceEl();
+        const s = ed.getMode() === "wysiwyg" ? el.querySelector<HTMLElement>(".atm-surface") : null;
         if (s === root) return;
         ctl?.destroy();
         ctl = null;
@@ -186,7 +197,7 @@ export function createShortcodesPlugin(options: ShortcodesOptions): Plugin {
               allowSpaces: false,
               maxResults,
               debounceMs: 0,
-              emptyText: labels.noResults,
+              hideWhenEmpty: true,
               search: (q): MentionItem[] => searchShortcodes(table, q, recent, maxResults).map((name) => ({ id: name, label: name, data: table[name] })),
               renderItem: (item) => {
                 const row = doc.createElement("span");
@@ -211,8 +222,6 @@ export function createShortcodesPlugin(options: ShortcodesOptions): Plugin {
           },
         });
       };
-
-      const inSurface = (n: EventTarget | null) => !!root && n instanceof Node && root.contains(n);
 
       const closeInSurface = (): boolean => {
         const s = doc.getSelection();
@@ -240,39 +249,29 @@ export function createShortcodesPlugin(options: ShortcodesOptions): Plugin {
         return true;
       };
 
-      const onInput = (e: Event) => {
-        const ie = e as InputEvent;
-        if (ie.isComposing) return;
-        const t = e.target;
-        if (t instanceof (win?.HTMLTextAreaElement ?? HTMLTextAreaElement) && el.contains(t)) {
-          if (ie.inputType === "insertText" && ie.data === ":") closeInSource(t);
-          return;
-        }
-        if (!inSurface(t)) return;
-        if (ie.inputType === "insertText" && ie.data === ":") closeInSurface();
-        ctl?.notifyInput();
-      };
-      // The surface inserts some characters itself (the first one in an empty block) and cancels
-      // `beforeinput`, so no `input` event follows; those are handled here.
-      const onBeforeInput = (e: Event) => {
-        if (e.defaultPrevented && inSurface(e.target)) onInput(e);
-      };
-      const onKeyDown = (e: KeyboardEvent) => {
-        if (ctl && inSurface(e.target)) ctl.handleKeyDown(e);
-      };
+      instances.set(ed, {
+        afterInput(info) {
+          if (info?.inputType === "insertCompositionText") return;
+          const pane = ed.getPane();
+          const field = pane?.el;
+          if (ed.getMode() !== "wysiwyg") {
+            const ta = field instanceof (win?.HTMLTextAreaElement ?? HTMLTextAreaElement) ? field : null;
+            if (ta && info?.inputType === "insertText" && info.data === ":") closeInSource(ta);
+            return;
+          }
+          if (info?.inputType === "insertText" && info.data === ":") closeInSurface();
+          ctl?.notifyInput();
+        },
+        keydown: (ev) => !!ctl && !ev.isComposing && ctl.handleKeyDown(ev),
+      });
 
       attach();
-      el.addEventListener("input", onInput);
-      el.addEventListener("beforeinput", onBeforeInput);
-      el.addEventListener("keydown", onKeyDown, true);
-      const offMode = ed.on("mode", attach);
+      const offPane = ed.on("pane", attach);
       const offCmd = ed.registerCommand("insertShortcode", (_e, arg) => (typeof arg === "string" ? insert(arg) : false));
 
       return () => {
-        el.removeEventListener("input", onInput);
-        el.removeEventListener("beforeinput", onBeforeInput);
-        el.removeEventListener("keydown", onKeyDown, true);
-        offMode();
+        instances.delete(ed);
+        offPane();
         offCmd();
         ctl?.destroy();
         ctl = null;

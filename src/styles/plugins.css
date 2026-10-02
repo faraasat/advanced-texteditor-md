@@ -25,8 +25,6 @@
 .atm-find-overlay{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}
 .atm-find-mark{position:absolute;border-radius:2px;background:rgba(250,204,21,.45);mix-blend-mode:multiply}
 .atm-find-mark.atm-find-current{background:rgba(249,115,22,.55);outline:2px solid rgba(234,88,12,.9)}
-::highlight(atm-find){background-color:rgba(250,204,21,.5);color:inherit}
-::highlight(atm-find-current){background-color:rgba(249,115,22,.65);color:inherit}
 @media (prefers-color-scheme:dark){.atm-find-mark{mix-blend-mode:screen;background:rgba(250,204,21,.3)}}
 
 /* ── drafts ── */

@@ -100,6 +100,15 @@ export class FakeSurface implements Surface {
   insertMarkdown(markdown: string): void {
     this.inserted.push(markdown);
   }
+  getSelectionMarkdown(): string {
+    return this.selectionText;
+  }
+  replaceSelectionMarkdown(markdown: string): void {
+    this.inserted.push(markdown);
+  }
+  transact(fn: () => void): void {
+    fn();
+  }
   undo(): boolean {
     this.undone++;
     return this.canUndo;

@@ -1711,7 +1711,21 @@ function renderHtml(doc, opts = {}) {
 function renderDom(doc, opts = {}, document2) {
   const d = document2 ?? globalThis.document;
   const f = d.createDocumentFragment();
-  for (const v of toVN(asDoc(doc, opts), opts)) f.appendChild(build(v, d));
+  const parsed = asDoc(doc, opts);
+  for (const v of toVN(parsed, opts)) f.appendChild(build(v, d));
+  const hooks = opts.postRender;
+  if (hooks && hooks.length) {
+    const box = d.createElement("div");
+    box.appendChild(f);
+    for (const fn of hooks) {
+      try {
+        fn(box, { doc: parsed, mode: "view" });
+      } catch (e) {
+        if (typeof console !== "undefined") console.error(e);
+      }
+    }
+    while (box.firstChild) f.appendChild(box.firstChild);
+  }
   return f;
 }
 var el, TAGS, BLOCK_TAGS2, URL_ATTRS, VOID, escH, slug, safeColor, fnId, asDoc;
@@ -3339,6 +3353,17 @@ function createMentionController(config) {
     if (wasOpen) live.textContent = "";
     listen(false);
   }
+  function hideMenu() {
+    if (!menuEl) return;
+    menuEl.remove();
+    menuEl = listEl = statusEl = null;
+    rows = [];
+    active = -1;
+    root.removeAttribute("aria-activedescendant");
+    root.removeAttribute("aria-controls");
+    live.textContent = "";
+    listen(false);
+  }
   function ensureMenu() {
     if (menuEl) return;
     menuEl = doc.createElement("div");
@@ -3463,6 +3488,7 @@ function createMentionController(config) {
   function render() {
     if (destroyed || !current) return;
     const opt = optsOf();
+    if (opt.hideWhenEmpty && !items.length) return hideMenu();
     ensureMenu();
     const list2 = listEl;
     list2.textContent = "";
@@ -4461,6 +4487,8 @@ var init_markdown_pane = __esm({
         this.destroyed = false;
         this.sel = coalesce(() => this.ev.emit("selection", void 0));
         this.cancelGrow = null;
+        this.batch = 0;
+        this.batchChanged = false;
         this.doc = opts.document ?? document;
         const p = opts.classPrefix ?? "atm";
         this.el = h("textarea", {
@@ -4480,7 +4508,7 @@ var init_markdown_pane = __esm({
         if (maxH) this.el.style.maxHeight = maxH;
         this.keymap = createKeymap(opts.keymap ?? {});
         this.undoStack = new UndoStack(this.state(), opts.history?.limit ?? 200, opts.history?.groupDelayMs ?? 500);
-        this.listen(this.el, "input", () => this.onInput());
+        this.listen(this.el, "input", (e) => this.onInput(e));
         this.listen(this.el, "keydown", (e) => this.onKeyDown(e));
         this.listen(this.el, "beforeinput", (e) => this.onBeforeInput(e));
         this.listen(this.el, "paste", (e) => this.onFiles(e, "paste"));
@@ -4507,11 +4535,14 @@ var init_markdown_pane = __esm({
         const changed = s.value !== this.el.value;
         if (changed) this.el.value = s.value;
         this.el.setSelectionRange(s.start, s.end);
-        if (record) this.undoStack.record(s, false);
+        if (record && !this.batch) this.undoStack.record(s, false);
         this.grow();
         if (changed) {
-          this.ev.emit("input", this.el.value);
-          this.opts.afterInput?.();
+          if (this.batch) this.batchChanged = true;
+          else {
+            this.ev.emit("input", this.el.value);
+            this.opts.afterInput?.();
+          }
         }
         this.sel.run();
       }
@@ -4528,11 +4559,11 @@ var init_markdown_pane = __esm({
         this.cancelGrow = schedule(() => this.grow(), this.doc.defaultView);
       }
       /* ── events ── */
-      onInput() {
+      onInput(e) {
         this.undoStack.record(this.state(), true);
         this.grow();
         this.ev.emit("input", this.el.value);
-        this.opts.afterInput?.();
+        this.opts.afterInput?.(e && typeof e.inputType === "string" ? { inputType: e.inputType, data: e.data ?? null } : void 0);
       }
       onBeforeInput(e) {
         if (e.inputType === "historyUndo") {
@@ -4654,6 +4685,26 @@ var init_markdown_pane = __esm({
       }
       insertMarkdown(markdown) {
         this.insertText(markdown);
+      }
+      /** The source text IS the Markdown. */
+      getSelectionMarkdown() {
+        return this.getSelectionText();
+      }
+      replaceSelectionMarkdown(markdown) {
+        this.insertText(markdown);
+      }
+      transact(fn) {
+        this.batch++;
+        try {
+          fn();
+        } finally {
+          if (--this.batch === 0 && this.batchChanged) {
+            this.batchChanged = false;
+            this.undoStack.record(this.state(), false);
+            this.ev.emit("input", this.el.value);
+            this.opts.afterInput?.();
+          }
+        }
       }
       undo() {
         const s = this.undoStack.undo();
@@ -6799,7 +6850,8 @@ function inl(nodes, x, e, pt = "", pch = "") {
           const data = {};
           for (const k2 in nd.data) if (k2[0] !== "_") data[k2] = nd.data[k2];
           try {
-            out += sy.serialize(inl(nd.children, x, e), Object.keys(data).length ? data : void 0);
+            const inner = sy.nested === false ? nd.children.map((c) => c.type === "text" ? c.value : "").join("") : inl(nd.children, x, e);
+            out += sy.serialize(inner, Object.keys(data).length ? data : void 0);
           } catch {
             out += nd.data?._raw ?? inl(nd.children, x, e);
           }
@@ -10045,6 +10097,10 @@ function createSurface(options) {
   let syncKind = "typing";
   let lastRange = null;
   let selBefore = null;
+  let batchDepth = 0;
+  let batchChanged = false;
+  let batchFrom = "";
+  let batchSel = null;
   let mathEdit = null;
   const marked = /* @__PURE__ */ new Set();
   const drag = { from: null };
@@ -10084,6 +10140,15 @@ function createSurface(options) {
     ensureRoot(ctx);
     cachedDoc = doc;
     updateEmpty();
+    callPostRender(doc);
+  }
+  function callPostRender(doc) {
+    if (!options.postRender) return;
+    try {
+      options.postRender(root, doc);
+    } catch (e) {
+      if (typeof console !== "undefined") console.error(e);
+    }
   }
   function restoreTrailingSpace(md) {
     const m = /([ \t]+)\n*$/.exec(md);
@@ -10153,6 +10218,10 @@ function createSurface(options) {
     lastMd = md;
     cachedDoc = doc;
     updateEmpty();
+    if (batchDepth > 0) {
+      batchChanged = true;
+      return true;
+    }
     const group = kind === "typing" || kind === "delete" ? kind : void 0;
     history.record({ markdown: md }, savePath(root), { group, selectionBefore: selBefore ?? void 0 });
     selBefore = null;
@@ -10421,6 +10490,10 @@ function createSurface(options) {
         ctx.commit(kind);
       }
     }
+    if (ok) {
+      const ie = ev;
+      options.afterInput?.({ inputType: ie.inputType ?? "", data: ie.data ?? null });
+    }
     return ok;
   }
   function spansLeaves(r) {
@@ -10463,7 +10536,7 @@ function createSurface(options) {
         }
         ctx.begin();
         if (enter(ctx)) ctx.commit("enter");
-        options.afterInput?.();
+        options.afterInput?.({ inputType: "insertParagraph", data: null });
         return;
       }
       case "insertLineBreak":
@@ -10538,7 +10611,7 @@ function createSurface(options) {
           if (r.collapsed && insertPending(data)) {
             ev.preventDefault();
             queueSync("typing");
-            options.afterInput?.();
+            options.afterInput?.({ inputType: "insertText", data });
             return;
           }
           if (r.collapsed && !isText(r.startContainer)) {
@@ -10574,13 +10647,14 @@ function createSurface(options) {
   }
   function afterTyped(data, type) {
     dirty = true;
+    const info = { inputType: type, data };
     if (type === "insertText" && data) {
       if (data === " " && spaceRule(ctx)) {
-        options.afterInput?.();
+        options.afterInput?.(info);
         return;
       }
       if (inlineRule(ctx, data)) {
-        options.afterInput?.();
+        options.afterInput?.(info);
         return;
       }
     }
@@ -10588,7 +10662,7 @@ function createSurface(options) {
     const r = liveRange();
     const leaf = r ? leafOf(root, r.startContainer) : null;
     if (leaf?.tagName === "PRE") scheduleHighlight(leaf);
-    options.afterInput?.();
+    options.afterInput?.(info);
   }
   function onInput(ev) {
     const ie = ev;
@@ -10604,12 +10678,13 @@ function createSurface(options) {
     const data = ev.data ?? "";
     setTimeout(() => {
       if (destroyed || composing) return;
+      const info = { inputType: "insertCompositionText", data };
       if (data.endsWith(" ") && spaceRule(ctx)) {
-        options.afterInput?.();
+        options.afterInput?.(info);
         return;
       }
       queueSync("typing");
-      options.afterInput?.();
+      options.afterInput?.(info);
     }, 0);
   }
   function chipDef(el2) {
@@ -11051,6 +11126,39 @@ function createSurface(options) {
       ctx.begin();
       insertMarkdown(ctx, md);
       ctx.commit("insert");
+    },
+    getSelectionMarkdown() {
+      const r = ctx.range();
+      if (!r || r.collapsed) return "";
+      return stringify(selectionDoc(ctx, r), parseOpts).replace(/​/g, "").replace(/\n+$/, "");
+    },
+    replaceSelectionMarkdown(md) {
+      surface.insertMarkdown(md);
+    },
+    transact(fn) {
+      if (batchDepth === 0) {
+        if (!readOnly) ctx.begin();
+        batchFrom = lastMd;
+        batchSel = selBefore;
+        batchChanged = false;
+      }
+      batchDepth++;
+      try {
+        fn();
+      } finally {
+        if (batchDepth === 1) {
+          if (dirty && !composing) sync(syncKind);
+          batchDepth = 0;
+          if (batchChanged && lastMd !== batchFrom) {
+            history.record({ markdown: lastMd }, savePath(root), { selectionBefore: batchSel ?? void 0 });
+            history.breakGroup();
+            selBefore = null;
+            batchChanged = false;
+            emit("input", lastMd);
+          }
+          batchChanged = false;
+        } else batchDepth--;
+      }
     },
     insertChip(chip) {
       if (readOnly) return;

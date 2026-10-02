@@ -399,12 +399,48 @@ describe("highlighting", () => {
     mk("one two one");
     open();
     search("one");
-    expect(map.get("atm-find")!.size).toBe(1);
-    expect(map.get("atm-find-current")!.size).toBe(1);
+    const [all, cur] = [...map.keys()].sort();
+    expect(all).toMatch(/^atm-find-\d+$/);
+    expect(cur).toBe(`${all}-current`);
+    expect(map.get(all)!.size).toBe(1);
+    expect(map.get(cur)!.size).toBe(1);
     expect(m!.ed.element.querySelector(".atm-find-overlay")?.childElementCount ?? 0).toBe(0);
+    // The ::highlight() rules for those names are injected for this editor only.
+    expect(document.head.querySelector("style[data-atm-find-highlight]")!.textContent).toContain(`::highlight(${all})`);
     pressKey(q(), "Escape");
-    expect(map.has("atm-find")).toBe(false);
-    expect(map.has("atm-find-current")).toBe(false);
+    expect(map.has(all)).toBe(false);
+    expect(map.has(cur)).toBe(false);
+  });
+  it("two editors use different highlight names and do not clobber each other", async () => {
+    class FakeHighlight extends Set<Range> {
+      constructor(...r: Range[]) {
+        super(r);
+      }
+    }
+    const map = new Map<string, FakeHighlight>();
+    vi.stubGlobal("Highlight", FakeHighlight);
+    (globalThis as unknown as { CSS: unknown }).CSS = { highlights: map };
+    const a = mount({ value: "one two one", plugins: [createFindReplacePlugin()] });
+    const b = mount({ value: "one", plugins: [createFindReplacePlugin()] });
+    try {
+      for (const x of [a, b]) {
+        setSel(x.surface.querySelector("p")!, 0);
+        pressKey(x.surface, "f", { ctrl: true });
+        const input = x.ed.element.querySelector<HTMLInputElement>(".atm-find-input")!;
+        input.value = "one";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      await wait(150);
+      const currents = [...map.keys()].filter((n) => n.endsWith("-current"));
+      expect(currents.length).toBe(2); // one per editor, different names
+      expect(map.get(currents[0])!.size).toBe(1);
+      expect(map.get(currents[1])!.size).toBe(1);
+      a.destroy();
+      // Only the surviving editor's highlight is left; the other's cleanup did not touch it.
+      expect([...map.keys()].length).toBe(1);
+    } finally {
+      b.destroy();
+    }
   });
 });
 

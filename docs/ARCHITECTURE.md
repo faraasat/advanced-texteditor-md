@@ -60,20 +60,36 @@ src/
     history.ts        undo/redo
     keymap.ts toolbar.ts layouts.ts markdown-pane.ts status-bar.ts slash.ts
     lazy-chunks.ts markdown-proxy.ts lazy-math.ts uploads.ts rich-links.ts platform.ts
-  plugins/            definePlugin + built-in example plugins (highlight mark, callout)
+  plugins/            definePlugin + ready-made plugins (highlightMark, callout, kbd, subSup, find-replace, drafts, toc, text-style, smart-typography, shortcodes, hydrateAll)
   styles/             style.css, themes, tailwind.css
   index.ts            public re-exports
 ```
 
 Subpath bundles (tree-shaking): `.` (editor) · `./parser` · `./render` · `./math` ·
 `./highlight` + `./highlight/<lang>` · `./uploaders` · `./plugins` · `./mentions` · `./paste` ·
-`./link-preview` · `./embeds` · `./style.css` · `./style.min.css` · `./tailwind.css`.
+`./link-preview` · `./embeds` · `./style.css` · `./style.min.css` · `./plugins.css` · `./tailwind.css`.
 
 Lazy chunks (`src/editor/lazy-chunks.ts`, loaded with `import()` on first use): popovers, slash, mentions,
 uploads, markdown-pane, math, paste, rich-links. `preloadChunks()` loads them all. The editor entry loads none of
 them statically (`scripts/size.mjs` checks it). See DECISIONS.md, "Size budget and lazy chunks".
 `./parser`, `./render`, `./math` and `./highlight` import NO DOM globals at module
 load and are server-safe. The editor reads `document` only when `createEditor` runs.
+
+## Plugin seams
+
+`createEditor` is the only place that knows plugins. It collects `Plugin` fields once and wires them to the panes:
+
+- `keydown` runs inside the panes' `beforeKeyDown` chain: mention menu, slash menu, layout, **plugin keydown**, then the shortcut
+  router (so a plugin sees a key before the keymap does). The pane cancels the event when any of them returns true.
+- `afterInput` is the panes' `afterInput` callback. The surface calls it from every path that changes content (the `input` event, the
+  paths where it cancels `beforeinput` and edits itself, Enter, deletions, paste, drop); the Markdown pane calls it from its input event
+  and its commands. The editor runs the plugins' hooks behind a re-entrancy guard.
+- `postRender` is called by the surface after `renderAll` (not after edits) and by the editor after the split preview is drawn;
+  `renderDom` calls `RenderOptions.postRender`, and `hydrateAll` calls the hooks for `renderHtml` output.
+- `Pane` has `transact`, `getSelectionMarkdown` and `replaceSelectionMarkdown`. `editor.transact` wraps `pane.transact`, suppresses the
+  per-edit `change` and emits one when the outermost call ends. The `pane` event is emitted by `setMode` and by the lazy Markdown
+  pane's ready callback; `getPane()` returns the active pane or null.
+- `editor.emit`/`on` with a non-built-in name use a second emitter, so a plugin cannot forge `change` or `mode`.
 
 ## Rules for every module
 

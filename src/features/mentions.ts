@@ -241,6 +241,19 @@ export function createMentionController(config: MentionControllerOptions): Menti
     listen(false);
   }
 
+  /** Take the menu away but keep the trigger being tracked, so the next keystroke can bring it back. */
+  function hideMenu() {
+    if (!menuEl) return;
+    menuEl.remove();
+    menuEl = listEl = statusEl = null;
+    rows = [];
+    active = -1;
+    root.removeAttribute("aria-activedescendant");
+    root.removeAttribute("aria-controls");
+    live.textContent = "";
+    listen(false);
+  }
+
   function ensureMenu() {
     if (menuEl) return;
     menuEl = doc.createElement("div");
@@ -375,6 +388,7 @@ export function createMentionController(config: MentionControllerOptions): Menti
   function render() {
     if (destroyed || !current) return;
     const opt = optsOf();
+    if (opt.hideWhenEmpty && !items.length) return hideMenu();
     ensureMenu();
     const list = listEl!;
     list.textContent = "";

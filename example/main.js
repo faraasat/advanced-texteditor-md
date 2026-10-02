@@ -125,7 +125,7 @@ const SAMPLE = `# Advanced text editor
 Write **rich text**, *store* Markdown. Mention [@Ada Lovelace](mention:team-a/p01?teamA=a01) from Team A,
 [@Alan Turing](mention:team-b/p02?teamB=b02) from Team B, or [@Grace Hopper](mention:both/p03?teamA=a03&teamB=b03) who is in both.
 
-==Highlighted text== comes from a plugin, H~2~O and x^2^ from another, press ++Ctrl++ ++K++ for a link.
+==Highlighted text== comes from a plugin, H~2~O and x^2^ from another, press [[Ctrl]] [[K]] for a link.
 
 ::: tip
 Callouts are a block syntax: \`::: tip\` ... \`:::\`.

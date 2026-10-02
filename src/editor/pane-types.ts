@@ -34,6 +34,15 @@ export interface Pane {
   /** Could the command run right now? */
   can(command: string): boolean;
   getSelectionText(): string;
+  /** The selection as Markdown ("" when nothing is selected). The Markdown pane's selection already is. */
+  getSelectionMarkdown(): string;
+  /** Replace the selection with Markdown (a single paragraph goes in inline). */
+  replaceSelectionMarkdown(markdown: string): void;
+  /**
+   * Run `fn` and make every edit it does ONE history step and ONE `input` event, emitted after `fn`
+   * returns (and only when the content changed). Nested calls fold into the outermost.
+   */
+  transact(fn: () => void): void;
   /** Viewport rect of the caret/selection, for popovers. null if none. */
   getCaretRect(): DOMRect | null;
   insertText(text: string): void;
@@ -63,8 +72,17 @@ export interface SurfaceOptions {
    * Both panes (the surface and the Markdown textarea) honour this.
    */
   beforeKeyDown?: (ev: KeyboardEvent) => boolean;
-  /** Called after every input event, so menus can update their query. */
-  afterInput?: () => void;
+  /**
+   * Called after every content change the user makes (typing, including characters the surface
+   * inserts itself and so cancels `beforeinput` for, deletions, Enter, paste, drop), so menus and
+   * plugins can react. `info` is what the surface knows about the change, when it knows.
+   */
+  afterInput?: (info?: { inputType: string; data: string | null }) => void;
+  /**
+   * Called after the document was drawn into the surface (`setValue`, undo, redo, a late math
+   * renderer), with the root that was just filled and the parsed document. Not called for edits.
+   */
+  postRender?: (root: HTMLElement, doc: Doc) => void;
   /** Files pasted or dropped. The editor decides what to do (upload). */
   onFiles?: (files: File[], source: "paste" | "drop") => void;
   /** Resolve a pasted/dropped URL list etc. Optional hooks for hosts. */

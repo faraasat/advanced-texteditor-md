@@ -688,8 +688,8 @@ export type MarkdownPaneOptions = {
   history?: { limit?: number; groupDelayMs?: number };
   /** Called for keydown BEFORE the pane handles it; true = consumed. */
   beforeKeyDown?: (ev: KeyboardEvent) => boolean;
-  /** Called after every input event (menus use it). */
-  afterInput?: () => void;
+  /** Called after every content change (plugins use it); `info` when it came from an input event. */
+  afterInput?: (info?: { inputType: string; data: string | null }) => void;
   /** Files pasted or dropped into the textarea. */
   onFiles?: (files: File[], source: "paste" | "drop") => void;
   /** Extra "Mod-x" -> command id mappings from the host/plugins. */
@@ -716,6 +716,8 @@ export class MarkdownPane implements Pane {
   private sel = coalesce(() => this.ev.emit("selection", undefined));
   private cancelGrow: (() => void) | null = null;
   private keymap: Keymap;
+  private batch = 0;
+  private batchChanged = false;
 
   constructor(private opts: MarkdownPaneOptions) {
     this.doc = opts.document ?? document;
@@ -738,7 +740,7 @@ export class MarkdownPane implements Pane {
     this.keymap = createKeymap(opts.keymap ?? {});
     this.undoStack = new UndoStack(this.state(), opts.history?.limit ?? 200, opts.history?.groupDelayMs ?? 500);
 
-    this.listen(this.el, "input", () => this.onInput());
+    this.listen(this.el, "input", (e) => this.onInput(e as InputEvent));
     this.listen(this.el, "keydown", (e) => this.onKeyDown(e as KeyboardEvent));
     this.listen(this.el, "beforeinput", (e) => this.onBeforeInput(e as InputEvent));
     this.listen(this.el, "paste", (e) => this.onFiles(e as ClipboardEvent, "paste"));
@@ -769,11 +771,14 @@ export class MarkdownPane implements Pane {
     const changed = s.value !== this.el.value;
     if (changed) this.el.value = s.value;
     this.el.setSelectionRange(s.start, s.end);
-    if (record) this.undoStack.record(s, false);
+    if (record && !this.batch) this.undoStack.record(s, false);
     this.grow();
     if (changed) {
-      this.ev.emit("input", this.el.value);
-      this.opts.afterInput?.();
+      if (this.batch) this.batchChanged = true;
+      else {
+        this.ev.emit("input", this.el.value);
+        this.opts.afterInput?.();
+      }
     }
     this.sel.run();
   }
@@ -794,11 +799,11 @@ export class MarkdownPane implements Pane {
 
   /* ── events ── */
 
-  private onInput(): void {
+  private onInput(e?: InputEvent): void {
     this.undoStack.record(this.state(), true);
     this.grow();
     this.ev.emit("input", this.el.value);
-    this.opts.afterInput?.();
+    this.opts.afterInput?.(e && typeof e.inputType === "string" ? { inputType: e.inputType, data: e.data ?? null } : undefined);
   }
 
   private onBeforeInput(e: InputEvent): void {
@@ -933,6 +938,27 @@ export class MarkdownPane implements Pane {
   }
   insertMarkdown(markdown: string): void {
     this.insertText(markdown);
+  }
+  /** The source text IS the Markdown. */
+  getSelectionMarkdown(): string {
+    return this.getSelectionText();
+  }
+  replaceSelectionMarkdown(markdown: string): void {
+    this.insertText(markdown);
+  }
+
+  transact(fn: () => void): void {
+    this.batch++;
+    try {
+      fn();
+    } finally {
+      if (--this.batch === 0 && this.batchChanged) {
+        this.batchChanged = false;
+        this.undoStack.record(this.state(), false);
+        this.ev.emit("input", this.el.value);
+        this.opts.afterInput?.();
+      }
+    }
   }
 
   undo(): boolean {

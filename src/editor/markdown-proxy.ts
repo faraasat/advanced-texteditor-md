@@ -134,6 +134,16 @@ export class LazyMarkdownPane implements Pane {
     if (this.real) this.real.insertMarkdown(markdown);
     else if (!this.failed) this.queue.push((p) => p.insertMarkdown(markdown));
   }
+  getSelectionMarkdown(): string {
+    return this.getSelectionText();
+  }
+  replaceSelectionMarkdown(markdown: string): void {
+    this.insertText(markdown);
+  }
+  transact(fn: () => void): void {
+    if (this.real) this.real.transact(fn);
+    else fn(); // not loaded yet: the edits are queued and run one by one when it arrives
+  }
   undo(): boolean {
     return this.real ? this.real.undo() : false;
   }

@@ -21,6 +21,9 @@ import type { BlockNode, BlockSyntax, Doc, EditorInstance, InlineNode, Plugin, S
  * `hydrateToc(root, doc)` to give the headings real `id`s and fill the blocks
  * (a static HTML string cannot generate content by itself).
  *
+ * The plugin's `postRender` does that for you in a view built with `renderDom(doc, { postRender:
+ * [plugin.postRender] })` or `hydrateAll(root, plugins, doc)`.
+ *
  * `getToc(editor)` returns the outline for hosts that draw their own.
  *
  * DOM assumptions: the WYSIWYG surface is `.atm-surface` and the split preview
@@ -247,6 +250,11 @@ export function createTocPlugin(options: TocOptions = {}): Plugin {
     toolbar,
     commands: { insertToc: (ed) => (ed.insertMarkdown("::: toc\n:::"), true) },
     css: TOC_CSS,
+    // A read-only view (renderDom with this hook, hydrateAll, the split preview) is filled in here.
+    // The editor surface is kept up to date by the observer in `setup` instead.
+    postRender(root, ctx) {
+      if (ctx.mode === "view") hydrateToc(root, ctx.doc, { ...options, labels });
+    },
     setup(ed) {
       const el = ed.element;
       const doc = el.ownerDocument;
