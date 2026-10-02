@@ -1,4 +1,18 @@
-import type { InlineNode, InlineSyntax, BlockSyntax, ParseOptions } from "../types";
+import type { ChipDefinition, ChipDefinitions, InlineNode, InlineSyntax, BlockSyntax, ParseOptions } from "../types";
+
+/**
+ * THE one place the two forms of `chips` meet: an array of definitions becomes a record keyed by
+ * scheme; a record (keys: scheme or `scheme:kind`) is returned as it is.
+ */
+export function chipTable(c: ChipDefinitions | undefined): Record<string, ChipDefinition> {
+  if (!Array.isArray(c)) return c ?? {};
+  const o: Record<string, ChipDefinition> = {};
+  for (const d of c) if (d?.scheme) o[d.scheme] = d;
+  return o;
+}
+
+/** The definition for a chip: `scheme:kind` first, then `scheme`. */
+export const chipDefOf = (t: Record<string, ChipDefinition>, scheme: string, kind: string): ChipDefinition | undefined => t[scheme + ":" + kind] ?? t[scheme];
 
 /** Parse-time state shared by the block and inline passes. */
 export interface Ctx {
@@ -18,6 +32,9 @@ export interface Ctx {
   d: number;
 }
 
+/** The built-in `::: details Summary` block (ParseOptions.details). One object: stringify and render compare by identity. */
+export const DETAILS: BlockSyntax = { name: "details", tag: "details" };
+
 export const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\\/-]/g, "\\$&");
 
 export function makeCtx(o: ParseOptions = {}): Ctx {
@@ -33,8 +50,9 @@ export function makeCtx(o: ParseOptions = {}): Ctx {
     math,
     fn: o.footnotes !== false,
     il,
-    bl: o.syntax?.block ?? [],
-    chips: new Set(["mention", ...(o.chipSchemes ?? []).map((s) => s.toLowerCase())]),
+    bl: ((b) => (o.details === false || b.some((s) => s.name === "details") ? b : [...b, DETAILS]))(o.syntax?.block ?? []),
+    // A scheme named in `chips` (RenderOptions, when parse is handed render options) is a chip scheme too.
+    chips: new Set(["mention", ...(o.chipSchemes ?? []), ...Object.keys(chipTable((o as { chips?: ChipDefinitions }).chips)).map((k) => k.split(":")[0])].map((s) => s.toLowerCase())),
     refs: new Map(),
     fns: new Set(),
     pend: [],

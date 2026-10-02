@@ -50,36 +50,14 @@ export const EXTRA_LABELS = {
   apply: "Apply",
   cancel: "Cancel",
   insert: "Insert",
-  linkText: "Text",
-  imageAlt: "Description (alt text)",
   upload: "Upload",
-  fromUrl: "From address",
-  chooseFile: "Choose a file",
   paragraph: "Paragraph",
   headingN: "Heading {n}",
-  tableSize: "Table size",
-  tableSizeValue: "{rows} × {cols}",
   codeLanguage: "Code language",
   language: "Language",
-  mathSource: "TeX source",
-  mathDisplay: "Display mode (own line)",
-  mathPreview: "Preview",
-  invalidUrl: "That address is not allowed.",
-  uploadRejected: "{name} was not uploaded: {reason}",
   uploadFailed: "{name} could not be uploaded",
   uploadingN: "Uploading {n}",
-  uploadDone: "{name} uploaded",
-  reasonExtensionDenied: "this file type is blocked",
-  reasonExtensionNotAllowed: "this file type is not allowed",
-  reasonMimeDenied: "this file type is blocked",
-  reasonMimeNotAllowed: "this file type is not allowed",
-  reasonTooLarge: "the file is too large",
-  reasonTooMany: "too many files at once",
-  reasonEmpty: "the file is empty",
-  reasonDisabled: "uploads are turned off",
   slashMenu: "Insert block",
-  slashEmpty: "No matching blocks",
-  slashHint: "Type to filter blocks",
   modeSwitch: "Editor mode",
   statusBar: "Status",
   words1: "word",
@@ -96,13 +74,19 @@ export const EXTRA_LABELS = {
   openOriginal: "Open original",
   previewLoading: "Loading preview",
   unknownShortcut: "your system's emoji shortcut",
+  details: "Details",
 };
 
 export type ExtraLabels = typeof EXTRA_LABELS;
-export type Labels = Required<EditorLabels> & ExtraLabels;
+/**
+ * Every label. The strings only the lazy chunks show (popovers, uploads, the slash menu) are defined
+ * in i18n-lazy.ts and merged in by those chunks with `lazyLabels()`, so the editor entry does not
+ * carry them; a host overrides them the same way as any other label.
+ */
+export type Labels = Required<EditorLabels> & ExtraLabels & import("./i18n-lazy").LazyLabels;
 
 /** Merge host labels over the English defaults. Unknown/undefined values are ignored. */
-export function resolveLabels(labels?: EditorLabels & Partial<ExtraLabels>): Labels {
+export function resolveLabels(labels?: EditorLabels & Partial<ExtraLabels & import("./i18n-lazy").LazyLabels>): Labels {
   const out: Record<string, string> = { ...DEFAULT_LABELS, ...EXTRA_LABELS };
   if (labels) {
     for (const [k, v] of Object.entries(labels)) {
@@ -112,7 +96,6 @@ export function resolveLabels(labels?: EditorLabels & Partial<ExtraLabels>): Lab
   return out as Labels;
 }
 
-/** Replace `{name}` placeholders. */
-export function fmt(template: string, vars: Record<string, string | number>): string {
-  return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
-}
+// `fmt` lives in dom.ts: the lazy chunks use it too, and importing it from here would split this
+// module out of the editor entry.
+export { fmt } from "./dom";

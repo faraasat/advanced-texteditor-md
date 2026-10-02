@@ -19,6 +19,8 @@ import { createMentionController, mentionHref, parseMentionHref } from "advanced
 import { htmlToMarkdown, looksLikeMarkdown } from "advanced-texteditor-md/paste";
 import { createLinkPreviewController, checkPreviewUrl } from "advanced-texteditor-md/link-preview";
 import { BUILTIN_EMBEDS, matchEmbed, createEmbedElement, defineEmbed } from "advanced-texteditor-md/embeds";
+import { attachLightbox, LIGHTBOX_LABELS } from "advanced-texteditor-md/lightbox";
+import type { Lightbox, LightboxOptions } from "advanced-texteditor-md/lightbox";
 import "advanced-texteditor-md/style.css";
 import "advanced-texteditor-md/style.min.css";
 import "advanced-texteditor-md/plugins.css";
@@ -64,7 +66,12 @@ ed.replaceSelectionMarkdown(ed.getSelectionMarkdown());
 const outline: TocItem[] = [];
 void preloadChunks();
 const ropts: RenderOptions = { embeds, linkPreview: { resolve: async () => null }, labels: { code: "Code" }, postRender: [(root, ctx) => void (root.id + ctx.mode)] };
+const lbOpts: LightboxOptions = { labels: { lightboxClose: LIGHTBOX_LABELS.lightboxClose } };
+const lightbox: Lightbox = attachLightbox(document.body, lbOpts);
+const chipMap: RenderOptions = { chips: { task: { scheme: "task", className: "task-chip" } } };
+const submitted: EditorOptions = { onSubmit: (md: string, e: EditorInstance) => void (md + e.getValue()) };
 export const all = [
+  lightbox, chipMap, submitted,
   VERSION, DEFAULT_LABELS, parse, parse2, stringify, renderHtml, renderHtml2, renderDom, renderMarkdown, texToMathML, createFormUploader,
   createPresignedUploader, createDataUrlUploader, validateFile, urlAllowed, createMentionController, mentionHref, parseMentionHref,
   htmlToMarkdown, looksLikeMarkdown, createLinkPreviewController, checkPreviewUrl, matchEmbed, createEmbedElement, ed, ropts, hydrateAll, hydrateToc, findMatches, restyleMarkdown, DRAFT_EDITOR_EVENT, offX, offPane, outline,

@@ -4,7 +4,7 @@
 //   node scripts/build-example.mjs --serve    ...and serve http://127.0.0.1:4319/example/index.html
 //   node scripts/build-example.mjs --serve --port 5000 --force
 //
-// It adds nothing to package.json: it runs the tsup and copy-css that `npm run build` already runs.
+// It adds nothing to package.json: it runs the tsup, strip-bare-imports and copy-css that `npm run build` already runs.
 import { spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -31,6 +31,7 @@ if (stale || flag("--force")) {
   const tsup = join(root, "node_modules/.bin/tsup");
   for (const [cmd, a] of [
     [existsSync(tsup) ? tsup : "npx", existsSync(tsup) ? [] : ["tsup"]],
+    ["node", [join(root, "scripts/strip-bare-imports.mjs")]],
     ["node", [join(root, "scripts/copy-css.mjs")]],
   ]) {
     const r = spawnSync(cmd, a, { cwd: root, stdio: "inherit" });

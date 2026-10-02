@@ -106,6 +106,11 @@ export interface Surface extends Pane {
   insertAsset(asset: { url: string; name?: string; alt?: string; as: "image" | "link" }): void;
   /** Placeholder shown while an upload runs; returns update/remove handles. */
   insertUploadPlaceholder(name: string): { setProgress(f: number): void; remove(): void };
+  /**
+   * Internal: the surface's editing context, for the lazily loaded block tools (image frame, table
+   * toolbar, block handles), which edit the DOM the same way the surface does (begin, change, commit).
+   */
+  readonly ctx?: import("./surface/ctx").Ctx;
 }
 
 export type { MentionItem };

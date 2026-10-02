@@ -10,9 +10,10 @@
 import type { EditorOptions, UploadRejectReason } from "../types";
 import type { Pane, Surface } from "./pane-types";
 import type { Labels } from "./i18n";
-import { fmt } from "./i18n";
 import { urlAllowed, validateFile } from "../features/upload-policy";
 import { mdDest } from "./markdown-dest";
+import { fmt } from "./dom";
+import { lazyLabels } from "./i18n-lazy";
 
 export type UploadsHost = {
   options: EditorOptions;
@@ -34,7 +35,8 @@ export type UploadsHost = {
 export type Uploads = { uploadFiles(files: File[]): Promise<void> };
 
 export function createUploads(host: UploadsHost): Uploads {
-  const { options, labels } = host;
+  const { options } = host;
+  const labels = lazyLabels(host.labels);
 
   const reasonText = (r: UploadRejectReason): string =>
     labels[("reason" + r.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join("")) as keyof typeof labels] as string;

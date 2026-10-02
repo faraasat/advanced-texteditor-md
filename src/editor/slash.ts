@@ -5,13 +5,12 @@
  */
 import type { EditorInstance, EditorOptions, Slot, SlashItem } from "../types";
 import type { Labels } from "./i18n";
-import { fmt } from "./i18n";
-import { cx, h, placeNear, uid } from "./dom";
-import { ICONS } from "./toolbar";
+import { cx, fmt, h, placeNear, uid } from "./dom";
+import { lazyLabels } from "./i18n-lazy";
 
-import { detectSlash, type SlashMatch } from "./slash-detect";
+import type { detectSlash, SlashMatch } from "./slash-detect";
 
-export { detectSlash };
+const DETAILS_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 8 4 4-4 4"/><path d="M13 9h7M13 15h5"/></svg>';
 export type { SlashMatch };
 
 /** Rank items by how well they match `query`. Empty query keeps the order. */
@@ -36,8 +35,10 @@ export function filterSlashItems(items: SlashItem[], query: string): SlashItem[]
 export function builtinSlashItems(
   labels: Labels,
   features: NonNullable<EditorOptions["features"]>,
-  opts: { images: boolean },
+  opts: { images: boolean; icons?: Record<string, string> },
 ): SlashItem[] {
+  labels = lazyLabels(labels);
+  const ICONS = opts.icons ?? {};
   const item = (id: string, label: string, command: string, keywords: string[], icon?: string, description?: string): SlashItem => ({
     id,
     label,
@@ -60,6 +61,7 @@ export function builtinSlashItems(
   if (features.math !== false) out.push(item("math", labels.math, "math", ["latex", "tex", "formula", "equation"]));
   if (features.rule !== false) out.push(item("rule", labels.rule, "rule", ["divider", "hr", "line"]));
   if (opts.images && features.images !== false) out.push(item("image", labels.image, "image", ["picture", "photo", "upload"]));
+  if (features.details !== false) out.push(item("details", labels.detailsItem, "details", ["details", "collapse", "toggle", "accordion", "spoiler", "summary"], DETAILS_ICON));
   return out;
 }
 
@@ -77,6 +79,8 @@ export type SlashHost = {
   getRect: () => DOMRect | null;
   /** Tell the surface the DOM changed behind its back. */
   notifyEdit: () => void;
+  /** The editor's own `detectSlash` (handed over so this chunk imports nothing from the editor entry). */
+  detect: typeof detectSlash;
 };
 
 export type SlashMenu = {
@@ -90,7 +94,8 @@ export type SlashMenu = {
 const CODE_SELECTOR = "pre, code, [data-atm-code], .atm-codeblock";
 
 export function createSlashMenu(host: SlashHost): SlashMenu {
-  const { doc, editable, root, prefix: p, labels } = host;
+  const { doc, editable, root, prefix: p } = host;
+  const labels = lazyLabels(host.labels);
   const win = doc.defaultView as Window;
   const id = uid(`${p}-slash`);
   let menu: HTMLElement | null = null;
@@ -108,7 +113,7 @@ export function createSlashMenu(host: SlashHost): SlashMenu {
     const el = node.parentElement;
     if (el && el.closest(CODE_SELECTOR)) return null;
     const offset = sel.anchorOffset;
-    const m = detectSlash((node as Text).data.slice(0, offset));
+    const m = host.detect((node as Text).data.slice(0, offset));
     if (!m) return null;
     return { node: node as Text, start: m.start, end: offset, query: m.query };
   }

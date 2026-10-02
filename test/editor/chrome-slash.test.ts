@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { mount } from "./fakes";
-import { detectSlash, filterSlashItems, builtinSlashItems } from "../../src/editor/slash";
+import { filterSlashItems, builtinSlashItems } from "../../src/editor/slash";
+import { detectSlash } from "../../src/editor/slash-detect";
 import { resolveLabels } from "../../src/editor/i18n";
 
 const cleanups: (() => void)[] = [];

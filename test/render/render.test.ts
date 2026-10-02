@@ -25,8 +25,8 @@ describe("renderHtml classes and structure", () => {
 
   it("task items carry atm-task and a disabled checkbox", () => {
     const html = renderMarkdown("- [x] done\n- [ ] todo");
-    expect(html).toContain('<li class="atm-li atm-task atm-task-done"><input type="checkbox" class="atm-task-box" disabled="" checked="">done</li>');
-    expect(html).toContain('<li class="atm-li atm-task"><input type="checkbox" class="atm-task-box" disabled="">todo</li>');
+    expect(html).toContain('<li class="atm-li atm-task atm-task-done"><input type="checkbox" class="atm-task-box" disabled="" checked="" aria-label="Task">done</li>');
+    expect(html).toContain('<li class="atm-li atm-task"><input type="checkbox" class="atm-task-box" disabled="" aria-label="Task">todo</li>');
   });
 
   it("tables: head/body, alignment styles", () => {

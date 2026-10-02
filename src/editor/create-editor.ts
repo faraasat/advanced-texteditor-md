@@ -31,6 +31,7 @@ import { parse, walk, docToText } from "../parser";
 import { renderDom, renderHtml } from "../render";
 import { createHighlighter } from "../highlight";
 import { chipHref } from "../parser/chip";
+import { chipDefOf, chipTable } from "../parser/util";
 import type { MentionController } from "../features/mentions";
 import { createSurface as realCreateSurface } from "./surface";
 import { LazyMarkdownPane, warmMarkdownPane } from "./markdown-proxy";
@@ -42,6 +43,7 @@ import { DEFAULT_LABELS, fmt, resolveLabels, type Labels } from "./i18n";
 import { applyTheme } from "./theme";
 import { fullClasses, resolveLayout, type LayoutHost, type RuntimeLayout } from "./layouts";
 import {
+  ICONS,
   builtinToolbarItems,
   createModeSwitch,
   createToolbar,
@@ -53,6 +55,7 @@ import {
 import { createStatusBar, type StatusBarHandle } from "./status-bar";
 import type { SlashMenu } from "./slash";
 import type { PopoverHandle, PopoverHost } from "./popovers";
+import type { Tool, ToolHost } from "./tools/types";
 import { Emitter, SR_ONLY, coalesce, cx, detectPlatform, emojiShortcut, h, schedule } from "./dom";
 
 export { DEFAULT_LABELS };
@@ -102,50 +105,12 @@ function injectCss(doc: Document, css: string): () => void {
   };
 }
 
-/* ───────────────────────────── caret alignment (mode switches) ───────────────────────────── */
-
-/**
- * Where does the caret sit in `target`, given a caret at `upto` in `source`?
- * Both strings contain the same readable text, one with Markdown syntax in it.
- * Matching ignores whitespace; characters of the longer string that have no
- * counterpart are treated as syntax. Returns an index into `target`.
- */
-export function alignOffset(source: string, upto: number, target: string, maxSkip: number): number {
-  let j = 0;
-  for (let i = 0; i < upto && i < source.length; i++) {
-    const c = source[i];
-    if (/\s/.test(c)) continue;
-    let k = j;
-    // skip whitespace and up to `maxSkip` characters of syntax in the target
-    let skipped = 0;
-    while (k < target.length && skipped <= maxSkip) {
-      if (target[k] === c) break;
-      if (!/\s/.test(target[k])) skipped++;
-      k++;
-    }
-    if (k < target.length && target[k] === c && skipped <= maxSkip) j = k + 1;
-  }
-  return j;
-}
-
+/** Characters of rendered text before a DOM point (the mode switch maps it into the Markdown). */
 function textOffsetOf(root: HTMLElement, node: Node, offset: number): number {
   const r = root.ownerDocument.createRange();
   r.selectNodeContents(root);
   r.setEnd(node, offset);
   return r.toString().length;
-}
-
-function domPositionAt(root: HTMLElement, index: number): { node: Node; offset: number } {
-  const doc = root.ownerDocument;
-  const walker = doc.createTreeWalker(root, 4 /* SHOW_TEXT */);
-  let left = index;
-  let last: Text | null = null;
-  for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
-    last = n;
-    if (left <= n.data.length) return { node: n, offset: left };
-    left -= n.data.length;
-  }
-  return last ? { node: last, offset: last.data.length } : { node: root, offset: 0 };
 }
 
 /* ───────────────────────────── the editor ───────────────────────────── */
@@ -237,7 +202,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   }
 
   const chipDefs: Record<string, ChipDefinition> = {};
-  for (const d of options.chips ?? []) chipDefs[d.scheme] = { ...d, kinds: d.kinds ? { ...d.kinds } : undefined };
+  for (const [k, d] of Object.entries(chipTable(options.chips))) chipDefs[k] = { ...d, kinds: d.kinds ? { ...d.kinds } : undefined };
   for (const s of mentionSchemes) if (!chipDefs[s]) chipDefs[s] = { scheme: s };
   if (classes.chip) for (const d of Object.values(chipDefs)) d.className = cx(d.className, classes.chip);
   const hostKinds = new Set<string>();
@@ -248,13 +213,14 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     math: mathOn,
     footnotes: features.footnotes !== false,
     syntax: { inline: inlineSyntax, block: blockSyntax },
-    chipSchemes: Array.from(new Set([...mentionSchemes, ...Object.keys(chipDefs)])),
+    chipSchemes: Array.from(new Set([...mentionSchemes, ...Object.keys(chipDefs).map((k) => k.split(":")[0])])),
     links: options.links,
     classPrefix: options.classPrefix,
     highlight: highlighter,
     mathRenderer: mathRenderer ?? null,
     chips: chipDefs,
-    labels: { code: labels.codeBlock, openOriginal: labels.openOriginal },
+    labels: { code: labels.codeBlock, openOriginal: labels.openOriginal, details: labels.details, task: labels.taskList },
+    details: features.details !== false,
     embeds: options.embeds,
     linkPreview: options.linkPreview,
   };
@@ -404,6 +370,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
           previewLoading: labels.previewLoading,
         },
         previewPane: regions.previewPane,
+        renderBlocks: (b) => surface!.ctx!.blocks(b),
         notifyEdit: () => surface?.editable.dispatchEvent(new (win.InputEvent ?? win.Event)("input", { bubbles: true, inputType: "insertReplacementText" } as InputEventInit)),
       });
       if (surface) rich.attachSurface(surface.editable);
@@ -462,9 +429,12 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     }
     return false;
   };
+  // Alt+Shift+H: focus the block handle of the caret's block (the handles are a lazy chunk).
+  const handleKey = (ev: KeyboardEvent): boolean =>
+    handlesOn && ev.altKey && ev.shiftKey && ev.code === "KeyH" ? (quiet(tool("handles").then((t) => t.focus?.())), true) : false;
   const onKeyDown = (ev: KeyboardEvent): boolean =>
     (ev.key === "Escape" && slashLoading && (slashDismissed = true), false) ||
-    !!mentionCtl?.handleKeyDown(ev) || !!slash?.handleKeyDown(ev) || !!layout.onKeyDown?.(ev, layoutHost) || pluginKeydown(ev) || routeShortcut(ev);
+    !!mentionCtl?.handleKeyDown(ev) || !!slash?.handleKeyDown(ev) || !!layout.onKeyDown?.(ev, layoutHost) || pluginKeydown(ev) || handleKey(ev) || routeShortcut(ev);
   // Plugin hooks do not re-enter: an edit a hook makes does not call the hooks again.
   let inAfterInput = false;
   const runAfterInput = (info?: { inputType: string; data: string | null }) => {
@@ -596,7 +566,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     const s = surface;
     const make = (m: typeof import("./slash")) => {
         if (destroyed || surface !== s || slash) return;
-        slashItems = [...m.builtinSlashItems(labels, features, { images: true }), ...pluginSlash];
+        slashItems = [...m.builtinSlashItems(labels, features, { images: true, icons: ICONS }), ...pluginSlash];
         slash = m.createSlashMenu({
           doc,
           editable: s.editable,
@@ -608,6 +578,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
           getItems: () => slashItems,
           getRect: () => s.getCaretRect(),
           notifyEdit: () => s.editable.dispatchEvent(new (win.InputEvent ?? win.Event)("input", { bubbles: true, inputType: "deleteContentBackward" } as InputEventInit)),
+          detect: detectSlash,
         });
         if (!slashDismissed) slash.notifyInput();
         slashDismissed = false;
@@ -653,6 +624,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       afterInput: afterInputHooks.length ? runAfterInput : undefined,
       onFiles,
       keymap,
+      createKeymap,
       runExternal: (cmd, args) => exec(cmd, args),
     }, () => {
       // The textarea has arrived (it is a lazy chunk): measure it and refresh the toolbar.
@@ -722,7 +694,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     const el = t && typeof t.closest === "function" ? (t.closest(`.${PREFIX}-chip`) as HTMLElement | null) : null;
     if (!el || !regions.previewPane.contains(el)) return;
     const scheme = el.getAttribute("data-scheme") ?? "";
-    const def = chipDefs[scheme];
+    const def = chipDefOf(chipDefs, scheme, el.getAttribute("data-kind") ?? "");
     if (!def?.onClick) return;
     const trigger = el.getAttribute("data-trigger") ?? "";
     const badge = el.querySelector(`.${PREFIX}-chip-badge`)?.textContent ?? "";
@@ -805,10 +777,46 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
 
   function onPaneSelection() {
     if (destroyed) return;
+    checkTools();
     toolbar?.refresh();
     events.emit("selection", undefined);
     pingLayout();
     rich?.schedule(); // a card appears once the caret has left its line
+  }
+
+  /* ── block tools: each a lazy chunk (image frame + toolbar, table toolbar, block handles, lightbox) ── */
+
+  const imgTools = options.images?.tools !== false && features.images !== false;
+  const tableTools = features.tableToolbar !== false && features.tables !== false;
+  const handlesOn = features.blockHandles !== false;
+  const zoom = options.images?.zoom ?? "readonly";
+  type ToolName = "images" | "tables" | "handles" | "zoom";
+  const toolP: Partial<Record<ToolName, Promise<Tool>>> = {};
+  const toolList: Tool[] = [];
+  const quiet = (pr: Promise<unknown>) => void pr.catch(() => undefined); // offline: the tool is an enhancement
+  const tool = (n: ToolName): Promise<Tool> =>
+    (toolP[n] ??= chunks[n].load().then(
+      (m) => {
+        if (destroyed || !surface) throw 0;
+        const t = m.attach(toolHost);
+        toolList.push(t);
+        t.update();
+        return t;
+      },
+      (e) => {
+        delete toolP[n];
+        throw e;
+      },
+    ));
+  // The caret in a table cell, or an image selected: fetch that tool.
+  function checkTools() {
+    const sel = doc.getSelection();
+    let n: Node | null | undefined = sel?.anchorNode;
+    if (mode !== "wysiwyg" || readOnly || !surface || !n || !surface.editable.contains(n)) return;
+    if (n.nodeType === 1) n = n.childNodes[sel!.anchorOffset] ?? n;
+    const el = (n.nodeType === 1 ? n : n.parentNode) as Element;
+    if (imgTools && el.closest("img,figure")) quiet(tool("images"));
+    if (tableTools && el.closest("td,th")) quiet(tool("tables"));
   }
 
   /* ── layout host, toolbar, status, mode switch ── */
@@ -826,10 +834,36 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     },
     focusEditor: () => activePane().focus(),
     focusToolbar: () => toolbar?.focus(),
+    // NOT named "submit": a bubbling event of that name reaches a host <form onSubmit> (React and
+    // friends listen for it by name) with a CustomEvent instead of a SubmitEvent.
     submit() {
-      root.dispatchEvent(new (win.CustomEvent ?? CustomEvent)("submit", { bubbles: true, cancelable: true, detail: { value, editor: api } }));
+      if (root.dispatchEvent(new (win.CustomEvent ?? CustomEvent)("atm:submit", { bubbles: true, cancelable: true, detail: { value, editor: api } }))) options.onSubmit?.(value, api);
     },
   };
+
+  const toolHost = {
+    doc,
+    win,
+    prefix: PREFIX,
+    root,
+    get surface() {
+      return surface!;
+    },
+    get ctx() {
+      return surface!.ctx!;
+    },
+    get editor() {
+      return api;
+    },
+    labels,
+    announce,
+    isReadOnly: () => readOnly,
+    isVisible: () => mode === "wysiwyg" && !destroyed,
+    zoom,
+    links: options.links,
+    onUpdate: layoutHost.onUpdate,
+    zoomImage: (img: HTMLImageElement) => quiet(tool("zoom").then((t) => t.open?.(img))),
+  } as unknown as ToolHost;
 
   let slashItems: SlashItem[] = [...pluginSlash];
 
@@ -1141,6 +1175,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
         return (m) => m.openCodeLanguagePopover(popHost, { ...a, languages: highlighter ? m.COMMON_LANGUAGES.filter((l) => highlighter!.has(l)) : [] });
       });
     },
+    submit: () => (layoutHost.submit(), true),
     attach() {
       if (readOnly || !uploadEnabled) return false;
       ensurePicker().click();
@@ -1252,32 +1287,20 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     return null;
   }
 
+  // Mapping a caret between the rendered text and the Markdown lives in the Markdown pane's chunk:
+  // a mode switch involves that pane anyway.
   function restoreCaret(c: Caret) {
     if (!c) return;
-    if (mode === "wysiwyg" && surface) {
-      if (c.kind === "dom") return;
-      const text = surface.editable.textContent ?? "";
-      const a = alignOffset(value, c.start, text, 0);
-      const b = alignOffset(value, c.end, text, 0);
-      const p1 = domPositionAt(surface.editable, a);
-      const p2 = domPositionAt(surface.editable, b);
-      const sel = doc.getSelection();
-      if (!sel) return;
-      const r = doc.createRange();
-      try {
-        r.setStart(p1.node, p1.offset);
-        r.setEnd(p2.node, p2.offset);
-        sel.removeAllRanges();
-        sel.addRange(r);
-      } catch {
-        /* a detached node: leave the caret where the surface put it */
-      }
-    } else if (md && c.kind === "dom" && surface) {
-      const prefixText = surface.editable.textContent ?? "";
-      md.setSelection(alignOffset(prefixText, c.start, value, 80), alignOffset(prefixText, c.end, value, 80));
-    } else if (md && c.kind === "md") {
-      md.setSelection(c.start, c.end);
-    }
+    if (md && c.kind === "md" && mode !== "wysiwyg") return md.setSelection(c.start, c.end);
+    if (!surface || (c.kind === "dom") === (mode === "wysiwyg")) return;
+    const go = (m: typeof import("./markdown-pane")) => {
+      if (destroyed || !surface) return;
+      if (mode === "wysiwyg") m.caretToSurface(surface.editable, value, c);
+      else md?.setSelection(...m.caretToMarkdown(surface.editable.textContent ?? "", value, c));
+    };
+    const cached = chunks.markdown.get();
+    if (cached) go(cached);
+    else chunks.markdown.load().then(go, () => undefined);
   }
 
   function setMode(next: EditorMode) {
@@ -1361,6 +1384,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     setReadOnly(v) {
       if (destroyed) return;
       readOnly = !!v || !!options.disabled;
+      if (readOnly && zoom !== false) quiet(tool("zoom"));
       surface?.setReadOnly(readOnly);
       md?.setReadOnly(readOnly);
       root.classList.toggle(`${PREFIX}-readonly`, readOnly);
@@ -1428,40 +1452,21 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   (live_ as unknown as { __pane: () => Pane }).__pane = paneHook;
   api = live_;
 
-  // After destroy every method is a safe no-op.
+  // After destroy every method is a safe no-op: these keep their meaning, the rest return "", false
+  // or nothing (set up in destroy()).
   const noops: Partial<Record<keyof EditorInstance, unknown>> = {
     getValue: () => value,
-    setValue: () => undefined,
-    getHtml: () => "",
-    getText: () => "",
     getAst: () => ({ type: "doc", children: [] }) as Doc,
     getMentions: () => [],
     isEmpty: () => true,
     getStats: () => ({ words: 0, characters: 0 }),
     getMode: () => mode,
-    setMode: () => undefined,
-    setReadOnly: () => undefined,
-    setTheme: () => undefined,
-    focus: () => undefined,
-    blur: () => undefined,
-    insertMarkdown: () => undefined,
-    insertText: () => undefined,
-    insertChip: () => undefined,
-    getSelectionText: () => "",
-    getSelectionMarkdown: () => "",
-    replaceSelectionMarkdown: () => undefined,
     transact: <T>(fn: () => T) => fn(),
     getPane: () => null,
     isReadOnly: () => readOnly,
-    emit: () => undefined,
-    exec: () => false,
     registerCommand: () => () => undefined,
-    can: () => false,
-    undo: () => false,
-    redo: () => false,
     uploadFiles: () => Promise.resolve(),
     on: () => () => undefined,
-    destroy: () => undefined,
   };
 
   function destroy() {
@@ -1475,6 +1480,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     previewCo.cancel();
     rich?.destroy();
     rich = null;
+    for (const t of toolList) t.destroy();
     detachLayout();
     layoutUpdates.clear();
     ro?.disconnect();
@@ -1501,6 +1507,9 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     root.remove();
     events.clear();
     customEvents.clear();
+    for (const k of Object.keys(api) as (keyof EditorInstance)[]) {
+      if (typeof api[k] === "function" && !(k in noops)) noops[k] = /^get(Html|Text|Sel)/.test(k) ? () => "" : /^(exec|can|undo|redo)$/.test(k) ? () => false : () => undefined;
+    }
     Object.assign(api, noops);
   }
 
@@ -1527,6 +1536,11 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   if (mode === "split") renderPreview();
   updateStatus();
   loadRich();
+  if (handlesOn) {
+    root.classList.add(`${PREFIX}-has-handles`);
+    listen(regions.surface, "pointerover", () => !readOnly && quiet(tool("handles")));
+  }
+  if (readOnly && zoom !== false) quiet(tool("zoom"));
 
   const pluginCleanups: (() => void)[] = [];
   for (const pl of plugins) {

@@ -1,3 +1,4 @@
+import { createKeymap } from "../../src/editor/keymap";
 import { describe, it, expect } from "vitest";
 import { applyMarkdownCommand, continueMarkdown, isMarkdownActive, UndoStack, MarkdownPane, type MdState } from "../../src/editor/markdown-pane";
 
@@ -236,7 +237,8 @@ describe("markdown pane: UndoStack", () => {
 
 describe("markdown pane: the textarea", () => {
   function make(value = "") {
-    const pane = new MarkdownPane({ ariaLabel: "Markdown" });
+    // The editor hands the pane its keymap builder (so the lazy chunk imports nothing from the entry).
+    const pane = new MarkdownPane({ ariaLabel: "Markdown", createKeymap });
     document.body.appendChild(pane.el);
     pane.setValue(value);
     return pane;

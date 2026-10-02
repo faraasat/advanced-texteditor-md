@@ -179,7 +179,8 @@ test.describe("embeds", () => {
     await expect(editable(page).locator(".atm-embed, iframe")).toHaveCount(0);
   });
 
-  test("embed blocks are atomic: Backspace after one removes it and the markdown follows", async ({ page, isMobile }) => {
+  test("embed blocks are atomic: Backspace after one removes it and the markdown follows", async ({ page, isMobile, browserName }) => {
+    test.fixme(browserName === "webkit", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
     test.skip(!!isMobile, "keyboard");
     await open(page);
     await setValue(page, `${YT}\n\nafter`);

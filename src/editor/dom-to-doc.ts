@@ -101,6 +101,14 @@ function styleMarks(e: HTMLElement): ("strong" | "emphasis" | "strike")[] {
   return out;
 }
 
+/** Width (`width` attribute, CSS px) and alignment (`data-align`) of an image. */
+function sized(im: Extract<InlineNode, { type: "image" }>, w: string | null, a: string | null): InlineNode {
+  const n = Math.round(Number(w));
+  if (n > 0 && n < 1e4) im.width = n;
+  if (a === "left" || a === "center" || a === "right") im.align = a;
+  return im;
+}
+
 /** Inline content of a run of DOM nodes. */
 export function domInline(nodes: ArrayLike<Node>, opts: DomToDocOptions = {}): InlineNode[] {
   return inlineOf(nodes, { p: opts.classPrefix ?? "atm", o: opts });
@@ -141,7 +149,7 @@ function inlineOf(nodes: ArrayLike<Node>, x: X): InlineNode[] {
       if (name === IMG_X) {
         const im: InlineNode = { type: "image", src: data?.src ?? "", alt: data?.alt ?? "" };
         if (data?.title) im.title = data.title;
-        return void out.push(im);
+        return void out.push(sized(im, data?.width ?? null, data?.align ?? null));
       }
       const kids = inlineOf(n.childNodes, x);
       const c: InlineNode = { type: "custom", name, children: kids };
@@ -180,7 +188,7 @@ function inlineOf(nodes: ArrayLike<Node>, x: X): InlineNode[] {
         const im: InlineNode = { type: "image", src, alt: n.getAttribute("alt") ?? "" };
         const title = n.getAttribute("title");
         if (title) im.title = title;
-        return void out.push(im);
+        return void out.push(sized(im, n.getAttribute("width"), n.getAttribute("data-align")));
       }
     }
     const marks = styleMarks(n);
@@ -221,6 +229,7 @@ function blocksOf(parent: Node, x: X, out: BlockNode[] = [], defs?: Map<string, 
     if (!isEmptyInline(kids)) out.push({ type: "paragraph", children: kids });
   };
   for (let c = parent.firstChild; c; c = c.nextSibling) {
+    if (isEl(c) && c.tagName === "SUMMARY") continue; // a details summary is data, not a block
     if (isBlockEl(c, x)) {
       flush();
       blockOf(c, x, out, defs);
@@ -381,9 +390,29 @@ function blockOf(e: HTMLElement, x: X, out: BlockNode[], defs?: Map<string, Bloc
   if (e.hasAttribute("data-atm-preview-card")) return;
   if (has(e, x, "custom")) {
     const b: BlockNode = { type: "custom", name: customName(e, x, "block"), children: blocksOf(e, x) };
-    const d = customData(e);
+    let d = customData(e);
+    if (t === "DETAILS") {
+      // The summary is the live text; the `open` flag is the stored default, never the toggle state.
+      const sm = Array.from(e.children).find((c) => c.tagName === "SUMMARY");
+      const sum = normText((sm?.textContent ?? "").replace(/\u200b/g, "")).replace(/\s+/g, " ").trim();
+      d = { ...d };
+      delete d.summary;
+      if (sum) d.summary = sum;
+      if (!Object.keys(d).length) d = undefined;
+    }
     if (d) b.data = d;
     out.push(b);
+    return;
+  }
+  if (t === "FIGURE" && has(e, x, "figure")) {
+    // A captioned image: one paragraph holding the image, the caption as its title.
+    const im = inlineOf(Array.from(e.querySelectorAll("img")), x)[0];
+    const cap = (e.querySelector("figcaption")?.textContent ?? "").trim();
+    if (im && im.type === "image") {
+      if (cap) im.title = cap;
+      else delete im.title;
+      out.push({ type: "paragraph", children: [im] });
+    }
     return;
   }
   if (t === "SECTION" && has(e, x, "footnotes")) {

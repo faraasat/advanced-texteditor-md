@@ -5,14 +5,18 @@
   "keywords": [
     "accessible",
     "code highlighting",
+    "collapsible",
     "contenteditable",
     "custom syntax",
+    "drag and drop",
     "editor",
     "embeds",
     "gfm",
     "github flavored markdown",
+    "image resize",
     "latex",
     "lazy loading",
+    "lightbox",
     "link preview",
     "markdown",
     "markdown editor",
@@ -156,6 +160,16 @@
         "default": "./dist/embeds.cjs"
       }
     },
+    "./lightbox": {
+      "import": {
+        "types": "./dist/lightbox.d.ts",
+        "default": "./dist/lightbox.js"
+      },
+      "require": {
+        "types": "./dist/lightbox.d.cts",
+        "default": "./dist/lightbox.cjs"
+      }
+    },
     "./highlight/*": {
       "import": {
         "types": "./dist/highlight/*.d.ts",
@@ -188,7 +202,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsup && node scripts/copy-css.mjs",
+    "build": "tsup && node scripts/strip-bare-imports.mjs && node scripts/copy-css.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -247,6 +261,9 @@
       ],
       "embeds": [
         "./dist/embeds.d.ts"
+      ],
+      "lightbox": [
+        "./dist/lightbox.d.ts"
       ]
     }
   }

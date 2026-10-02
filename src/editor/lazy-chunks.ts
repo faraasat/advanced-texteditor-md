@@ -41,6 +41,18 @@ export const chunks = {
   paste: /* @__PURE__ */ lazy(() => import("../features/paste")),
   /** Link-preview cards, hover cards and embed blocks. */
   rich: /* @__PURE__ */ lazy(() => import("./rich-links")),
+  /** The image frame, resize handles and image toolbar. */
+  images: /* @__PURE__ */ lazy(() => import("./tools/image-tools")),
+  /** The floating table toolbar. */
+  tables: /* @__PURE__ */ lazy(() => import("./tools/table-tools")),
+  /** Block drag handles and the block menu. */
+  handles: /* @__PURE__ */ lazy(() => import("./tools/block-handles")),
+  /** The bubble layout's floating toolbar behaviour. */
+  bubble: /* @__PURE__ */ lazy(() => import("./bubble")),
+  /** Toolbar dropdown and "more" menus. */
+  menu: /* @__PURE__ */ lazy(() => import("./toolbar-menu")),
+  /** The image lightbox (read-only views). */
+  zoom: /* @__PURE__ */ lazy(() => import("./tools/zoom")),
 };
 
 /** Fetch every lazy chunk now. Resolves when all have arrived (rejects if one cannot). */

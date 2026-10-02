@@ -18,7 +18,12 @@ export type InlineNode =
   | { type: "strike"; children: InlineNode[] }
   | { type: "code"; value: string }
   | { type: "link"; href: string; title?: string; children: InlineNode[] }
-  | { type: "image"; src: string; alt: string; title?: string }
+  /**
+   * `![alt](src "title")`. `width` (CSS px) and `align` are stored as a suffix of the alt text,
+   * `![alt|center|320](src)`, which any other Markdown renderer shows as a plain image (see
+   * docs/DECISIONS.md, "Image size and alignment"). `title` is the caption.
+   */
+  | { type: "image"; src: string; alt: string; title?: string; width?: number; align?: "left" | "center" | "right" }
   | { type: "break" } // hard line break
   | { type: "math"; tex: string } // inline $…$
   | { type: "footnoteRef"; label: string }
@@ -149,6 +154,12 @@ export type ParseOptions = {
   chipSchemes?: string[];
   /** Attach `pos` to blocks (the editor needs it). Default false. */
   positions?: boolean;
+  /**
+   * Collapsible sections: `::: details Summary text` … `:::` (add `open` before the summary to
+   * show it expanded by default: `::: details open Summary`). Rendered as `<details>/<summary>`.
+   * Default true. A host block syntax named "details" replaces the built-in one.
+   */
+  details?: boolean;
 };
 
 export type RenderOptions = ParseOptions & {
@@ -159,8 +170,12 @@ export type RenderOptions = ParseOptions & {
   mathRenderer?: MathRenderer | null;
   /** Per-node-type class additions, e.g. { table: "my-table" }. */
   classNames?: Partial<Record<string, string>>;
-  /** Chip rendering overrides, keyed by scheme or `scheme:kind`. */
-  chips?: Record<string, ChipDefinition>;
+  /**
+   * Chip rendering overrides: an array of definitions (each keyed by its `scheme`), or a record
+   * keyed by scheme or `scheme:kind`. Both forms mean the same thing. A scheme named here is also
+   * recognised as a chip scheme by the parser, so `chipSchemes` is not needed as well.
+   */
+  chips?: ChipDefinitions;
   /**
    * Embed providers. A top-level paragraph holding only a URL that one of them accepts renders as a
    * sandboxed iframe block instead. Needs no DOM, so `renderHtml` can do it on a server.
@@ -173,7 +188,7 @@ export type RenderOptions = ParseOptions & {
    */
   linkPreview?: LinkPreviewOptions;
   /** Text labels the output needs. Defaults are English. */
-  labels?: { code?: string; openOriginal?: string };
+  labels?: { code?: string; openOriginal?: string; details?: string; /** Accessible name of each task-list checkbox. */ task?: string };
   /**
    * Called by `renderDom` once the output exists, with the element that holds it (a detached
    * wrapper whose children are then moved into the returned fragment) and the document that was
@@ -259,6 +274,9 @@ export type MentionOptions = {
   groupBy?: (item: MentionItem) => string | undefined;
   renderItem?: (item: MentionItem) => HTMLElement | string;
 };
+
+/** `chips` option: `[{ scheme: "task", … }]` or `{ task: {…}, "task:bug": {…} }` (keys: scheme or `scheme:kind`). */
+export type ChipDefinitions = ChipDefinition[] | Record<string, ChipDefinition>;
 
 export type ChipDefinition = {
   scheme: string;
@@ -528,10 +546,33 @@ export type EditorOptions = {
     blockquote: boolean; codeBlocks: boolean; tables: boolean; math: boolean;
     rule: boolean; footnotes: boolean; slashMenu: boolean; autolink: boolean;
     statusBar: boolean; wordCount: boolean;
+    /** `::: details Summary` collapsible sections (parse, render, slash item). Default true. */
+    details: boolean;
+    /**
+     * Drag handles and a block menu (move, duplicate, delete, turn into) beside top-level blocks and
+     * list items. Default true; on a coarse pointer the handle shows only for keyboard focus
+     * (Alt+Shift+H). A lazy chunk, fetched on first hover or shortcut.
+     */
+    blockHandles: boolean;
+    /** The floating table toolbar (rows, columns, alignment) while the caret is in a table. Default true. Lazy. */
+    tableToolbar: boolean;
   }>;
 
+  /** Image editing and viewing. */
+  images?: {
+    /**
+     * Click (or Enter on a focused image) opens a lightbox dialog with arrows between the document's
+     * images. `"readonly"` (default): only while the editor is read-only. `true`: also while editing
+     * (double-click, or the image toolbar's zoom button). `false`: never.
+     */
+    zoom?: boolean | "readonly";
+    /** The image frame, resize handles and image toolbar while editing. Default true. Lazy. */
+    tools?: boolean;
+  };
+
   mentions?: MentionOptions | MentionOptions[];
-  chips?: ChipDefinition[];
+  /** Same two forms as `RenderOptions.chips` (array, or record keyed by scheme / `scheme:kind`). */
+  chips?: ChipDefinitions;
   upload?: UploadOptions;
   links?: LinkPolicy;
   linkPreview?: LinkPreviewOptions;
@@ -552,6 +593,13 @@ export type EditorOptions = {
   labels?: EditorLabels;
 
   onChange?: (markdown: string, editor: EditorInstance) => void;
+  /**
+   * Called on submit: Mod-Enter in the `bottom-bar` layout, or `exec("submit")` in any layout. The
+   * editor first dispatches a bubbling, cancelable `atm:submit` CustomEvent (`detail: { value, editor }`)
+   * on its root element; `onSubmit` is skipped when a listener calls `preventDefault()`. The event is
+   * deliberately not named `submit`, so it never reaches a surrounding `<form>`'s submit handlers.
+   */
+  onSubmit?: (markdown: string, editor: EditorInstance) => void;
   onModeChange?: (mode: EditorMode) => void;
   onFocus?: () => void;
   onBlur?: () => void;

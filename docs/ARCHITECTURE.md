@@ -26,7 +26,8 @@ classes through `classNames`.
 |---|---|
 | Mention / chip | `[@Jane Doe](mention:person/<id>?clickup=123)` — `scheme:kind/id` + optional `?k=v` refs. `kind` may be omitted: `mention:<id>`. The visible `@` is the chip's `trigger`; it is stored as part of the link text. |
 | Custom chip | `[Task 12](task:issue/12)` for a registered scheme |
-| Image | `![alt](url "title")` |
+| Image | `![alt](url "title")`; alignment and width in an alt suffix: `![alt|center|480](url "caption")` (`left`/`center`/`right`, 1–9999 px; `&#124;` for a literal trailing pipe; `\|` as the separator inside a table cell). A sole titled image in a top-level paragraph renders as a `<figure>` with the title as `<figcaption>` |
+| Collapsible section | `::: details Summary` … `:::`; `::: details open Summary` renders open (`\open` for a title starting with that word). The open state while editing is never stored |
 | File attachment | `[name.pdf](url)` (a link; rendered as a file chip when it came from an upload) |
 | Inline math | `$x^2$` ; block math `$$` fenced on their own lines |
 | Task item | `- [ ] todo` / `- [x] done` |
@@ -53,6 +54,7 @@ src/
     uploaders.ts      createPutUploader, createFormUploader, createPresignedUploader, createDataUrlUploader
     mentions.ts       typeahead controller (pure logic + DOM menu)
     paste.ts          clipboard HTML → markdown
+    lightbox.ts       attachLightbox(): the accessible image viewer (own subpath)
   editor/
     create-editor.ts  createEditor(target, options): EditorInstance   (the composition root)
     surface.ts        contenteditable WYSIWYG surface + DOM↔Doc mapping
@@ -60,6 +62,9 @@ src/
     history.ts        undo/redo
     keymap.ts toolbar.ts layouts.ts markdown-pane.ts status-bar.ts slash.ts
     lazy-chunks.ts markdown-proxy.ts lazy-math.ts uploads.ts rich-links.ts platform.ts
+    bubble.ts toolbar-menu.ts i18n-lazy.ts
+    tools/            lazy editing tools: image-tools, table-tools, block-handles, zoom; kit.ts (buttons, menus, forms), types.ts (ToolHost)
+                      rule: import only ../dom, ./kit and features/lightbox; surface internals arrive through ToolHost / surface.ctx.lib
   plugins/            definePlugin + ready-made plugins (highlightMark, callout, kbd, subSup, find-replace, drafts, toc, text-style, smart-typography, shortcodes, hydrateAll)
   styles/             style.css, themes, tailwind.css
   index.ts            public re-exports
@@ -67,10 +72,10 @@ src/
 
 Subpath bundles (tree-shaking): `.` (editor) · `./parser` · `./render` · `./math` ·
 `./highlight` + `./highlight/<lang>` · `./uploaders` · `./plugins` · `./mentions` · `./paste` ·
-`./link-preview` · `./embeds` · `./style.css` · `./style.min.css` · `./plugins.css` · `./tailwind.css`.
+`./link-preview` · `./embeds` · `./lightbox` · `./style.css` · `./style.min.css` · `./plugins.css` · `./tailwind.css`.
 
 Lazy chunks (`src/editor/lazy-chunks.ts`, loaded with `import()` on first use): popovers, slash, mentions,
-uploads, markdown-pane, math, paste, rich-links. `preloadChunks()` loads them all. The editor entry loads none of
+uploads, markdown-pane, math, paste, rich-links, image-tools, table-tools, block-handles, zoom, bubble, toolbar-menu. `preloadChunks()` loads them all. The editor entry loads none of
 them statically (`scripts/size.mjs` checks it). See DECISIONS.md, "Size budget and lazy chunks".
 `./parser`, `./render`, `./math` and `./highlight` import NO DOM globals at module
 load and are server-safe. The editor reads `document` only when `createEditor` runs.

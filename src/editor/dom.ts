@@ -34,6 +34,11 @@ export function h(tag: string, props?: Props, ...children: Child[]): HTMLElement
   return el;
 }
 
+/** Replace `{name}` placeholders. */
+export function fmt(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
+}
+
 /** Join class names, dropping empties. The host's classes always go LAST so they win. */
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
@@ -49,32 +54,6 @@ export const SR_ONLY =
   "position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0";
 
 /* ───────────────────────────── icons ───────────────────────────── */
-
-const SVG_NS = "http://www.w3.org/2000/svg";
-
-/**
- * Build a stroke icon from path data. Icons are original, 24x24, stroke-based
- * and use `currentColor`. `d` is an array of path strings (or `[tag, attrs]`).
- */
-export function svgIcon(doc: Document, paths: string[]): SVGElement {
-  const svg = doc.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("width", "18");
-  svg.setAttribute("height", "18");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  svg.setAttribute("stroke-linecap", "round");
-  svg.setAttribute("stroke-linejoin", "round");
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("focusable", "false");
-  for (const d of paths) {
-    const p = doc.createElementNS(SVG_NS, "path");
-    p.setAttribute("d", d);
-    svg.appendChild(p);
-  }
-  return svg;
-}
 
 /**
  * Render a host-supplied `ToolbarItem.icon`: inline SVG markup is trusted by
@@ -170,24 +149,19 @@ export function focusables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((e) => !e.hidden && e.getAttribute("aria-hidden") !== "true");
 }
 
-/** Keep Tab / Shift+Tab inside `root`. Returns the keydown handler. */
+/**
+ * Keep Tab / Shift+Tab inside `root`, cycling through its focusables. Focus is always moved here
+ * rather than left to the browser: Safari's default Tab order skips buttons, which would walk
+ * straight out of a dialog made of buttons.
+ */
 export function trapTab(root: HTMLElement, ev: KeyboardEvent): void {
   if (ev.key !== "Tab") return;
+  ev.preventDefault();
   const list = focusables(root);
-  if (!list.length) {
-    ev.preventDefault();
-    return;
-  }
-  const first = list[0];
-  const last = list[list.length - 1];
-  const active = root.ownerDocument.activeElement;
-  if (ev.shiftKey && (active === first || !root.contains(active))) {
-    ev.preventDefault();
-    last.focus();
-  } else if (!ev.shiftKey && (active === last || !root.contains(active))) {
-    ev.preventDefault();
-    first.focus();
-  }
+  if (!list.length) return;
+  const i = list.indexOf(root.ownerDocument.activeElement as HTMLElement);
+  const n = list.length;
+  list[i < 0 ? (ev.shiftKey ? n - 1 : 0) : (i + (ev.shiftKey ? n - 1 : 1)) % n].focus();
 }
 
 export type Rect = { left: number; top: number; right: number; bottom: number; width: number; height: number };

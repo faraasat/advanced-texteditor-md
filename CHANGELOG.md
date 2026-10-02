@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Images**: `![alt|align|width](src "caption")` stores alignment (`left`, `center`, `right`; none = inline) and a pixel width in
+  the alt text, which every Markdown viewer still shows as an image. A paragraph holding only a captioned image renders as
+  `<figure class="atm-figure"><img><figcaption class="atm-caption">`. In the editor a selected image gets a frame with corner
+  handles (drag, or Shift+Arrow; aspect kept; minimum 32 px; Escape cancels a drag) and a toolbar (Alt+F10): inline, left, centre,
+  right, caption, alt text, zoom, open, remove. `images: { tools, zoom }` options.
+- **Lightbox**: `images.zoom` (`"readonly"` by default, `true`, `false`) opens a modal image viewer with previous/next, a count,
+  focus trap and focus return. New subpath `advanced-texteditor-md/lightbox` (`attachLightbox`, `LIGHTBOX_LABELS`) for pages built
+  with `renderHtml` / `renderDom`.
+- **Collapsible sections**: `::: details Summary` … `:::` (and `::: details open Summary`) render as `<details><summary>`. Built in;
+  `features.details: false` / `ParseOptions.details: false` turn it off. Editable summary, Enter or a marker click toggles, slash item
+  "Collapsible section", `exec("details")`. The open state while editing is never stored.
+- **Block handles** (`features.blockHandles`): a handle beside the hovered or focused top-level block or list item; drag with a drop
+  indicator; Alt+Shift+H focuses it, Alt+ArrowUp/Down move (announced, one undo step), and its menu has Move up, Move down,
+  Duplicate, Delete and Turn into. Hidden on touch screens unless focused. Never in the Markdown.
+- **Table toolbar** (`features.tableToolbar`): add a row below or a column to the right, delete the row or column, align the column,
+  delete the table; Alt+F10 focuses it. Every button is a command: `tableAddRow`, `tableAddColumn`, `tableDeleteRow`, `tableDeleteColumn`, `tableAlignLeft`, `tableAlignCenter`, `tableAlignRight` and `tableDeleteTable`.
+- `onSubmit(markdown, editor)` and `exec("submit")`.
+- `RenderOptions.labels.details` and `.task`.
+- Firefox and WebKit Playwright projects, a generated axe and keyboard matrix over every theme and layout
+  (`e2e/a11y-matrix.spec.ts`), a 120+ vector XSS corpus over every input path (`test/security/`) and its real-browser replay
+  (`e2e/security.spec.ts`), and a consumer bundling test (`test/consumer/bundle.test.ts`).
+
+### Changed
+- **The bottom-bar submit event is now `atm:submit`, not `submit`.** A `submit` CustomEvent bubbled into a surrounding `<form>`'s
+  submit listeners. Listen for `atm:submit` (same `detail: { value, editor }`, cancelable) or pass `onSubmit`.
+- `chips` accepts an array or a record keyed by scheme in both `EditorOptions` and `RenderOptions`, normalised in one place. A scheme
+  declared in `chips` parses as a chip without also listing it in `chipSchemes` (before, `renderHtml("[Task 12](task:issue/12)",
+  { chips: [{ scheme: "task", className: "task-chip" }] })` rendered a plain link).
+- New lazy chunks: `image-tools`, `table-tools`, `block-handles`, `zoom`, `bubble` (the bubble layout's floating toolbar) and
+  `toolbar-menu` (the toolbar's dropdowns), each with a 12 kB budget. The caret mapping between the rich-text and Markdown panes moved
+  into the `markdown-pane` chunk. The eager `index` is 61.5 kB gzip (budget 62).
+- Rendered task-list checkboxes have an accessible name (`aria-label`, default "Task").
+- `trapTab` (dialogs, popovers, forms, the lightbox) moves focus itself on every Tab, so Safari's button-skipping Tab order cannot
+  leave a dialog.
+
+### Fixed
+- Bundlers no longer warn about ignored bare imports (`import "./chunk-X.js"`): the build removes them after proving each such chunk
+  has no side effects (`scripts/strip-bare-imports.mjs`), and `npm run check:package` fails if a split bundle warns again.
+- Link-preview card styles were written against the bare `.atm-preview` class, which is also the editor's read-only preview pane, so
+  in the `slate` and `contrast` themes the split preview drew light-theme text on a dark background. Card rules are now scoped to
+  `[data-atm-preview-card]`.
+- After "Turn into" from the block menu the caret is left at the end of the converted block, not at the top of the editor.
+
 ## 0.1.0
 
 First release.

@@ -47,6 +47,8 @@ function prepInline(ns: Inl[], o: RenderOptions): Inl[] {
         if (safeUrl(n.src, o.links, "image") === null) {
           const data: Record<string, string> = { src: n.src, alt: n.alt };
           if (n.title) data.title = n.title;
+          if (n.width) data.width = String(n.width);
+          if (n.align) data.align = n.align;
           r = { type: "custom", name: IMG_X, children: [{ type: "text", value: n.alt || n.src }], data };
         }
         break;
@@ -202,7 +204,7 @@ export type SurfaceRenderCtx = {
   taskLabel: string;
 };
 
-const INLINE_RUN_BREAK = /^(P|H[1-6]|UL|OL|BLOCKQUOTE|PRE|TABLE|HR|DIV|SECTION|ASIDE|DETAILS)$/;
+const INLINE_RUN_BREAK = /^(P|H[1-6]|UL|OL|BLOCKQUOTE|PRE|TABLE|HR|DIV|SECTION|ASIDE|DETAILS|SUMMARY|FIGURE)$/;
 
 /** Classes the renderer would put on a node type (prefix + per-type extras). */
 export function cls(ctx: SurfaceRenderCtx, name: string, type?: string): string {
@@ -253,6 +255,12 @@ export function decorate(root: ParentNode, doc: Doc, ctx: SurfaceRenderCtx): voi
       e.setAttribute("contenteditable", "false");
       e.classList.add(`${p}-img-blocked`);
     }
+    const sm = e.tagName === "DETAILS" ? e.firstElementChild : null;
+    if (sm) {
+      // The default summary label is a placeholder while editing, never content.
+      sm.setAttribute("data-placeholder", ctx.render.labels?.details || "Details");
+      if (!n.data?.summary) sm.textContent = "";
+    }
   });
   all(`sup.${p}-footnote-ref`).forEach((e, i) => {
     const l = col.refs[i];
@@ -271,12 +279,18 @@ export function decorate(root: ParentNode, doc: Doc, ctx: SurfaceRenderCtx): voi
     });
   });
   root.querySelectorAll<HTMLInputElement>(`input.${p}-task-box`).forEach((b) => prepCheckbox(b, ctx));
+  // A captioned image is one atom (its caption is edited from the image toolbar, not inline).
+  all(`figure.${p}-figure`).forEach((e) => e.setAttribute("contenteditable", "false"));
+  // A collapsible section always has a body block the caret can enter.
+  all(`details.${p}-details`).forEach((e) => {
+    if (e.lastElementChild?.tagName === "SUMMARY") e.appendChild(ctx.document.createElement("p")).className = cls(ctx, "p", "paragraph");
+  });
   // Every list item holds blocks: wrap the inline run of a tight item in <p>.
   root.querySelectorAll<HTMLElement>("li").forEach((li) => {
     if (li.classList.contains(`${p}-footnote`)) return;
     wrapRuns(li, ctx);
   });
-  root.querySelectorAll<HTMLElement>(`p, h1, h2, h3, h4, h5, h6, td, th`).forEach(fill);
+  root.querySelectorAll<HTMLElement>(`p, h1, h2, h3, h4, h5, h6, td, th, summary`).forEach(fill);
 }
 
 export function prepCheckbox(b: HTMLInputElement, ctx: SurfaceRenderCtx): void {
@@ -362,10 +376,11 @@ export function anchorFootnotes(frag: ParentNode, doc: Doc, ctx: SurfaceRenderCt
 
 /** Inline nodes rendered and decorated, ready to insert. */
 export function renderInlineNodes(nodes: Inl[], ctx: SurfaceRenderCtx): Node[] {
-  const frag = renderFragment({ type: "doc", children: [{ type: "paragraph", children: nodes }] }, ctx);
+  // The empty text keeps a lone captioned image an inline image (no figure) and is dropped again.
+  const frag = renderFragment({ type: "doc", children: [{ type: "paragraph", children: [...nodes, { type: "text", value: "" }] }] }, ctx);
   const p = frag.firstChild;
   if (!p) return [];
-  const out = Array.from(p.childNodes);
+  const out = Array.from(p.childNodes).filter((n) => n.nodeType !== 3 || (n as Text).data);
   if (out.length === 1 && out[0].nodeType === 1 && (out[0] as Element).tagName === "BR" && !nodes.some((n) => n.type === "break")) return [];
   return out;
 }

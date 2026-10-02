@@ -1,3 +1,4 @@
+import type { ChipDefinition } from "../../src/types";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { mount, tick } from "./fakes";
 import type { MentionItem, MentionOptions } from "../../src/types";
@@ -120,7 +121,7 @@ describe("mentions: chip colour and badge", () => {
     const x = m({ mentions: { search } });
     typeAt(x, "@J");
     await tick(30);
-    const def = x.surface.options.render.chips!.mention;
+    const def = (x.surface.options.render.chips as Record<string, ChipDefinition>).mention;
     expect(def.kinds!.person).toEqual({ color: 3, label: "Team A" });
     expect(def.kinds!.both).toBeUndefined(); // no colour, no badge: nothing to learn
   });
@@ -130,7 +131,7 @@ describe("mentions: chip colour and badge", () => {
     typeAt(x, "@Jane");
     await tick(30);
     expect(x.surface.options.render).toBe(before);
-    expect(before.chips!.mention.kinds!.person.color).toBe(3);
+    expect((before.chips as Record<string, ChipDefinition>).mention.kinds!.person.color).toBe(3);
   });
   it("host-declared kinds are never overwritten", async () => {
     const x = m({
@@ -139,25 +140,25 @@ describe("mentions: chip colour and badge", () => {
     });
     typeAt(x, "@J");
     await tick(30);
-    expect(x.surface.options.render.chips!.mention.kinds!.person).toEqual({ color: 7, label: "Hub" });
+    expect((x.surface.options.render.chips as Record<string, ChipDefinition>).mention.kinds!.person).toEqual({ color: 7, label: "Hub" });
   });
   it("a CSS colour string is kept as written", async () => {
     const x = m({ mentions: { search: async () => [{ id: "a", label: "Ann", kind: "vip", color: "#aa00cc" }] } });
     typeAt(x, "@a");
     await tick(30);
-    expect(x.surface.options.render.chips!.mention.kinds!.vip.color).toBe("#aa00cc");
+    expect((x.surface.options.render.chips as Record<string, ChipDefinition>).mention.kinds!.vip.color).toBe("#aa00cc");
   });
   it("items with a colour but no kind style the empty kind", async () => {
     const x = m({ mentions: { search: async () => [{ id: "a", label: "Ann", color: 2 }] } });
     typeAt(x, "@a");
     await tick(30);
-    expect(x.surface.options.render.chips!.mention.kinds![""]).toEqual({ color: 2, label: undefined });
+    expect((x.surface.options.render.chips as Record<string, ChipDefinition>).mention.kinds![""]).toEqual({ color: 2, label: undefined });
   });
   it("a synchronous search function works too", async () => {
     const x = m({ mentions: { search: () => people } });
     typeAt(x, "@");
     await tick(30);
-    expect(x.surface.options.render.chips!.mention.kinds!.person.color).toBe(3);
+    expect((x.surface.options.render.chips as Record<string, ChipDefinition>).mention.kinds!.person.color).toBe(3);
   });
   it("the rendered chip really carries the colour (render + options)", async () => {
     const { renderHtml } = await import("../../src/render");

@@ -80,8 +80,9 @@ describe("the package imports and its pure parts run with no DOM", () => {
     const dom = await import("../../src/editor/dom");
     expect(dom.formatShortcut("Mod-b", "mac")).toBe("⌘B");
     expect(["mac", "windows", "linux", "other"]).toContain(dom.detectPlatform()); // Node 21+ has a navigator
-    const sl = await import("../../src/editor/slash");
+    const sl = await import("../../src/editor/slash-detect");
     expect(sl.detectSlash("/x")).toEqual({ query: "x", start: 0 });
+    expect(typeof (await import("../../src/editor/slash")).filterSlashItems).toBe("function");
     const th = await import("../../src/editor/theme");
     expect(th.tokensToVars({ bg: "#000" })["--atm-bg"]).toBe("#000");
     const st = await import("../../src/editor/status-bar");
@@ -89,7 +90,9 @@ describe("the package imports and its pure parts run with no DOM", () => {
     const pop = await import("../../src/editor/popovers");
     expect(pop.normalizeLinkInput("a.io")).toBe("https://a.io");
     const ce = await import("../../src/editor/create-editor");
-    expect(ce.alignOffset("hello", 5, "**hello** world", 80)).toBe(7);
+    expect(typeof ce.createEditor).toBe("function");
+    const mp = await import("../../src/editor/markdown-pane");
+    expect(mp.alignOffset("hello", 5, "**hello** world", 80)).toBe(7);
   });
 
   it("the built-in plugins are plain data", async () => {

@@ -9,7 +9,7 @@
 import { mdDest } from "./markdown-dest";
 import type { Pane, PaneEvents } from "./pane-types";
 import { Emitter, coalesce, h, schedule } from "./dom";
-import { createKeymap, type Keymap } from "./keymap";
+import type { Keymap, createKeymap } from "./keymap";
 
 /* ───────────────────────────── state ───────────────────────────── */
 
@@ -696,7 +696,76 @@ export type MarkdownPaneOptions = {
   keymap?: Record<string, string>;
   /** Resolve a command that is not a markdown built-in (plugins, chrome popovers). */
   runExternal?: (command: string, args?: unknown) => boolean;
+  /**
+   * The editor's `createKeymap`, handed over so this lazy chunk imports nothing from the editor entry
+   * (an import would split keymap.ts out of it). Without it the pane has no shortcuts of its own.
+   */
+  createKeymap?: typeof createKeymap;
 };
+
+/* ───────────────────────────── caret alignment (mode switches) ───────────────────────────── */
+// Used by createEditor's setMode; here because a mode switch fetches this chunk anyway.
+
+/**
+ * Where does the caret sit in `target`, given a caret at `upto` in `source`?
+ * Both strings contain the same readable text, one with Markdown syntax in it.
+ * Matching ignores whitespace; characters of the longer string that have no
+ * counterpart are treated as syntax. Returns an index into `target`.
+ */
+export function alignOffset(source: string, upto: number, target: string, maxSkip: number): number {
+  let j = 0;
+  for (let i = 0; i < upto && i < source.length; i++) {
+    const c = source[i];
+    if (/\s/.test(c)) continue;
+    let k = j;
+    // skip whitespace and up to `maxSkip` characters of syntax in the target
+    let skipped = 0;
+    while (k < target.length && skipped <= maxSkip) {
+      if (target[k] === c) break;
+      if (!/\s/.test(target[k])) skipped++;
+      k++;
+    }
+    if (k < target.length && target[k] === c && skipped <= maxSkip) j = k + 1;
+  }
+  return j;
+}
+
+export function domPositionAt(root: HTMLElement, index: number): { node: Node; offset: number } {
+  const doc = root.ownerDocument;
+  const walker = doc.createTreeWalker(root, 4 /* SHOW_TEXT */);
+  let left = index;
+  let last: Text | null = null;
+  for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
+    last = n;
+    if (left <= n.data.length) return { node: n, offset: left };
+    left -= n.data.length;
+  }
+  return last ? { node: last, offset: last.data.length } : { node: root, offset: 0 };
+}
+
+/** Markdown pane -> surface: put the DOM selection where the Markdown caret `c` was. */
+export function caretToSurface(editable: HTMLElement, value: string, c: { start: number; end: number }): void {
+  const text = editable.textContent ?? "";
+  const p1 = domPositionAt(editable, alignOffset(value, c.start, text, 0));
+  const p2 = domPositionAt(editable, alignOffset(value, c.end, text, 0));
+  const doc = editable.ownerDocument;
+  const sel = doc.getSelection();
+  if (!sel) return;
+  const r = doc.createRange();
+  try {
+    r.setStart(p1.node, p1.offset);
+    r.setEnd(p2.node, p2.offset);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  } catch {
+    /* a detached node: leave the caret where the surface put it */
+  }
+}
+
+/** Surface -> Markdown pane: the Markdown offsets of a caret at `c` in the rendered text. */
+export function caretToMarkdown(text: string, value: string, c: { start: number; end: number }): [number, number] {
+  return [alignOffset(text, c.start, value, 80), alignOffset(text, c.end, value, 80)];
+}
 
 const px = (v: number | string | undefined) => (v === undefined ? undefined : typeof v === "number" ? `${v}px` : v);
 
@@ -737,7 +806,7 @@ export class MarkdownPane implements Pane {
     const maxH = px(opts.maxHeight);
     if (minH) this.el.style.minHeight = minH;
     if (maxH) this.el.style.maxHeight = maxH;
-    this.keymap = createKeymap(opts.keymap ?? {});
+    this.keymap = opts.createKeymap?.(opts.keymap ?? {}) ?? { resolve: () => null, bindings: new Map() };
     this.undoStack = new UndoStack(this.state(), opts.history?.limit ?? 200, opts.history?.groupDelayMs ?? 500);
 
     this.listen(this.el, "input", (e) => this.onInput(e as InputEvent));

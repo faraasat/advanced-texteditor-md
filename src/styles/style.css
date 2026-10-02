@@ -256,6 +256,223 @@
   pointer-events: none;
 }
 
+/* ───────────────────────────── block tools ───────────────────────────── */
+
+/* The floating image and table toolbars. */
+.atm-tool-bar {
+  position: fixed;
+  z-index: 55;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-r, 8px);
+  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
+}
+.atm-tool-pop {
+  width: min(20rem, calc(100vw - 16px));
+}
+
+/* The image frame and its resize handles. */
+.atm-img-frame {
+  position: fixed;
+  z-index: 50;
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: 1px;
+  pointer-events: none;
+}
+.atm-img-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--atm-bg, #fff);
+  border-radius: 3px;
+  background: var(--atm-ring, #2563eb);
+  pointer-events: auto;
+  touch-action: none;
+}
+.atm-img-handle[data-corner="nw"] { left: -7px; top: -7px; cursor: nwse-resize; }
+.atm-img-handle[data-corner="ne"] { right: -7px; top: -7px; cursor: nesw-resize; }
+.atm-img-handle[data-corner="sw"] { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.atm-img-handle[data-corner="se"] { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.atm-img-handle:focus-visible {
+  outline: 2px solid var(--atm-fg, #1f2328);
+  outline-offset: 2px;
+}
+@media (pointer: coarse) {
+  .atm-img-handle { width: 20px; height: 20px; }
+  .atm-img-handle[data-corner="nw"] { left: -11px; top: -11px; }
+  .atm-img-handle[data-corner="ne"] { right: -11px; top: -11px; }
+  .atm-img-handle[data-corner="sw"] { left: -11px; bottom: -11px; }
+  .atm-img-handle[data-corner="se"] { right: -11px; bottom: -11px; }
+}
+
+/* Block handles: a gutter beside the surface on a fine pointer. */
+@media (pointer: fine) {
+  .atm-has-handles .atm-surface {
+    padding-inline-start: max(1.75rem, var(--atm-surface-padding-x, 1rem));
+  }
+}
+.atm-block-handle {
+  position: fixed;
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--atm-muted, #59636e);
+  cursor: grab;
+  touch-action: none;
+}
+.atm-block-handle:hover,
+.atm-block-handle[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--atm-fg, #1f2328) 8%, transparent);
+  color: var(--atm-fg, #1f2328);
+}
+.atm-block-handle:focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: 1px;
+}
+.atm-block-handle svg { width: 16px; height: 16px; pointer-events: none; }
+/* Touch: no hover, so the handle is a keyboard affordance only (Alt+Shift+H). */
+@media (pointer: coarse) {
+  .atm-block-handle:not(:focus-visible) {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+.atm-surface .atm-dragging {
+  opacity: 0.45;
+}
+.atm-drop-indicator {
+  position: fixed;
+  z-index: 46;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--atm-ring, #2563eb);
+  pointer-events: none;
+}
+/* Short enough not to scroll: a scrolling menu would need a focusable scroll container (axe). */
+.atm-menu.atm-block-menu {
+  max-height: none;
+  overflow: visible;
+}
+.atm-block-menu .atm-tool-menu-head {
+  padding: 6px 8px 2px;
+  color: var(--atm-muted, #59636e);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.atm-tool-menu-item {
+  display: flex;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: calc(var(--atm-r, 8px) - 3px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.atm-tool-menu-item:hover,
+.atm-tool-menu-item:focus-visible {
+  background: color-mix(in srgb, var(--atm-accent, #2563eb) 14%, transparent);
+}
+.atm-tool-menu-item:focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: -2px;
+}
+.atm-tool-menu-item[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* The lightbox (mounted on <body>, so it reads only theme variables). */
+.atm-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  grid-template: "prev fig next" 1fr "prev count next" auto / 3.5rem minmax(0, 1fr) 3.5rem;
+  align-items: center;
+  padding: 1rem 0.5rem;
+  color: #fff;
+  font-family: var(--atm-font-family, ui-sans-serif, system-ui, sans-serif);
+}
+.atm-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.86);
+}
+.atm-lightbox-figure {
+  position: relative;
+  grid-area: fig;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+}
+.atm-lightbox-img {
+  max-width: 100%;
+  max-height: calc(100vh - 7rem);
+  object-fit: contain;
+  border-radius: 4px;
+  background: #fff;
+}
+.atm-lightbox-caption {
+  margin-top: 0.5rem;
+  max-width: 60ch;
+  text-align: center;
+  font-size: 0.95rem;
+}
+.atm-lightbox-count {
+  position: relative;
+  grid-area: count;
+  margin: 0.5rem 0 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #e6e6e6;
+}
+.atm-lightbox button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgb(255 255 255 / 0.4);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.5);
+  color: #fff;
+  cursor: pointer;
+}
+.atm-lightbox button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+.atm-lightbox-prev { grid-area: prev; justify-self: center; }
+.atm-lightbox-next { grid-area: next; justify-self: center; }
+.atm-lightbox-close { position: absolute !important; top: 0.75rem; right: 0.75rem; }
+/* Images that open the lightbox in a read-only view. */
+img[data-atm-zoom] {
+  cursor: zoom-in;
+}
+img[data-atm-zoom]:focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: 2px;
+}
+
 /* ───────────────────────────── mode switch ───────────────────────────── */
 
 .atm-mode-switch {

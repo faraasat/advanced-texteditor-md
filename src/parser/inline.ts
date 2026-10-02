@@ -8,6 +8,12 @@ import { parseChip } from "./chip";
 type T = { n: InlineNode; p: T | null; x: T | null; dp?: number };
 type D = { t: T; ch: string; len: number; o0: number; o: boolean; c: boolean; p: D | null; x: D | null };
 type B = { t: T; img: boolean; act: boolean; db: D | null; at: number };
+/**
+ * Trailing `|left`, `|center`, `|right` or `|<px>` tokens of an image's raw alt text. `\|` counts as
+ * a separator too (stringify writes it where a bare `|` could start a table cell); a literal pipe
+ * that must stay text is written `&#124;`.
+ */
+export const IMG_SUFFIX = /(?:\\?\|(?:[1-9]\d{0,3}|left|center|right))+$/;
 
 const WS = /^\s$/;
 const PU = /^[\p{P}\p{S}]$/u;
@@ -290,8 +296,21 @@ export function parseInline(src: string, ctx: Ctx): InlineNode[] {
     else head = null;
     brs.pop();
     if (ob.img) {
-      const im: InlineNode = { type: "image", src: href, alt: inlineToText(kids) };
+      const alt = inlineToText(kids);
+      const im: Extract<InlineNode, { type: "image" }> = { type: "image", src: href, alt };
       if (title) im.title = title;
+      // `![alt|center|320](src)`: size and alignment, written as an alt suffix. Only the last 40
+      // characters are searched, so a label of a million `|1` stays linear.
+      const sf = IMG_SUFFIX.exec(src.slice(Math.max(ob.at, i - 40), i));
+      const toks = sf ? sf[0].split(/\\?\|/).slice(1) : [];
+      const tail = "|" + toks.join("|");
+      if (sf && alt.endsWith(tail)) {
+        im.alt = alt.slice(0, -tail.length);
+        for (const t of toks) {
+          if (t[0] > "9") im.align = t as "left";
+          else im.width = +t;
+        }
+      }
       add(im);
     } else {
       for (const b of brs) if (!b.img) b.act = false;

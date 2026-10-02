@@ -1,3 +1,4 @@
+import type { ChipDefinition } from "../../src/types";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { mount } from "./fakes";
 import { definePlugin, defineInlineSyntax, defineBlockSyntax } from "../../src/index";
@@ -224,12 +225,12 @@ describe("render options resolution", () => {
     expect(r.classPrefix).toBe("zz");
     expect(r.chipSchemes).toContain("task");
     expect(r.chipSchemes).toContain("mention");
-    expect(r.chips!.task.className).toBe("t");
+    expect((r.chips as Record<string, ChipDefinition>).task.className).toBe("t");
   });
   it("the chip slot class is added to every chip definition", () => {
     const x = m({ classNames: { chip: "my-chip" }, chips: [{ scheme: "task", className: "t" }] });
-    expect(x.surface.options.render.chips!.task.className).toBe("t my-chip");
-    expect(x.surface.options.render.chips!.mention.className).toBe("my-chip");
+    expect((x.surface.options.render.chips as Record<string, ChipDefinition>).task.className).toBe("t my-chip");
+    expect((x.surface.options.render.chips as Record<string, ChipDefinition>).mention.className).toBe("my-chip");
   });
   it("features are passed with the slash menu on by default", () => {
     expect(m().surface.options.features.slashMenu).toBe(true);

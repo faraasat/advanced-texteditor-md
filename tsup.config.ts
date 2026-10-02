@@ -16,6 +16,7 @@ export default defineConfig({
     paste: "src/features/paste.ts",
     "link-preview": "src/features/link-preview.ts",
     embeds: "src/features/embeds.ts",
+    lightbox: "src/features/lightbox.ts",
     "highlight/javascript": "src/highlight/langs/javascript.ts",
     "highlight/typescript": "src/highlight/langs/typescript.ts",
     "highlight/json": "src/highlight/langs/json.ts",

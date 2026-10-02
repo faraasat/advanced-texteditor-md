@@ -77,6 +77,24 @@ Tokens: `comment string number keyword literal function type operator punctuatio
 meta`. To add a theme, add one `[data-atm-theme="mine"]` block with the 16 `--atm-th-*` values to your own CSS, plus the
 `--atm-*` block from `themes.css`.
 
+## Images, collapsible sections and editing tools
+
+These read the same tokens as the rest of the editor; no new variables are needed for a theme.
+
+| Class | What it is |
+|---|---|
+| `.atm-figure`, `.atm-caption` | a captioned image (`<figure>` / `<figcaption>`); `data-align="left|center|right"` on the figure or the `img` |
+| `.atm-details`, `.atm-summary` | a collapsible section (`<details>` / `<summary>`) |
+| `.atm-img-frame`, `.atm-img-handle` | the frame and corner handles around a selected image (an overlay, never content) |
+| `.atm-tool-bar`, `.atm-tool-btn`, `.atm-tool-pop` | the floating image and table toolbars and their small forms |
+| `.atm-block-handle`, `.atm-drop-indicator`, `.atm-block-menu` | the block handle, the drop line while dragging, the block menu |
+| `.atm-has-handles` | on the root while block handles are on; on a fine pointer it widens the surface's left padding (`--atm-surface-padding-x`) to make room for the handle |
+| `.atm-lightbox`, `.atm-lightbox-backdrop`, `.atm-lightbox-img`, `.atm-lightbox-caption`, `.atm-lightbox-count`, `.atm-lightbox-prev`, `.atm-lightbox-next`, `.atm-lightbox-close` | the image viewer; it is appended to `<body>` and carries the editor's `data-atm-theme` |
+
+Link-preview cards are `.atm-preview[data-atm-preview-card]`. The bare `.atm-preview` class is also the read-only preview pane,
+so style a card through the attribute selector (or the `--atm-preview-*` variables), never the bare class. Cards have a light
+and a dark palette; for `sepia`, `slate` or `contrast` set the `--atm-preview-*` variables to match.
+
 ## Add your own classes
 
 Every part takes extra classes. They are appended after the library's own `atm-*` classes.

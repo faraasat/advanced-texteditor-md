@@ -44,4 +44,20 @@ export interface Ctx {
   openMathEdit(el: HTMLElement): void;
   commitMathEdit(): boolean;
   mathEditing(): HTMLElement | null;
+  /**
+   * The DOM helpers the lazily loaded block tools need, handed over here so those chunks import
+   * nothing from the editor's own modules (an import would split these modules out of the editor
+   * entry into a shared chunk, and every cross-chunk import costs bytes in the first download).
+   */
+  readonly lib: {
+    domInline: typeof import("../dom-to-doc").domInline;
+    domToDoc: typeof import("../dom-to-doc").domToDoc;
+    emptyP: (ctx: Ctx) => HTMLElement;
+    isItem: (ctx: Ctx, li: Element | null) => boolean;
+    leaves: (root: Node) => HTMLElement[];
+    indexOf: (n: Node) => number;
+    offsetOf: (root: Node, node: Node, off: number) => number;
+    pointAt: (root: Node, n: number) => { node: Node; offset: number };
+    setSelection: (root: Node, a: { node: Node; offset: number }, f?: { node: Node; offset: number }) => void;
+  };
 }

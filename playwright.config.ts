@@ -13,6 +13,11 @@ export default defineConfig({
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
     { name: "mobile", use: { ...devices["Pixel 7"] } },
+    // Gecko and WebKit: contenteditable, selection and clipboard differ most across engines.
+    // Needs the browsers once: `npx playwright install firefox webkit`. Run one engine with
+    // `npx playwright test --project=firefox`.
+    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
   webServer: {
     command: "npx --yes http-server . -p 4319 -s --silent",

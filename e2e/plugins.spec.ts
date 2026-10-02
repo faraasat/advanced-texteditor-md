@@ -356,7 +356,8 @@ test.describe("text colour", () => {
     expect(await page.locator("#editor-host .atm-surface").evaluate((e) => e.textContent)).toContain("[a]{.c-magenta}");
   });
 
-  test("the swatch popover is keyboard operable and labelled", async ({ page }) => {
+  test("the swatch popover is keyboard operable and labelled", async ({ page, browserName }) => {
+    test.fixme(browserName === "webkit", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
     await open(page, q({ p: "style", value: "word\n" }));
     await select(page, "word");
     const btn = page.locator('#editor-host button[aria-label="Text colour and highlight"]');

@@ -107,7 +107,7 @@ export function inlineRule(ctx: Ctx, typed: string): boolean {
   const t = r.startContainer as Text;
   const off = r.startOffset;
   const leaf = leafOf(ctx.root, t);
-  if (!leaf || leaf.tagName === "PRE" || ctx.mathEditing()) return false;
+  if (!leaf || leaf.tagName === "PRE" || leaf.tagName === "SUMMARY" || ctx.mathEditing()) return false;
   if (closest(ctx, t, (e) => e.tagName === "CODE")) return false;
   if (ch === " " && autolink(ctx, t, off - 1)) return true;
   const before = t.data.slice(0, off);

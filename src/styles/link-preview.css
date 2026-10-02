@@ -11,9 +11,13 @@
  * --atm-preview-muted --atm-preview-accent --atm-preview-shadow
  * --atm-preview-radius --atm-preview-skeleton --atm-preview-skeleton-hi
  * --atm-embed-bg --atm-popover-z
+ *
+ * A card is `.atm-preview[data-atm-preview-card]`, never the bare class: the editor's read-only
+ * preview pane is also `.atm-preview`, and the card colours (light-only outside the dark theme)
+ * must not reach it.
  */
 
-.atm-preview,
+.atm-preview[data-atm-preview-card],
 .atm-popover,
 .atm-embed {
   --_bg: var(--atm-preview-bg, #ffffff);
@@ -26,7 +30,7 @@
   --_sk-hi: var(--atm-preview-skeleton-hi, #f6f8fa);
   --_embed-bg: var(--atm-embed-bg, #f6f8fa);
 }
-[data-atm-theme="dark"] .atm-preview,
+[data-atm-theme="dark"] .atm-preview[data-atm-preview-card],
 [data-atm-theme="dark"] .atm-popover,
 [data-atm-theme="dark"] .atm-embed {
   --_bg: var(--atm-preview-bg, #161b22);
@@ -40,7 +44,7 @@
   --_embed-bg: var(--atm-embed-bg, #0d1117);
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-atm-theme="light"]) .atm-preview:not([data-atm-theme="light"] *),
+  :root:not([data-atm-theme="light"]) .atm-preview[data-atm-preview-card]:not([data-atm-theme="light"] *),
   :root:not([data-atm-theme="light"]) .atm-popover:not([data-atm-theme="light"]),
   :root:not([data-atm-theme="light"]) .atm-embed:not([data-atm-theme="light"] *) {
     --_bg: var(--atm-preview-bg, #161b22);
@@ -56,7 +60,7 @@
 }
 
 /* ───────── card ───────── */
-.atm-preview {
+.atm-preview[data-atm-preview-card] {
   display: flex;
   align-items: stretch;
   box-sizing: border-box;
@@ -160,7 +164,7 @@ a.atm-preview:focus-visible { outline: 2px solid var(--_accent); outline-offset:
   animation: atm-popover-in 0.12s ease-out;
 }
 .atm-popover[data-placement="top"] { transform-origin: bottom left; }
-.atm-popover .atm-preview { margin: 0; border: 1px solid var(--_border); }
+.atm-popover .atm-preview[data-atm-preview-card] { margin: 0; border: 1px solid var(--_border); }
 @keyframes atm-popover-in {
   from { opacity: 0; transform: translateY(2px); }
   to { opacity: 1; transform: none; }
@@ -234,12 +238,12 @@ a.atm-preview:focus-visible { outline: 2px solid var(--_accent); outline-offset:
 
 /* ───────── motion & contrast ───────── */
 @media (prefers-reduced-motion: reduce) {
-  .atm-preview, .atm-embed__open, .atm-embed__toolbar { transition: none; }
+  .atm-preview[data-atm-preview-card], .atm-embed__open, .atm-embed__toolbar { transition: none; }
   .atm-popover { animation: none; }
   .atm-preview__line { animation: none; background: var(--_sk); }
 }
 @media (forced-colors: active) {
-  .atm-preview, .atm-popover, .atm-embed, .atm-embed__open, .atm-embed__action { border: 1px solid CanvasText; background: Canvas; color: CanvasText; forced-color-adjust: none; }
+  .atm-preview[data-atm-preview-card], .atm-popover, .atm-embed, .atm-embed__open, .atm-embed__action { border: 1px solid CanvasText; background: Canvas; color: CanvasText; forced-color-adjust: none; }
   a.atm-preview:hover, a.atm-preview:focus-visible { border-color: Highlight; box-shadow: none; outline: 2px solid Highlight; }
   .atm-preview__line, .atm-preview__media { background: GrayText; }
   .atm-preview__site, .atm-preview__description, .atm-preview__extra { color: CanvasText; }

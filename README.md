@@ -52,6 +52,7 @@ else is a subpath so you only pay for what you import.
 | `/paste` | `htmlToMarkdown`, `looksLikeMarkdown` |
 | `/link-preview` | `createLinkPreviewController`, `sanitizePreview`, `checkPreviewUrl` |
 | `/embeds` | `BUILTIN_EMBEDS`, `defineEmbed`, `matchEmbed`, `createEmbedElement` |
+| `/lightbox` | `attachLightbox`, `LIGHTBOX_LABELS`: the accessible image viewer, for read-only pages rendered with `renderHtml` / `renderDom` |
 | `/plugins` | ready-made plugins: `highlightMark`, `callout`, `kbd`, `subSup`, and the feature plugins `createFindReplacePlugin`, `createDraftsPlugin`, `createTocPlugin`, `createTextStylePlugin`, `createSmartTypographyPlugin`, `createShortcodesPlugin`; `hydrateAll`; the `define*` helpers |
 | `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
 
@@ -80,11 +81,14 @@ createEditor(el, {
 });
 ```
 
-`bottom-bar` (chat/comment style) has an `actions` slot and fires a bubbling `submit` event on Mod-Enter:
+`bottom-bar` (chat/comment style) has an `actions` slot and submits on Mod-Enter. `exec("submit")` does the same in any
+layout. The editor first dispatches a bubbling, cancelable `atm:submit` event on its root (`detail: { value, editor }`),
+then calls `onSubmit(markdown, editor)` unless a listener called `preventDefault()`. The event is deliberately not called
+`submit`, so an editor inside a `<form>` never triggers the form's own submit handlers:
 
 ```ts
-const e = createEditor(el, { layout: "bottom-bar" });
-e.element.addEventListener("submit", (ev) => send((ev as CustomEvent).detail.value));
+const e = createEditor(el, { layout: "bottom-bar", onSubmit: (md) => send(md) });
+// or: e.element.addEventListener("atm:submit", (ev) => send((ev as CustomEvent).detail.value));
 ```
 
 A custom layout is `defineLayout({ name, build({ classes, mode }) { return regions; } })` (exported from the main entry).
@@ -166,6 +170,46 @@ list the mentioned chips. Pass `classNames: { menu, menuItem, menuItemActive }` 
 
 Other chip schemes: `chips: [{ scheme: "task", onClick: (chip, ev) => open(chip) }]` makes `[Task 12](task:issue/12)` a clickable
 chip, in the editor and in the split preview.
+
+`chips` takes the same two forms in `createEditor` and in `renderHtml` / `renderDom`: an array of definitions, or a record keyed by
+scheme (`{ task: { scheme: "task", className: "task-chip" } }`). Declaring a scheme in `chips` is enough for its links to parse as
+chips; `chipSchemes` is only needed for schemes that have no definition.
+
+### Images, collapsible sections, block and table tools
+
+Images carry their alignment and width in the alt text, and their caption in the title:
+
+```md
+![Sales chart|center|480](chart.png "Q3, by region")
+```
+
+`left`, `center`, `right` (no token = inline) and a width in pixels, after `|`. Any Markdown viewer still shows a normal image
+(with that alt text); a literal `|` at the end of an alt is written `&#124;`. A paragraph holding only a captioned image renders as
+`<figure class="atm-figure"><img><figcaption class="atm-caption">`. In the editor, clicking an image selects it: drag a corner
+(or Shift+Arrow) to resize with the aspect ratio kept (minimum 32 px, Escape cancels a drag), and a toolbar (Alt+F10 focuses it)
+sets the alignment, caption and alt text, opens the image or removes it. `images: { tools: false }` turns the frame and toolbar off.
+
+`images.zoom` opens images in an accessible lightbox (a modal dialog, arrows between images, Escape returns focus). It defaults to
+`"readonly"` (on while the editor is read-only, off while editing); `true` also allows it while editing (double-click, or the image toolbar),
+`false` turns it off. For pages rendered on the server, `attachLightbox(root)` from `advanced-texteditor-md/lightbox` does the same.
+
+Collapsible sections are built in (`features.details: false` removes them):
+
+```md
+::: details Release notes
+Hidden until opened.
+:::
+```
+
+They render as `<details><summary>`; `::: details open Title` renders open. In the editor the summary is editable, Enter or a click
+on the marker toggles it, and the slash menu has "Collapsible section". The open state while editing is a view state and never
+changes the Markdown.
+
+Block handles (`features.blockHandles`, on by default) put a drag handle beside the hovered or focused top-level block or list
+item. Alt+Shift+H focuses it; Alt+ArrowUp / Alt+ArrowDown move the block (announced in a live region, one undo step per move);
+Enter opens its menu (Move up, Move down, Duplicate, Delete, Turn into). On touch screens the handle only shows when it has
+keyboard focus. Inside a table a floating toolbar (`features.tableToolbar`, Alt+F10) adds a row below or a column to the right, deletes the row
+or column, sets the column alignment and deletes the table. None of this reaches the Markdown. All of it is downloaded on first use (see Size).
 
 ### Uploads
 
@@ -267,7 +311,8 @@ reasons, embed actions) can be overridden with the same object.
 
 `onChange`, `onModeChange`, `onFocus`, `onBlur`, `onReady`, `onMentionsChange`, `onUpload`, plus `editor.on("change" | "mode" |
 "focus" | "blur" | "selection" | "mentions" | "pane", fn)`. Methods: `getValue`, `setValue(md, { keepHistory })`, `getHtml`, `getText`,
-`getAst`, `getMentions`, `isEmpty`, `getStats`, `getMode`, `setMode`, `isReadOnly`, `setReadOnly`, `setTheme`, `focus`, `blur`, `exec(command, args)`,
+`getAst`, `getMentions`, `isEmpty`, `getStats`, `getMode`, `setMode`, `isReadOnly`, `setReadOnly`, `setTheme`, `focus`, `blur`, `exec(command, args)`
+(commands include `details`, `submit` and the table commands `tableAddRow`, `tableAddColumn`, `tableDeleteRow`, `tableDeleteColumn`, `tableAlignLeft`, `tableAlignCenter`, `tableAlignRight` and `tableDeleteTable`),
 `registerCommand`, `can`, `undo`, `redo`, `insertMarkdown`, `insertText`, `insertChip`, `getSelectionText`, `getSelectionMarkdown`,
 `replaceSelectionMarkdown`, `transact(fn)` (many edits, one undo step and one `change`), `getPane`, `emit` / `on` for plugin events,
 `uploadFiles`, `destroy`. `setValue` keeps the string verbatim (a trailing space stays, so typing `@` after `cc ` opens the menu).
@@ -294,15 +339,18 @@ Gzip, after minification (`npm run size`; the enforced figure is the concatenate
 
 | Entry | Eager | Budget |
 |---|---|---|
-| `index` (editor) | about 61 kB | 62 kB (target 48 kB) |
+| `index` (editor) | 61.5 kB | 62 kB (target 48 kB) |
 | `parser` | 11 kB | 14 kB |
 | `render` | 12 kB | 14 kB |
 | `math` | 5.0 kB | 5 kB |
 | each `highlight/<lang>` | under 2 kB | 2 kB |
 
-Lazy chunks, downloaded on first use: `popovers` 4.7 kB (link, image, table and code-language dialogs), `slash` 2.3 kB,
-`mentions` 5.4 kB, `uploads` 2.7 kB, `markdown-pane` 6.6 kB (Markdown and split modes), `math` 5.0 kB, `paste` 7.0 kB
-(HTML paste conversion) and `rich-links` 8.1 kB (only when `linkPreview` or `embeds` is set).
+Lazy chunks, downloaded on first use: `popovers` 5.1 kB (link, image, table and code-language dialogs), `slash` 2.9 kB,
+`mentions` 5.5 kB, `uploads` 3.1 kB, `markdown-pane` 7.0 kB (Markdown and split modes), `math` 5.0 kB, `paste` 7.0 kB
+(HTML paste conversion), `rich-links` 8.0 kB (only when `linkPreview` or `embeds` is set), `image-tools` 5.1 kB (when an
+image is selected), `table-tools` 2.9 kB (when the caret enters a table), `block-handles` 5.1 kB (on the first pointer move or
+Alt+Shift+H), `zoom` 2.1 kB (the lightbox, when read-only), `bubble` 0.5 kB and `toolbar-menu` 0.9 kB. Each of the last six has a
+12 kB budget. `/lightbox` on its own is 3.4 kB.
 
 Your bundler needs `import()` support (ESM builds split into chunks; CJS builds also use `import()`). A failed download
 leaves the editor working and is retried on the next use. To fetch everything up front (tests, kiosk screens, offline
@@ -319,6 +367,10 @@ what you do not import.
 - Embeds are sandboxed iframes on `https` URLs whose host must be in `embedHosts` or the pasted URL's own site.
 - Link preview metadata is text only; image and favicon URLs are checked against the link policy.
 - Uploaded file names are sanitised and a default deny list blocks executables and scripts.
+- `test/security/` pushes a corpus of more than 120 XSS vectors (Markdown, pasted and dropped HTML, custom syntax attributes,
+  chip fields, link previews, embeds, image alt/width/caption, collapsible-section summaries, the table of contents, text-style
+  classes) through every path: render-only, mount, `setValue`, read-only, the split preview, paste, drop and the lightbox, and
+  checks the whole document after each. `e2e/security.spec.ts` replays it in real browsers, where a payload would run.
 - Regular-expression syntaxes are cut off by length and match-count limits; the find-and-replace plugin refuses
   catastrophic shapes. JavaScript cannot interrupt a running regex, so avoid hostile patterns of your own.
 
@@ -329,7 +381,10 @@ what you do not import.
 - Dialogs trap Tab and restore focus on Escape. Escape never traps keyboard users in the editor.
 - Code blocks and tables that scroll are focusable regions. `prefers-reduced-motion` is respected. The `contrast` theme and
   all palettes are tested against WCAG AA.
-- The editor is checked with axe on desktop and mobile emulation in Playwright.
+- The editor is checked with axe on desktop and mobile emulation in Playwright, and `e2e/a11y-matrix.spec.ts` runs axe and a
+  keyboard-only pass (Tab in, type, slash menu, Tab out) in every theme and layout combination.
+- Image tools, block handles and the table toolbar are reachable from the keyboard (Alt+F10, Alt+Shift+H, Alt+Arrow), and
+  task-list checkboxes have an accessible name in rendered output too.
 
 ## FAQ
 
@@ -347,7 +402,9 @@ picker pass `emoji: { open: (editor) => ... }`, or `emoji: false` to remove the 
 ## Browser support
 
 Current Chrome, Edge, Firefox and Safari (ES2020, `Selection`, `ResizeObserver`). The test suite runs jsdom unit tests and
-Playwright specs in Chromium (desktop and mobile emulation). Firefox, WebKit and real iOS or Android devices are not run. On
+Playwright specs in Chromium (desktop and mobile emulation), Firefox and WebKit (`npx playwright install firefox webkit` once,
+then `npx playwright test --project=firefox` or `--project=webkit`). A few list, chip and Backspace specs are marked `fixme` in
+Gecko or WebKit, where contenteditable behaves differently; see docs/DECISIONS.md. Real iOS or Android devices are not run. On
 Android keyboards most keys arrive as composition, which is handled but only emulated in tests.
 
 ## Demo

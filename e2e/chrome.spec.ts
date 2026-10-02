@@ -204,17 +204,31 @@ test.describe("layouts", () => {
     await expect(bar).toBeHidden();
   });
 
-  test("bottom-bar: Mod-Enter fires a submit event", async ({ page, isMobile }) => {
+  test("bottom-bar: Mod-Enter fires atm:submit and onSubmit, never a form submit", async ({ page, isMobile }) => {
     test.skip(!!isMobile, "keyboard");
     await open(page, "?layout=bottom-bar");
     await page.evaluate(() => {
-      (window as unknown as { __submits: string[] }).__submits = [];
-      document.querySelector("#editor-host .atm")!.addEventListener("submit", (e) => (window as unknown as { __submits: string[] }).__submits.push((e as CustomEvent).detail.value));
+      const w = window as unknown as { __submits: string[]; __formSubmits: number; __submitted?: string[] };
+      w.__submits = [];
+      w.__formSubmits = 0;
+      w.__submitted = [];
+      // Wrap the editor in a form, as a chat composer would be: the form must never see a submit.
+      const host = document.querySelector("#editor-host")!;
+      const form = document.createElement("form");
+      host.parentElement!.insertBefore(form, host);
+      form.appendChild(host);
+      form.addEventListener("submit", (e) => {
+        w.__formSubmits++;
+        e.preventDefault();
+      });
+      document.querySelector("#editor-host .atm")!.addEventListener("atm:submit", (e) => w.__submits.push((e as CustomEvent).detail.value));
     });
     await setValue(page, "send me");
     await focusEnd(page);
     await page.keyboard.press(`${await appMod(page)}+Enter`);
     expect(await page.evaluate(() => (window as unknown as { __submits: string[] }).__submits)).toEqual(["send me"]);
+    expect(await page.evaluate(() => (window as unknown as { __submitted: string[] }).__submitted)).toEqual(["send me"]);
+    expect(await page.evaluate(() => (window as unknown as { __formSubmits: number }).__formSubmits)).toBe(0);
     await expect(page.locator("#editor-host .atm-actions")).toHaveCount(1);
   });
 
@@ -433,7 +447,8 @@ test.describe("mentions", () => {
     await expect(chip).toContainText("Team A");
   });
 
-  test("Backspace removes the whole chip", async ({ page, isMobile }) => {
+  test("Backspace removes the whole chip", async ({ page, isMobile, browserName }) => {
+    test.fixme(browserName === "webkit", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
     test.skip(!!isMobile, "keyboard");
     await open(page);
     await setValue(page, "x [@Ada Lovelace](mention:team-a/p01?teamA=a01)");

@@ -15,11 +15,10 @@
  * "Convert to link" is the one change that must survive a reload, so it rewrites the line as
  * `[host](url)`: a link whose text differs from its address is not a standalone URL.
  */
-import type { EmbedProvider, LinkPolicy, LinkPreviewOptions, RenderOptions } from "../types";
+import type { BlockNode, EmbedProvider, LinkPolicy, LinkPreviewOptions, RenderOptions } from "../types";
 import { createLinkPreviewController, type LinkPreviewController } from "../features/link-preview";
 import { createEmbedElement } from "../features/embeds";
 import { matchEmbed } from "../render/embed";
-import { renderBlockEls } from "./surface/render";
 
 export type RichLinksLabels = {
   embedActions: string;
@@ -41,6 +40,8 @@ export type RichLinksInit = {
   previewPane: HTMLElement;
   /** Ask the surface to re-serialise after this module changed the DOM. */
   notifyEdit: () => void;
+  /** Render blocks for the surface (handed over so this chunk does not import the surface renderer). */
+  renderBlocks: (blocks: BlockNode[]) => HTMLElement[];
   debounceMs?: number;
 };
 
@@ -127,10 +128,7 @@ export function createRichLinks(init: RichLinksInit): RichLinks {
     } catch {
       /* keep the address as the text */
     }
-    const [p] = renderBlockEls(
-      [{ type: "paragraph", children: [{ type: "link", href: url, children: [{ type: "text", value: host }] }] }],
-      { render: init.render, prefix, document: doc, editable: true, taskLabel: "" },
-    );
+    const [p] = init.renderBlocks([{ type: "paragraph", children: [{ type: "link", href: url, children: [{ type: "text", value: host }] }] }]);
     if (!p) return;
     wrap.replaceWith(p);
     const r = doc.createRange();

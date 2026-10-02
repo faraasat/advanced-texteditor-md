@@ -27,7 +27,7 @@ import {
   addColumn, addRow, caret, cellsOf, deleteRange, indent, insertBlocks, insertNodes, liftItem, outdent,
   rowsOf, setTask,
 } from "./surface/structure";
-import { isAtom, isEl, itemsOf, leafOffset } from "./selection";
+import { isAtom, isEl, itemsOf, leafOffset, setSelection } from "./selection";
 
 export type CommandSpec = {
   run(args?: unknown): boolean;
@@ -641,6 +641,19 @@ function image(ctx: Ctx, args: unknown): boolean {
   return true;
 }
 
+/** Insert a collapsible section, open while editing, with its summary text selected. */
+function details(ctx: Ctx, args: unknown): boolean {
+  const [el] = ctx.blocks([{ type: "custom", name: "details", data: { summary: typeof args === "string" && args ? args : (ctx.opts.labels as Record<string, string>).details || "Details" }, children: [] }]);
+  if (!el || el.tagName !== "DETAILS") return false;
+  (el as HTMLDetailsElement).open = true;
+  insertBlockEls(ctx, [el]);
+  if (!el.nextElementSibling) el.after(emptyP(ctx));
+  const sm = el.firstElementChild as HTMLElement;
+  const t = sm.firstChild as Text;
+  setSelection(ctx.root, { node: t, offset: 0 }, { node: t, offset: t.data.length });
+  return true;
+}
+
 function toggleTask(ctx: Ctx): boolean {
   const c = caret(ctx);
   const li = c && itemOf(ctx, c.pt.node);
@@ -654,7 +667,7 @@ function toggleTask(ctx: Ctx): boolean {
 const FEATURE: Record<string, string> = {
   bold: "bold", italic: "italic", strike: "strike", code: "code", link: "links", unlink: "links",
   bulletList: "lists", orderedList: "lists", taskList: "taskLists", toggleTask: "taskLists", blockquote: "blockquote",
-  codeBlock: "codeBlocks", codeBlockLang: "codeBlocks", math: "math", mathBlock: "math", rule: "rule", image: "images",
+  codeBlock: "codeBlocks", codeBlockLang: "codeBlocks", math: "math", mathBlock: "math", rule: "rule", image: "images", details: "details",
 };
 
 export function featureOf(id: string): string | undefined {
@@ -753,6 +766,8 @@ export function getCommand(ctx: Ctx, id: string): CommandSpec | null {
       return { run: () => clearFormat(ctx), can: () => editable() && !!ctx.range() };
     case "image":
       return { run: (a) => image(ctx, a), can: () => editable() && !!ctx.range() && !inPre() };
+    case "details":
+      return { run: (a) => details(ctx, a), can: () => editable() && !!where()?.leaf && !inCell(ctx, where()!.leaf!) };
   }
   return null;
 }

@@ -4,7 +4,8 @@
  * editor mounts its panes into the regions a layout returns.
  */
 import type { EditorMode, LayoutDefinition, LayoutName, LayoutRegions, Slot } from "../types";
-import { cx, h, placeNear } from "./dom";
+import { cx, h } from "./dom";
+import { chunks } from "./lazy-chunks";
 
 export type ToolbarPosition = "top" | "bottom" | "floating" | "none";
 
@@ -34,7 +35,7 @@ export type LayoutHost = {
   onUpdate(cb: () => void): () => void;
   focusEditor(): void;
   focusToolbar(): void;
-  /** Fire the `submit` CustomEvent on the root. */
+  /** Fire the `atm:submit` CustomEvent on the root, then `onSubmit` unless a listener cancelled it. */
   submit(): void;
 };
 
@@ -117,56 +118,18 @@ const bubble: RuntimeLayout = {
   attach(host) {
     const row = host.regions.toolbar;
     if (!row) return () => undefined;
-    const win = host.doc.defaultView as Window;
     row.hidden = true;
     row.setAttribute("data-bubble", "");
-    // Escape hides the bubble until the selection changes, so it does not pop straight back.
-    let dismissed = false;
-    const update = () => {
-      const active = host.doc.activeElement;
-      // While focus is moving (blur fires before the next element has it) activeElement is the body.
-      // Do not hide in that gap, or the bubble's own buttons vanish before they can take focus;
-      // a real departure is caught by the focusout handler below.
-      if ((!active || active === host.doc.body) && !row.hidden) return;
-      const within = host.regions.root.contains(active);
-      const has = host.hasSelection();
-      if (!has) dismissed = false;
-      // Focus inside the bubble means the user is working in it; the editor reports no selection then.
-      const inBubble = !row.hidden && row.contains(host.doc.activeElement);
-      const show = inBubble || (within && !dismissed && !host.isReadOnly() && has);
-      if (!show) {
-        if (!row.hidden) row.hidden = true;
-        return;
-      }
-      row.hidden = false;
-      const r = host.getRect();
-      // Above the selection by default; flips below its END when there is no room,
-      // so the start of the selection is never covered.
-      if (r) placeNear(row, r, win, { prefer: "above", centre: true, gap: 8 });
-    };
-    const off = host.onUpdate(update);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !row.hidden) {
-        e.stopPropagation();
-        dismissed = true;
-        row.hidden = true;
-        host.focusEditor();
-      }
-    };
-    const onFocusOut = (e: FocusEvent) => {
-      const to = e.relatedTarget as Node | null;
-      if (!to || !host.regions.root.contains(to)) row.hidden = true;
-    };
-    row.addEventListener("keydown", onKey);
-    host.regions.root.addEventListener("focusout", onFocusOut);
-    win.addEventListener("scroll", update, true);
-    win.addEventListener("resize", update);
+    // Placing and showing the bubble is a lazy chunk: nothing can show before there is a selection.
+    let off: (() => void) | null = null;
+    let dead = false;
+    const go = (m: typeof import("./bubble")) => void (!dead && (off = m.attachBubble(host, row)));
+    const c = chunks.bubble.get();
+    if (c) go(c);
+    else chunks.bubble.load().then(go, () => undefined);
     return () => {
-      off();
-      row.removeEventListener("keydown", onKey);
-      host.regions.root.removeEventListener("focusout", onFocusOut);
-      win.removeEventListener("scroll", update, true);
-      win.removeEventListener("resize", update);
+      dead = true;
+      off?.();
     };
   },
   // Alt+F10 (the ARIA toolbar convention) moves focus into the floating toolbar.

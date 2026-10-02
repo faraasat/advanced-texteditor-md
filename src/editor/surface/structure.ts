@@ -159,6 +159,7 @@ export function enter(ctx: Ctx): boolean {
   }
   const { pt, leaf } = c;
   if (!leaf) return false;
+  if (leaf.tagName === "SUMMARY") return toggleDetails(ctx, leaf);
   if (leaf.tagName === "PRE") return codeEnter(ctx, leaf, pt);
   if (CELL.test(leaf.tagName)) return cellEnter(ctx, leaf);
   if (isAtom(leaf)) {
@@ -175,6 +176,18 @@ export function enter(ctx: Ctx): boolean {
     return true;
   }
   splitBlock(ctx, leaf, pt);
+  return true;
+}
+
+/**
+ * Enter in a collapsible section's summary opens or closes it (the open state is view state, never
+ * stored). Opening moves the caret into the first block of the body.
+ */
+export function toggleDetails(ctx: Ctx, summary: HTMLElement): boolean {
+  const d = summary.parentElement as HTMLDetailsElement;
+  d.open = !d.open;
+  const first = d.open ? leaves(d)[1] : null;
+  if (first) caretAt(ctx, first, 0);
   return true;
 }
 
@@ -506,6 +519,9 @@ function cellEnter(ctx: Ctx, cell: HTMLElement): boolean {
 
 /* ───────────────────────────── Backspace / Delete ───────────────────────────── */
 
+/** Leaves another leaf never merges into or out of: cells, code blocks, section summaries. */
+const STOP = /^(TD|TH|PRE|SUMMARY)$/;
+
 const isRemovableAtom = (n: Node) => isAtom(n) && !(isEl(n) && n.tagName === "BR");
 
 export function backspace(ctx: Ctx): boolean {
@@ -543,6 +559,12 @@ function blockStart(ctx: Ctx, leaf: HTMLElement): boolean {
     return true;
   }
   if (CELL.test(tag)) return true;
+  if (tag === "SUMMARY") {
+    // At the start of a section's summary: an empty section (no summary text, no body text) goes away.
+    const d = leaf.parentElement!;
+    if (!(d.textContent ?? "").trim() && !d.querySelector("img,[contenteditable=false]")) replaceWithP(ctx, d);
+    return true;
+  }
   const s = ctx.save();
   if (HEADING.test(tag)) {
     rename(ctx, leaf, "P");
@@ -571,8 +593,8 @@ function blockStart(ctx: Ctx, leaf: HTMLElement): boolean {
     caretAt(ctx, leaf, 0);
     return true;
   }
-  if (CELL.test(prev.tagName) || prev.tagName === "PRE" || inCell(ctx, prev)) {
-    if (lengthOf(leaf) === 0) {
+  if (STOP.test(prev.tagName) || inCell(ctx, prev)) {
+    if (lengthOf(leaf) === 0 && prev.tagName !== "SUMMARY") {
       const lp = leaf.parentElement;
       leaf.remove();
       cleanupEmpty(ctx, lp);
@@ -611,7 +633,7 @@ export function del(ctx: Ctx): boolean {
     }
     return false;
   }
-  if (CELL.test(leaf.tagName) || leaf.tagName === "PRE") return true;
+  if (STOP.test(leaf.tagName)) return true;
   const next = nextLeaf(ctx.root, leaf);
   if (!next) return true;
   if (isAtom(next)) {
@@ -620,7 +642,7 @@ export function del(ctx: Ctx): boolean {
     caretAt(ctx, leaf, o);
     return true;
   }
-  if (CELL.test(next.tagName) || next.tagName === "PRE" || inCell(ctx, next)) return true;
+  if (STOP.test(next.tagName) || inCell(ctx, next)) return true;
   mergeLeaves(ctx, leaf, next);
   caretAt(ctx, leaf, o);
   return true;
@@ -689,7 +711,7 @@ export function insertBlocks(ctx: Ctx, els: HTMLElement[], opts: { merge?: boole
   }
   const cell = closest(ctx, leaf, (e) => e.tagName === "TABLE");
   let anchor: HTMLElement = cell ?? leaf;
-  if (cell || leaf.tagName === "PRE" || isAtom(leaf)) {
+  if (cell || STOP.test(leaf.tagName) || isAtom(leaf)) {
     let ref: Node = anchor;
     for (const e of els) {
       ref.parentNode!.insertBefore(e, ref.nextSibling);

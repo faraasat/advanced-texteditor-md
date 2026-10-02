@@ -1,6 +1,6 @@
 import type { BlockNode, Doc, InlineNode, RenderOptions } from "../types";
 import { parse } from "../parser/parse";
-import { inlineToText } from "../parser/util";
+import { chipDefOf, chipTable, inlineToText } from "../parser/util";
 import { safeUrl, isExternal } from "./policy";
 import { embedSpec, findStandaloneUrl, matchEmbed, type EmbedMatch } from "./embed";
 
@@ -43,6 +43,7 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
     return `${p}-${name}` + (x ? " " + x : "");
   };
   const pol = o.links;
+  const chips = chipTable(o.chips);
   const fns: Extract<BlockNode, { type: "footnoteDef" }>[] = [];
   const collect = (bs: BlockNode[]) => {
     for (const b of bs) {
@@ -83,7 +84,7 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
   };
 
   const chip = (c: Extract<InlineNode, { type: "chip" }>): VN => {
-    const def = o.chips?.[`${c.scheme}:${c.kind}`] ?? o.chips?.[c.scheme];
+    const def = chipDefOf(chips, c.scheme, c.kind);
     const kd = def?.kinds?.[c.kind];
     const cls = [
       k("chip", "chip"),
@@ -168,10 +169,21 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
       case "image": {
         const u = safeUrl(n.src, pol, "image");
         if (u === null) return [n.alt];
-        return [el("img", { class: k("img", "image"), src: u, alt: n.alt, title: n.title, loading: "lazy" })];
+        return [img(n, u, n.title)];
       }
     }
   };
+
+  const img = (n: Extract<InlineNode, { type: "image" }>, u: string, title?: string) =>
+    el("img", {
+      class: k("img", "image"),
+      src: u,
+      alt: n.alt,
+      title,
+      width: n.width && n.width < 1e4 ? String(Math.round(n.width)) : undefined,
+      "data-align": n.align && /^(left|center|right)$/.test(n.align) ? n.align : undefined,
+      loading: "lazy",
+    });
 
   const mathVN = (tex: string, display: boolean): VN => {
     if (o.mathRenderer) {
@@ -206,10 +218,16 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
     }
     return o.linkPreview ? [el("p", { class: k("p", "paragraph"), "data-atm-standalone-link": url }, inl(b.children))] : null;
   };
+  // A top-level paragraph holding only an image with a title is a figure: the title is its caption.
+  const figure = (b: Extract<BlockNode, { type: "paragraph" }>): VN[] | null => {
+    const n = b.children[0];
+    const u = nest === 1 && b.children.length === 1 && n.type === "image" && n.title ? safeUrl(n.src, pol, "image") : null;
+    return u === null ? null : [el("figure", { class: k("figure"), "data-align": (n as { align?: string }).align }, [img(n as Extract<InlineNode, { type: "image" }>, u), el("figcaption", { class: k("caption") }, [(n as { title: string }).title])])];
+  };
   const block = (b: BlockNode, tight: boolean): VN[] => {
     switch (b.type) {
       case "paragraph":
-        return tight ? inl(b.children) : standalone(b) ?? [el("p", { class: k("p", "paragraph") }, inl(b.children))];
+        return tight ? inl(b.children) : standalone(b) ?? figure(b) ?? [el("p", { class: k("p", "paragraph") }, inl(b.children))];
       case "heading":
         return [el("h" + b.level, { class: k("h" + b.level, "heading") }, inl(b.children))];
       case "blockquote":
@@ -225,7 +243,7 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
             b.items.map((it) => {
               const task = it.checked !== undefined;
               const kids: VN[] = [];
-              if (task) kids.push(el("input", { type: "checkbox", class: k("task-box"), disabled: "", checked: it.checked ? "" : undefined }));
+              if (task) kids.push(el("input", { type: "checkbox", class: k("task-box"), disabled: "", checked: it.checked ? "" : undefined, "aria-label": o.labels?.task || "Task" }));
               kids.push(...blocks(it.children, b.tight));
               return el(
                 "li",
@@ -269,8 +287,17 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
         return [el("hr", { class: k("hr", "thematicBreak") })];
       case "footnoteDef":
         return [];
-      case "custom":
-        return [custom("block", b.name, b.data, blocks(b.children))];
+      case "custom": {
+        const v = custom("block", b.name, b.data, blocks(b.children));
+        // The built-in collapsible section (a host syntax named "details" renders as declared).
+        if (b.name === "details" && o.details !== false && !o.syntax?.block?.some((s) => s.name === "details")) {
+          v.t = "details";
+          v.a = { class: v.a.class + " " + k("details"), open: b.data?.open !== undefined ? "" : undefined } as Record<string, string>;
+          if (v.a.open === undefined) delete v.a.open;
+          v.c.unshift(el("summary", { class: k("summary") }, [b.data?.summary || o.labels?.details || "Details"]));
+        }
+        return [v];
+      }
     }
   };
 

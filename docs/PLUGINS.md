@@ -283,6 +283,15 @@ createEditor(el, { plugins: [wordGoal] });
 - `highlight: LanguageDef[]` registers code languages. `css` should read `--atm-*` variables rather than selecting on a theme name.
 - Plugins are tree-shakable named exports; they never import the editor internals.
 
+### Built-in syntax and commands a plugin can rely on
+
+- `details` is a built-in block syntax (`::: details Summary` … `:::`). A plugin or host that defines its own block syntax named
+  `details` replaces the built-in one; `features.details: false` (or `ParseOptions.details: false`) turns it off.
+- Commands available to `editor.exec` and toolbar items: `details` (insert a collapsible section), `submit` (dispatch
+  `atm:submit`, then `onSubmit`), and the table commands `tableAddRow`, `tableAddColumn`, `tableDeleteRow`, `tableDeleteColumn`, `tableAlignLeft`, `tableAlignCenter`, `tableAlignRight` and `tableDeleteTable` (they act on the cell holding the caret).
+- Editing overlays (image frame, block handle, table toolbar) live outside the content, so `postRender` and the serialiser never
+  see them. A plugin that adds its own overlay should do the same.
+
 ### Plugin hooks
 
 Besides `setup`, a plugin can hook the editor without attaching DOM listeners. One plugin object may be installed in several

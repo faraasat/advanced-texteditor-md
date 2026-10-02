@@ -18,14 +18,15 @@
 import type { BlockNode, ChipDefinition, Doc, EditorLabels, InlineNode, ParseOptions, RenderOptions } from "../types";
 import type { ChipNode, PaneEvents, Surface, SurfaceOptions } from "./pane-types";
 import { parse, stringify } from "../parser/index";
-import { domToDoc, type DomToDocOptions } from "./dom-to-doc";
+import { chipDefOf, chipTable } from "../parser/util";
+import { domInline, domToDoc, type DomToDocOptions } from "./dom-to-doc";
 import { History } from "./history";
 import { createKeymap } from "./keymap";
 import { getCommand, featureOf, markSpec } from "./commands";
 import type { Ctx, Offsets, Pending } from "./surface/ctx";
 import { anchorFootnotes, renderBlockEls, renderFragment, renderInlineNodes, prepCheckbox, type SurfaceRenderCtx } from "./surface/render";
-import { caretAt, closest, emptyP, ensureRoot, fixPre, itemOf, leafOf, normalizeTree, splitAt, topOf } from "./surface/dom";
-import { backspace, caret, del, deleteRange, enter, indent, insertNodes, insertTextAt, lineBreak, moveCell, outdent, setTask } from "./surface/structure";
+import { caretAt, closest, emptyP, ensureRoot, fixPre, isItem, itemOf, leafOf, leaves, normalizeTree, splitAt, topOf } from "./surface/dom";
+import { backspace, caret, del, deleteRange, enter, indent, insertNodes, insertTextAt, lineBreak, moveCell, outdent, setTask, toggleDetails } from "./surface/structure";
 import { enterRule, inlineRule, spaceRule } from "./surface/rules";
 import { insertMarkdown as insertMd, insertPlain, onCopy, onDrop, onPaste, selectionDoc, type DragState } from "./surface/clipboard";
 import {
@@ -49,8 +50,11 @@ export function createSurface(options: SurfaceOptions): Surface {
     math: render.math,
     footnotes: render.footnotes,
     syntax: render.syntax,
-    chipSchemes: render.chipSchemes ?? (render.chips ? Object.keys(render.chips).map((k) => k.split(":")[0]) : undefined),
-  };
+    chipSchemes: render.chipSchemes,
+    chips: render.chips,
+    details: render.details,
+  } as ParseOptions;
+  const chipT = chipTable(render.chips);
   const dtd: DomToDocOptions = { classPrefix: p, syntax: render.syntax };
   const features = options.features ?? {};
 
@@ -335,6 +339,7 @@ export function createSurface(options: SurfaceOptions): Surface {
     openMathEdit,
     commitMathEdit: () => commitMath(true),
     mathEditing: () => mathEdit?.el ?? null,
+    lib: { domInline, domToDoc, emptyP, isItem, leaves, indexOf, offsetOf, pointAt, setSelection },
   };
 
   function offsetsOfRange(r: Range): Offsets {
@@ -746,7 +751,7 @@ export function createSurface(options: SurfaceOptions): Surface {
   function chipDef(el: Element): ChipDefinition | undefined {
     const s = el.getAttribute("data-scheme") ?? "";
     const k = el.getAttribute("data-kind") ?? "";
-    return render.chips?.[`${s}:${k}`] ?? render.chips?.[s];
+    return chipDefOf(chipT, s, k);
   }
 
   function chipNode(el: Element): ChipNode {
@@ -908,6 +913,14 @@ export function createSurface(options: SurfaceOptions): Surface {
       }, 0);
       return;
     }
+    const sm = t.closest("summary");
+    if (sm && root.contains(sm) && !readOnly) {
+      // While editing a click on the summary places the caret; only the marker (the padding before
+      // the text) toggles. Read-only: the native toggle.
+      ev.preventDefault();
+      if (ev.clientX - sm.getBoundingClientRect().left < (parseFloat(d.defaultView?.getComputedStyle(sm).paddingLeft ?? "") || 20)) toggleDetails(ctx, sm);
+      return;
+    }
     const chip = t.closest(`.${p}-chip`);
     if (chip && root.contains(chip)) {
       const r = d.createRange();
@@ -922,11 +935,8 @@ export function createSurface(options: SurfaceOptions): Surface {
       openMathEdit(math as HTMLElement);
       return;
     }
-    if (t.tagName === "IMG" && !readOnly) {
-      const r = d.createRange();
-      r.selectNode(t);
-      setSelection(root, { node: r.startContainer, offset: r.startOffset }, { node: r.endContainer, offset: r.endOffset });
-    }
+    const im = t.closest(`figure.${p}-figure`) ?? (t.tagName === "IMG" ? t : null);
+    if (im && !readOnly) setSelection(root, { node: im.parentNode!, offset: indexOf(im) }, { node: im.parentNode!, offset: indexOf(im) + 1 });
   }
 
   function onSelectionChange(): void {
@@ -1101,6 +1111,7 @@ export function createSurface(options: SurfaceOptions): Surface {
   const surface: Surface = {
     el: root,
     editable: root,
+    ctx,
     setValue(md: string) {
       mathEdit = null;
       lastMd = typeof md === "string" ? md : "";

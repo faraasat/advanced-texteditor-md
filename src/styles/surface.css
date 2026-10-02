@@ -233,6 +233,117 @@
   color: var(--atm-s-muted);
 }
 
+/* Image size and alignment (`![alt|center|320](src)`): the width is the `width` attribute. */
+.atm-surface img[data-align="center"],
+.atm-preview img[data-align="center"] {
+  display: block;
+  margin-inline: auto;
+}
+.atm-surface img[data-align="left"],
+.atm-preview img[data-align="left"] {
+  float: left;
+  margin: 0.25em 1em 0.5em 0;
+}
+.atm-surface img[data-align="right"],
+.atm-preview img[data-align="right"] {
+  float: right;
+  margin: 0.25em 0 0.5em 1em;
+}
+.atm-surface > :is(h1, h2, h3, h4, h5, h6, hr, pre, table, blockquote, details),
+.atm-preview > :is(h1, h2, h3, h4, h5, h6, hr, pre, table, blockquote, details) {
+  clear: both;
+}
+
+/* A captioned image alone on its line: a figure, the title is the caption. */
+.atm-figure {
+  display: table;
+  margin: 0 0 0.75em;
+  max-width: 100%;
+}
+.atm-figure[data-align="center"] {
+  margin-inline: auto;
+}
+.atm-figure[data-align="left"] {
+  float: left;
+  margin: 0.25em 1em 0.5em 0;
+}
+.atm-figure[data-align="right"] {
+  float: right;
+  margin: 0.25em 0 0.5em 1em;
+}
+.atm-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.atm-caption {
+  display: table-caption;
+  caption-side: bottom;
+  padding-top: 0.35em;
+  color: var(--atm-s-muted, var(--atm-muted, #656d76));
+  font-size: 0.875em;
+  text-align: center;
+}
+
+/* Collapsible sections: ::: details Summary */
+.atm-details {
+  margin: 0 0 0.75em;
+  padding: 0.25em 0.75em;
+  border: 1px solid var(--atm-s-border, var(--atm-border, #d0d7de));
+  border-radius: var(--atm-s-radius, var(--atm-radius, 6px));
+}
+.atm-details > .atm-summary {
+  position: relative;
+  display: block;
+  padding: 0.35em 0 0.35em 1.5em;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.atm-details > .atm-summary::-webkit-details-marker {
+  display: none;
+}
+.atm-details > .atm-summary::before {
+  content: "";
+  position: absolute;
+  left: 0.3em;
+  top: 0.85em;
+  width: 0.45em;
+  height: 0.45em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+.atm-details[open] > .atm-summary::before {
+  transform: rotate(45deg);
+}
+.atm-details[open] > .atm-summary {
+  margin-bottom: 0.25em;
+}
+.atm-details > .atm-summary:focus-visible {
+  outline: 2px solid var(--atm-s-ring, var(--atm-ring, #2563eb));
+  outline-offset: 2px;
+}
+/* While editing, the summary is text; an empty one shows the default label as a placeholder. */
+.atm-surface .atm-summary {
+  cursor: text;
+}
+.atm-surface .atm-summary::before {
+  cursor: pointer;
+}
+.atm-surface .atm-summary:has(> br:only-child)::after {
+  content: attr(data-placeholder);
+  color: var(--atm-s-muted);
+  font-weight: 400;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .atm-details > .atm-summary::before {
+    transition: none;
+  }
+}
+
 /* Chips and mentions: a tinted pill (palette slot via --atm-chip-color). */
 .atm-surface .atm-chip {
   --atm-c: var(--atm-chip-color, var(--atm-s-accent));

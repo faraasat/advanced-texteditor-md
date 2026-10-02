@@ -6,8 +6,8 @@ import { fakeHarness } from "./fakes";
 import type { LayoutName } from "../../src/types";
 
 const cleanups: (() => void)[] = [];
-const m = (o?: Parameters<typeof mount>[0]) => {
-  const x = mount(o);
+const m = (o?: Parameters<typeof mount>[0], parent?: HTMLElement) => {
+  const x = mount(o, parent);
   cleanups.push(x.cleanup);
   return x;
 };
@@ -291,10 +291,10 @@ describe("layouts: bubble", () => {
 describe("layouts: bottom-bar", () => {
   const submitOn = (x: ReturnType<typeof m>) => {
     const got: CustomEvent[] = [];
-    x.root.addEventListener("submit", (e) => got.push(e as unknown as CustomEvent));
+    x.root.addEventListener("atm:submit", (e) => got.push(e as unknown as CustomEvent));
     return got;
   };
-  it("Mod-Enter in the surface fires a submit CustomEvent on the root", () => {
+  it("Mod-Enter in the surface fires an atm:submit CustomEvent on the root", () => {
     const x = m({ layout: "bottom-bar", value: "hi" });
     const got = submitOn(x);
     const e = new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true, cancelable: true });
@@ -318,6 +318,39 @@ describe("layouts: bottom-bar", () => {
     x.surface.editable.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     x.surface.editable.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", shiftKey: true, ctrlKey: true, bubbles: true, cancelable: true }));
     expect(got).toHaveLength(0);
+  });
+  it("never dispatches an event named `submit` (a host <form onSubmit> must not receive it)", () => {
+    const form = document.createElement("form");
+    document.body.appendChild(form);
+    let formSubmits = 0;
+    form.addEventListener("submit", (e) => {
+      formSubmits++;
+      e.preventDefault();
+    });
+    const x = m({ layout: "bottom-bar", value: "hi" }, form);
+    const got = submitOn(x);
+    x.surface.editable.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true, cancelable: true }));
+    expect(got).toHaveLength(1);
+    expect(formSubmits).toBe(0);
+    form.remove();
+  });
+  it("onSubmit(markdown, editor) is called; a listener that cancels atm:submit stops it", () => {
+    const calls: [string, unknown][] = [];
+    const x = m({ layout: "bottom-bar", value: "send", onSubmit: (md, ed) => calls.push([md, ed]) });
+    const key = () => x.surface.editable.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, bubbles: true, cancelable: true }));
+    key();
+    expect(calls).toEqual([["send", x.ed]]);
+    x.root.addEventListener("atm:submit", (e) => e.preventDefault(), { once: true });
+    key();
+    expect(calls).toHaveLength(1);
+  });
+  it("exec('submit') submits from any layout and returns true", () => {
+    const calls: string[] = [];
+    const x = m({ layout: "classic", value: "v", onSubmit: (md) => calls.push(md) });
+    const got = submitOn(x);
+    expect(x.ed.exec("submit")).toBe(true);
+    expect(calls).toEqual(["v"]);
+    expect(got).toHaveLength(1);
   });
   it("other layouts do not submit on Mod-Enter", () => {
     const x = m({ layout: "classic" });

@@ -5,9 +5,9 @@
  */
 import type { LinkPolicy, Slot } from "../types";
 import type { Labels } from "./i18n";
-import { fmt } from "./i18n";
-import { cx, focusables, h, placeNear, trapTab, uid, type Rect } from "./dom";
+import { cx, fmt, focusables, h, placeNear, trapTab, uid, type Rect } from "./dom";
 import { urlAllowed } from "../features/upload-policy";
+import { lazyLabels } from "./i18n-lazy";
 
 export type PopoverHost = {
   doc: Document;
@@ -140,7 +140,8 @@ export type LinkPopoverOptions = {
 };
 
 export function openLinkPopover(host: PopoverHost, o: LinkPopoverOptions): PopoverHandle {
-  const { doc, labels } = host;
+  const { doc } = host;
+  const labels = lazyLabels(host.labels);
   const url = h("input", { document: doc, type: "text", inputmode: "url", autocomplete: "off", spellcheck: "false", value: o.initialHref ?? "", required: true }) as HTMLInputElement;
   const text = h("input", { document: doc, type: "text", autocomplete: "off", value: "" }) as HTMLInputElement;
   const err = errorBox(host);
@@ -183,7 +184,8 @@ export type ImagePopoverOptions = {
 };
 
 export function openImagePopover(host: PopoverHost, o: ImagePopoverOptions): PopoverHandle {
-  const { doc, labels, prefix: p } = host;
+  const { doc, prefix: p } = host;
+  const labels = lazyLabels(host.labels);
   const url = h("input", { document: doc, type: "text", inputmode: "url", autocomplete: "off", spellcheck: "false" }) as HTMLInputElement;
   const alt = h("input", { document: doc, type: "text", autocomplete: "off", value: o.selection }) as HTMLInputElement;
   const err = errorBox(host);
@@ -255,7 +257,8 @@ export function openTablePopover(
   host: PopoverHost,
   o: { anchor: Rect | null; fallback?: Element | null; onPick: (size: { rows: number; cols: number }) => void; onClose: (restoreFocus: boolean) => void },
 ): PopoverHandle {
-  const { doc, labels, prefix: p } = host;
+  const { doc, prefix: p } = host;
+  const labels = lazyLabels(host.labels);
   const max = TABLE_PICKER_MAX;
   const grid = h("div", { document: doc, role: "grid", "aria-label": labels.tableSize, class: `${p}-table-grid` });
   const status = h("div", { document: doc, class: `${p}-hint`, "aria-live": "polite" }, fmt(labels.tableSizeValue, { rows: 1, cols: 1 }));
@@ -335,7 +338,8 @@ export function openMathPopover(
     onClose: (restoreFocus: boolean) => void;
   },
 ): PopoverHandle {
-  const { doc, labels, prefix: p } = host;
+  const { doc, prefix: p } = host;
+  const labels = lazyLabels(host.labels);
   const tex = h("textarea", { document: doc, rows: "3", spellcheck: "false", autocomplete: "off", class: `${p}-math-source` }) as HTMLTextAreaElement;
   tex.value = o.tex;
   const display = h("input", { document: doc, type: "checkbox" }) as HTMLInputElement;
@@ -389,7 +393,8 @@ export function openCodeLanguagePopover(
     onClose: (restoreFocus: boolean) => void;
   },
 ): PopoverHandle {
-  const { doc, labels, prefix: p } = host;
+  const { doc, prefix: p } = host;
+  const labels = lazyLabels(host.labels);
   const listId = uid(`${p}-langs`);
   const input = h("input", { document: doc, type: "text", list: listId, autocomplete: "off", spellcheck: "false", value: o.current ?? "" }) as HTMLInputElement;
   const list = h("datalist", { document: doc, id: listId });

@@ -13,7 +13,7 @@
 // publint and @arethetypeswrong/cli are run only when they are already installed or in the npx
 // cache (no network): `npx --no-install`. Otherwise they are skipped and the script says so.
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -116,6 +116,18 @@ try {
   probe("plugins-kbd", `import { kbd } from "${pkg.name}/plugins"; console.log(kbd);`, 0.7);
   probe("plugins-hydrateAll", `import { hydrateAll } from "${pkg.name}/plugins"; console.log(hydrateAll);`, 9);
   probe("plugins-typography", `import { simulateTyping } from "${pkg.name}/plugins"; console.log(simulateTyping);`, 3);
+  // 4b. A split ESM bundle (Vite's dependency pre-bundling does this) prints no ignored-bare-import
+  // warning: scripts/strip-bare-imports.mjs removed the bare chunk imports after proving them pure.
+  {
+    mkdirSync(join(root, "test-results"), { recursive: true });
+    const entry = join(root, "test-results", "check-package-split.js");
+    writeFileSync(entry, `export * from ${JSON.stringify(join(root, "dist/index.js"))};\nexport * from ${JSON.stringify(join(root, "dist/plugins.js"))};\n`);
+    const res = buildSync({ entryPoints: [entry], bundle: true, splitting: true, format: "esm", outdir: join(dir, "split"), write: false, logLevel: "silent" });
+    rmSync(entry, { force: true });
+    const bare = res.warnings.filter((w) => w.id === "ignored-bare-import");
+    if (bare.length) fail(`split bundle: ${bare.length} ignored-bare-import warning(s), e.g. ${bare[0].location?.file}`);
+    else ok("split bundle: no ignored-bare-import warnings");
+  }
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

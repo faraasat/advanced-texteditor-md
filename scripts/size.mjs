@@ -38,9 +38,17 @@ const BUDGET = {
 const TARGET = { "index.js": 48 };
 
 /** Chunks the editor entry must NOT load statically. Each must exist as a lazy chunk. */
-const LAZY_CONTRACT = ["popovers", "slash", "markdown-pane", "uploads", "rich-links", "math", "mentions", "paste"];
+const LAZY_CONTRACT = [
+  "popovers", "slash", "markdown-pane", "uploads", "rich-links", "math", "mentions", "paste",
+  "bubble", "toolbar-menu", "image-tools", "table-tools", "block-handles", "zoom",
+];
 const LANG_KB = 2; // highlight/<lang>.js, eager closure
 const LAZY_CHUNK_KB = 15; // every dynamically imported chunk, on its own
+/**
+ * The block tools (2026-10-02) have a tighter budget of their own: each must stay a small download
+ * on first use. Matched on the chunk name (the hash is ignored).
+ */
+const LAZY_BUDGET_KB = { "image-tools": 12, "table-tools": 12, "block-handles": 12, zoom: 12, bubble: 12, "toolbar-menu": 12 };
 
 function walk(dir) {
   return readdirSync(dir).flatMap((f) => {
@@ -129,7 +137,8 @@ console.log("\nLAZY: dynamic import, downloads on first use (gzip, plus any stat
 if (!lazy.size) console.log("  (none)");
 for (const [f, c] of [...lazy].sort((a, b) => a[0].localeCompare(b[0]))) {
   const own = [...c].filter((x) => !eagerIndex.has(x));
-  row("ok  ", f, new Set(own), LAZY_CHUNK_KB);
+  const name = f.replace(/\.js$/, "").replace(/-[A-Z0-9]{8}$/, "");
+  row("ok  ", f, new Set(own), LAZY_BUDGET_KB[name] ?? LAZY_CHUNK_KB);
 }
 
 // The contract: each lazy feature is a chunk of its own and the editor entry does not hold it.

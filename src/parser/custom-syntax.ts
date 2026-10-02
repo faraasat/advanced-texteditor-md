@@ -1,5 +1,5 @@
 import type { BlockSyntax, InlineSyntax } from "../types";
-import { escRe, type Ctx } from "./util";
+import { DETAILS, escRe, type Ctx } from "./util";
 
 /** `==x==`-style declarative inline syntax. Returns the inner source and end index. */
 export function matchDecl(
@@ -49,7 +49,7 @@ export function blockOpen(t: string, ctx: Ctx): { syn: BlockSyntax; data?: Recor
     const f = fenceOf(syn);
     if (!t.startsWith(f)) continue;
     const m = new RegExp(`^${escRe(f)}[ \\t]*${escRe(syn.name)}(?=\\s|$)(.*)$`).exec(t);
-    if (m) return { syn, data: parseData(m[1]) };
+    if (m) return { syn, data: syn === DETAILS ? detailsData(m[1]) : parseData(m[1]) };
   }
   return null;
 }
@@ -64,6 +64,18 @@ export function blockClose(lines: string[], i: number, syn: BlockSyntax, ctx: Ct
     } else if (t.startsWith(f) && blockOpen(t, ctx)) depth++;
   }
   return -1;
+}
+
+/** `::: details [open] Summary text`: the rest of the line is the summary; a leading `\` escapes "open". */
+function detailsData(s: string): Record<string, string> | undefined {
+  const d: Record<string, string> = {};
+  s = s.trim();
+  if (/^open(\s|$)/.test(s)) {
+    d.open = "";
+    s = s.slice(4).trim();
+  } else if (s[0] === "\\") s = s.slice(1);
+  if (s) d.summary = s;
+  return s || d.open !== undefined ? d : undefined;
 }
 
 function parseData(s: string): Record<string, string> | undefined {

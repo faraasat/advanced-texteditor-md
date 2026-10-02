@@ -239,6 +239,11 @@ function build() {
       log(`change (${md.length} chars)`);
     },
     onModeChange: (m) => log(`mode: ${m}`),
+    // Mod-Enter in the bottom-bar layout (or exec("submit")); the root also fires `atm:submit`.
+    onSubmit: (md) => {
+      (window.__submitted ??= []).push(md);
+      log(`submit (${md.length} chars)`);
+    },
     onMentionsChange: (l) => {
       showMentions();
       log(`mentions: ${l.length}`);

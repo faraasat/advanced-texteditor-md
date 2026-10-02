@@ -2,7 +2,8 @@ import type { BlockNode, Doc, InlineNode, ListItem } from "../types";
 import { PUNCT_RE, makeCtx, type Ctx } from "./util";
 import { chipHref } from "./chip";
 import { bareEnd } from "./gfm";
-import { fenceFor, fmtData } from "./custom-syntax";
+import { blockOpen, fenceFor, fmtData } from "./custom-syntax";
+import { DETAILS } from "./util";
 
 /** Escape context for inline output. */
 type E = { pipes?: boolean; cell?: boolean; d?: boolean };
@@ -74,6 +75,9 @@ function count$(nodes: InlineNode[]): number {
   return n;
 }
 
+/** An alt ending in `|<token>`: its LAST pipe becomes `&#124;`, so no suffix can be read off the end. */
+const ALT_TAIL = /\\?\|([1-9]\d{0,3}|left|center|right)$/;
+
 const BARE_BEFORE = /(?:^|[\s*_~(])$/;
 const BARE_AFTER = /^(?:\s|$|[.,;:!?](?:\s|$))/;
 
@@ -126,9 +130,14 @@ function inl(nodes: InlineNode[], x: Ctx, e: E, pt = "", pch = ""): string {
       case "footnoteRef":
         out += `[^${nd.label}]`;
         break;
-      case "image":
-        out += `![${esc(nd.alt, x, e)}](${dest(nd.src)}${title(nd.title)})`;
+      case "image": {
+        // Size and alignment are an alt suffix, `![alt|center|320](src)`. An alt that already ends
+        // like one keeps it as text: its last `|` is written as `&#124;`.
+        const bar = e.pipes ? "\\|" : "|";
+        const w = Math.round(nd.width ?? 0);
+        out += `![${esc(nd.alt, x, e).replace(ALT_TAIL, "&#124;$1")}${/^(left|center|right)$/.test(nd.align ?? "") ? bar + nd.align : ""}${w > 0 && w < 1e4 ? bar + w : ""}](${dest(nd.src)}${title(nd.title)})`;
         break;
+      }
       case "chip": {
         const label = esc((nd.trigger ?? "") + nd.label, x, e);
         out += `[${label}](${chipHref(nd)})`;
@@ -205,8 +214,8 @@ function lineStarts(s: string, x: Ctx): string {
         return l;
       }
       if (c >= "0" && c <= "9") return l.replace(/^(\d{1,9})([.)])(?=[ \t]|$)/, "$1\\$2");
-      if (c === ":" || c === "~") for (const f of fences) if (l.startsWith(f)) return "\\" + l;
-      if (fences.length && c !== undefined) for (const f of fences) if (f[0] !== ":" && l.startsWith(f)) return "\\" + l;
+      // A line that would open or close a `:::` container (the built-in details one included).
+      for (const f of fences) if (l.startsWith(f) && (l.trim() === f || blockOpen(l, x))) return "\\" + l;
       return l;
     })
     .join("\n");
@@ -307,7 +316,10 @@ function blockStr(b: BlockNode, x: Ctx, alt: number, ai: boolean): string {
       const sy = x.bl.find((s) => s.name === b.name);
       const f = sy ? fenceFor(sy) : ":::";
       const inner = blocks(b.children, x, true);
-      return `${f} ${b.name}${fmtData(b.data)}\n${inner ? inner + "\n" : ""}${f}`;
+      // Built-in details: `::: details [open] Summary`; a summary that starts with "open" or "\" gets a "\".
+      const sum = (b.data?.summary ?? "").replace(/\s+/g, " ").trim();
+      const head = sy === DETAILS ? (b.data?.open !== undefined ? " open" : "") + (sum ? " " + (/^(open(\s|$)|\\)/.test(sum) ? "\\" : "") + sum : "") : fmtData(b.data);
+      return `${f} ${b.name}${head}\n${inner ? inner + "\n" : ""}${f}`;
     }
   }
 }
