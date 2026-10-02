@@ -319,6 +319,16 @@
         "default": "./dist/speech.cjs"
       }
     },
+    "./comments": {
+      "import": {
+        "types": "./dist/comments.d.ts",
+        "default": "./dist/comments.js"
+      },
+      "require": {
+        "types": "./dist/comments.d.cts",
+        "default": "./dist/comments.cjs"
+      }
+    },
     "./links": {
       "import": {
         "types": "./dist/links.d.ts",
@@ -500,6 +510,9 @@
       ],
       "speech": [
         "./dist/speech.d.ts"
+      ],
+      "comments": [
+        "./dist/comments.d.ts"
       ],
       "links": [
         "./dist/links.d.ts"

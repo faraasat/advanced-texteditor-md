@@ -121,6 +121,7 @@ else is a subpath so you only pay for what you import.
 | `/present`, `/reader` | `createPresentView` (a document as slides: split rules, speaker notes and panel, fullscreen, keys and swipe) and `createReaderView` (a clean article with outline, progress and reading time); `createPresentPlugin` / `createReaderPlugin` open them from the editor toolbar |
 | `/snippets` | `createSnippets`: text expanders (`;sig` + Space/Tab/Enter) and block templates with `{{date}}`, `{{time}}`, `{{cursor}}`, `{{selection}}` and host variables, a "Templates" group in the slash menu, an "Insert template…" picker (palette and optional toolbar button), a store kept in `localStorage` or memory, JSON import and export with a per-entry report |
 | `/links` | `createWikiLinks` (type `[[`, pick a page, get a chip stored as `[Title](wiki:id)`; pages the host's `resolve` says are gone are marked broken) and `createLinkManager` (a dialog listing every link with its state; edit, remove, go to, optional host `check`, upgrade `http:` to `https:` in one undo step); pure `findLinks`, `findWikiIds`, `findBacklinks` |
+| `/comments` | `createCommentsPlugin`: comments anchored to text, stored as `[anchored text](comment:ID)` with the threads kept by the host (`onCreate`, `render`, `isResolved`); highlight, resolved state, margin markers in the document layout, a thread panel, `Mod-Alt-M` / `Alt-F9` keys, read-only views; `findComments`, `commentIds`, `removeCommentMarks` |
 | `/i18n`, `/i18n/<lang>` | `loadLabels`, `resolveLocale`, `isRtl`, `createBidiPlugin`; label bundles for en, es, fr, de, pt, it, nl, ru, ja, zh, ar, hi, tr (each at most 1.5 kB gzip) |
 | `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
 
@@ -356,6 +357,22 @@ createEditor(el, { chips: wiki.chips, plugins: [wiki.plugin, createLinkManager({
 ```
 
 Typing `[[` opens a page picker; the choice becomes a chip stored as `[Title](wiki:id)`, so every other Markdown reader shows an ordinary link. The library never fetches: pages come from your `search` and `resolve` (batched, cached, aborted on destroy), addresses from your `check`. A page `resolve` reports as missing is drawn with a dotted underline and a warning sign. "Manage links…" (palette, slash menu, optional toolbar button) lists every link with its state, lets you edit, remove (the text stays) or jump to one, and upgrades `http:` addresses to `https:` after a confirmation, as one undo step. `findLinks`, `findWikiIds` and `findBacklinks` work on Markdown or a parsed Doc without a DOM. See [docs/PLUGINS.md](./docs/PLUGINS.md#wiki-links-and-the-link-manager-advanced-texteditor-mdlinks).
+
+### Comments
+
+```ts
+import { createCommentsPlugin } from "advanced-texteditor-md/comments";
+
+const comments = createCommentsPlugin({
+  onCreate: async ({ text }) => (await api.createThread(docId, text)).id, // return the id, or null to cancel
+  render: (id) => threadElement(id),                                      // your DOM (or a string, shown as text)
+  isResolved: (id) => threads.get(id)?.resolved ?? false,
+});
+createEditor(el, { plugins: [comments] });
+renderDom(md, { syntax: { inline: commentSyntaxes() }, postRender: [comments.postRender] }); // read-only view
+```
+
+The document stores only `[anchored text](comment:ID)`: no author, date, message or resolved flag; any other Markdown reader shows the text. The host owns the threads. The selected text gets a highlight (dashed when resolved), the caret entering it opens the thread panel (`openOnCaret`), and in the `document` and `sidebar` layouts a marker per comment sits in the margin. `Mod-Alt-M` adds a comment (or focuses the thread when the caret is in one), `Alt-F9` / `Shift-Alt-F9` move to the next and previous comment. `comments.setState(id, "resolved")`, `getState`, `update()`, `open(editor, id)` and `add(editor)` are the host's handles; `findComments`, `commentIds` and `removeCommentMarks` work on Markdown without a DOM. See [docs/PLUGINS.md](./docs/PLUGINS.md#comments-advanced-texteditor-mdcomments).
 
 ### Mentions, badges, colours, merged identities
 

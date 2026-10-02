@@ -747,3 +747,12 @@ drag-reordering a list by state, and a task filter that survives re-rendering of
 - **Upgrade to https is a confirmation plus one undo step**, host-limited with `upgradeHosts`, and `localhost` and non-http addresses are never rewritten. A re-serialised autolink loses its angle brackets (`<https://x>` becomes `https://x`), which is the editor's canonical form; the history is kept in that case (earlier the length check reset it).
 - **Focus trap moves focus by hand.** WebKit's native Tab order skips buttons, so a trap that only wraps at the ends lets focus leave the dialog; the dialog now picks the next focusable itself.
 - **Broken-page colour is `--atm-links-broken`, falling back to `--atm-danger`**, so the dark theme gets a readable red.
+
+## 2026-10-03: Comments (`advanced-texteditor-md/comments`)
+
+- **Anchor in the document, conversation in the host.** The only stored form is `[anchored text](comment:ID)`; there is no author, date, text or resolved flag in the Markdown, so a document stays portable and a host cannot be tricked by edited metadata. Collaboration is out of scope (ARCHITECTURE.md): the host decides who may read or reply.
+- **An inline pattern syntax, not a link.** Reusing `[text](url)` would put the mark through the link policy and make it a `link` node (and the editor would turn it into an anchor). A nested pattern keeps the formatting editable. Atomic lookaheads with back-references keep the body regex from backtracking exponentially (a scaling test is in `test/security/comments.test.ts`).
+- **The `!` fix stays in the extension.** A `!` right before a mark would read back as an image. The parser fix (escape `!` before any custom inline) would grow the eager entry, which has 0.03 kB of headroom; the extra `comment-bang` syntax in `commentSyntaxes()` solves it for this feature alone and `stringify(parse(x))` is idempotent with it (tests in `test/extensions/comments/syntax.test.ts`).
+- **Thread text is text.** `render` may return an element (the host's own DOM) or a string, which is always inserted as text.
+- **Size.** 21 kB gzip bundled: it needs `parse` and `stringify` to read and remove marks, so it gets the 28 kB budget used by the other parser-carrying subpaths (diff, export), not 15.
+- **Gutter.** The surface host gives every child `overflow: auto`; the gutter (a child of the page) overrides it, or its zero-width box clips the markers and they cannot be clicked.

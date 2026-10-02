@@ -1534,3 +1534,37 @@ Lists every link (text, address, kind: link, image, wiki, autolink, reference, c
 ### Pure helpers
 
 `findLinks(markdownOrDoc)` returns `{ kind, href, text, title?, scheme?, id?, bare?, line / column / offset (Markdown input) or block (Doc input) }[]`; `findWikiIds` the distinct page ids; `findBacklinks(docs, targetId)` which of `{ id, markdown }` documents link to a page. All are linear in the input.
+
+## Comments (`advanced-texteditor-md/comments`)
+
+Inline comments anchored to text. **The library stores the anchor; the host stores the conversation.** The entry is about 21 kB gzipped (it carries the parser it needs to read marks; budget 28 kB) and is a lazy subpath. Server-safe at import.
+
+```ts
+import { createCommentsPlugin, commentSyntaxes, findComments } from "advanced-texteditor-md/comments";
+const comments = createCommentsPlugin({ onCreate, render, isResolved, onOpen, onClose, onRemove });
+createEditor(el, { plugins: [comments] });
+```
+
+**Markdown stored:** `[anchored text](comment:ID)`. The anchored text keeps its formatting (`[**bold** and `code`](comment:c1)`), may contain one level of a link, mention chip, image, footnote reference or a second comment mark (overlapping comments nest), and stays editable. The id is `[\w.:-]{1,80}`; anything else is not a comment. The mark is an inline pattern syntax with a nested body, not a link: it never becomes a `link` node, so the link policy does not apply to it and it carries no URL. Everything the plugin draws (state classes, markers, the panel, the live region) is decoration outside the document.
+
+**Literal `!` before a mark.** `![x](comment:c1)` would be an image, so `commentSyntaxes()` returns two syntaxes: the mark and a helper (`comment-bang`) that takes a `!` (escaped or not) right before a mark and writes it back as `\!`. The stable `stringify` output of `!` + a mark is therefore `\![x](comment:c1)`. Pass both syntaxes to `parse`, `stringify` and `renderDom` (the editor does it for you).
+
+### Options
+
+`onCreate({ text, markdown }, { editor })` returns the new id (a promise is fine), or null / undefined to cancel; the mark is added when it resolves, if the selected text is still there ("The text changed before the comment was added" otherwise). `render(id)` returns the panel content: an element is inserted as is, a string is **text, never markup**; it runs again on `update()`. `isResolved(id)` and `setState(id, state)` decide the resolved look. `onOpen(id, { editor, source })` (`caret`, `key`, `marker`, `click`, `api`), `onClose`, `onRemove`. `gutter`: `"auto"` (default; the document and sidebar layouts, when there is room beside the page and the pointer is fine), `true`, `false`. `openOnCaret` (default true). `keymap` (`add: "Mod-Alt-m"`, `next: "Alt-F9"`, `previous: "Shift-Alt-F9"`, or `false`). `toolbar` (default true). `labels`.
+
+### Commands and handles
+
+Commands: `addComment`, `comment` (add, or focus the thread when the caret is in one), `removeComment` (the text stays), `nextComment`, `previousComment`. Handles on the plugin: `update()`, `setState`, `getState`, `add(editor)`, `open(editor, id)`, `activeId(editor)`. A comment covers text in one block; code blocks and inline code cannot be commented on; a read-only editor adds nothing; each refusal is announced in a polite live region. In the Markdown view a comment is added by wrapping the selection in the wire text.
+
+### Read-only views
+
+`renderDom(md, { syntax: { inline: commentSyntaxes() }, postRender: [comments.postRender] })` makes each mark a button (`role="button"`, Enter or Space) that opens the same panel on `<body>` with the view's theme (`mirrorTheme`). A mark that already contains a link or control keeps its own behaviour.
+
+### Helpers
+
+`findComments(markdownOrDoc)` returns `{ id, text, runs }[]` in document order (one entry per id; `runs` counts the pieces when formatting splits a mark); `commentIds`; `removeCommentMarks(markdown, ids?, syntax?)` removes the marks of the given ids (or all) and keeps the text, returning canonical Markdown; `wrapComment(inner, id)`, `isCommentId`, `commentPattern`.
+
+### Keyboard and accessibility
+
+The panel is a non-modal `role="dialog"` named from the excerpt; Escape closes it and returns the caret; the close button is 44 px on coarse pointers. The gutter is a `role="group"` of buttons with a roving tab stop (arrows, Home, End) whose names carry the excerpt and ", resolved". Resolved is shown by a dashed border and the word, not by colour alone; forced-colors and print are handled.

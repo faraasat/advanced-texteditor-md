@@ -1,0 +1,159 @@
+/* Comments (advanced-texteditor-md/comments): the anchored text, the gutter markers and the thread panel.
+   Colours: var(--atm-comments-x, var(--atm-*, fallback)). Nothing here is stored in the document. */
+
+/* ── The anchored text. Not colour alone: a bottom border, a heavier one when active, dashed when resolved. ── */
+mark.atm-comment {
+  background: color-mix(in srgb, var(--atm-comments-mark, var(--atm-warn, #9a6700)) 18%, transparent);
+  color: inherit;
+  border-bottom: 2px solid color-mix(in srgb, var(--atm-comments-mark, var(--atm-warn, #9a6700)) 65%, transparent);
+  border-radius: 2px;
+  padding: 0;
+  cursor: pointer;
+}
+mark.atm-comment.atm-comment-active {
+  background: color-mix(in srgb, var(--atm-comments-mark, var(--atm-warn, #9a6700)) 34%, transparent);
+  border-bottom-color: var(--atm-comments-mark, var(--atm-warn, #9a6700));
+  outline: 2px solid var(--atm-comments-ring, var(--atm-ring, var(--atm-accent, #2563eb)));
+  outline-offset: 1px;
+}
+mark.atm-comment.atm-comment-resolved {
+  background: transparent;
+  border-bottom: 1px dashed var(--atm-comments-muted, var(--atm-muted, #59636e));
+}
+mark.atm-comment.atm-comment-resolved.atm-comment-active {
+  background: color-mix(in srgb, var(--atm-comments-muted, var(--atm-muted, #59636e)) 18%, transparent);
+}
+mark.atm-comment[data-atm-comment-view]:focus-visible {
+  outline: 2px solid var(--atm-comments-ring, var(--atm-ring, var(--atm-accent, #2563eb)));
+  outline-offset: 1px;
+}
+
+/* ── The gutter: markers beside the page, at the inline-end side ── */
+.atm-comments-gutter {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 100%;
+  inline-size: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.atm-comments-gutter[hidden] { display: none; }
+/* The surface host gives every child overflow:auto and a minimum height; the gutter is a child of it. */
+.atm-surface-host > .atm-comments-gutter { overflow: visible; min-height: 0; max-height: none; }
+.atm-comment-marker {
+  position: absolute;
+  inset-inline-start: calc(8px + var(--atm-comment-stack, 0) * 30px);
+  inline-size: 28px;
+  block-size: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--atm-comments-marker-border, var(--atm-border, #d0d7de));
+  border-radius: 50%;
+  background: var(--atm-comments-marker-bg, var(--atm-bg, #fff));
+  color: var(--atm-comments-marker-fg, var(--atm-fg, #1f2328));
+  cursor: pointer;
+  pointer-events: auto;
+  font: inherit;
+}
+.atm-comment-marker:hover { background: color-mix(in srgb, var(--atm-comments-mark, var(--atm-warn, #9a6700)) 16%, var(--atm-bg, #fff)); }
+.atm-comment-marker:focus-visible { outline: 2px solid var(--atm-comments-ring, var(--atm-ring, var(--atm-accent, #2563eb))); outline-offset: 2px; }
+.atm-comment-marker[hidden] { display: none; }
+.atm-comment-marker-active { border-color: var(--atm-comments-mark, var(--atm-warn, #9a6700)); border-width: 2px; }
+.atm-comment-marker-resolved { border-style: dashed; color: var(--atm-comments-muted, var(--atm-muted, #59636e)); }
+@media (pointer: coarse) {
+  .atm-comment-marker { inline-size: 32px; block-size: 32px; }
+}
+
+/* ── The thread panel (inside the editor, or on <body> for a read-only view) ── */
+.atm-comment-thread {
+  position: absolute;
+  z-index: 1000;
+  box-sizing: border-box;
+  inline-size: 288px;
+  max-inline-size: calc(100vw - 16px);
+  max-block-size: min(60vh, 420px);
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--atm-comments-border, var(--atm-border, #d0d7de));
+  border-radius: 10px;
+  background: var(--atm-comments-bg, var(--atm-bg, #fff));
+  color: var(--atm-comments-fg, var(--atm-fg, #1f2328));
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
+  font: 0.875rem/1.45 var(--atm-font, system-ui, sans-serif);
+  text-align: start;
+}
+.atm-comment-thread:focus-visible { outline: 2px solid var(--atm-comments-ring, var(--atm-ring, var(--atm-accent, #2563eb))); outline-offset: 2px; }
+.atm-comment-head { display: flex; align-items: flex-start; gap: 8px; margin-block-end: 6px; }
+.atm-comment-title {
+  flex: 1;
+  margin: 0;
+  min-inline-size: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  /* the excerpt, at most two lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.atm-comment-state {
+  flex: none;
+  padding: 0 6px;
+  border: 1px dashed var(--atm-comments-muted, var(--atm-muted, #59636e));
+  border-radius: 999px;
+  color: var(--atm-comments-muted, var(--atm-muted, #59636e));
+  font-size: 0.75rem;
+}
+.atm-comment-state:empty { display: none; }
+.atm-comment-close {
+  flex: none;
+  inline-size: 28px;
+  block-size: 28px;
+  margin: -4px -6px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.atm-comment-close:dir(rtl) { margin: -4px 0 0 -6px; }
+.atm-comment-close:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+.atm-comment-close:focus-visible { outline: 2px solid var(--atm-comments-ring, var(--atm-ring, var(--atm-accent, #2563eb))); outline-offset: 1px; }
+.atm-comment-body p { margin: 0 0 0.5em; }
+.atm-comment-body p:last-child { margin-block-end: 0; }
+.atm-comment-empty { color: var(--atm-comments-muted, var(--atm-muted, #59636e)); }
+.atm-comment-thread-resolved .atm-comment-title { color: var(--atm-comments-muted, var(--atm-muted, #59636e)); }
+@media (pointer: coarse) {
+  .atm-comment-close { inline-size: 44px; block-size: 44px; }
+}
+
+/* ── The live region: for screen readers only ── */
+.atm-comments-sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (forced-colors: active) {
+  mark.atm-comment { background: Mark; color: MarkText; forced-color-adjust: none; border-bottom-color: CanvasText; }
+  mark.atm-comment.atm-comment-resolved { background: Canvas; color: CanvasText; border-bottom: 1px dashed CanvasText; }
+  .atm-comment-marker, .atm-comment-thread { border-color: CanvasText; }
+}
+@media print {
+  .atm-comments-gutter, .atm-comment-thread { display: none !important; }
+  mark.atm-comment { background: transparent; border-bottom: 1px solid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .atm-comment-marker { transition: background-color 0.12s ease; }
+}

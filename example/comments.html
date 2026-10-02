@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md comments</title>
+    <meta name="description" content="Comments anchored to text, with threads kept by the host: gutter markers, a thread panel, resolve and reopen." />
+    <!-- The built library. Run `npm run build` first (see example/README.md). -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; }
+      @media (prefers-color-scheme: dark) { :root { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; } }
+      :root[data-theme="dark"] { color-scheme: dark; --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 66ch; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      pre.out { margin: 0; max-height: 240px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .actions button { padding: 6px 12px; border: 1px solid var(--page-border); border-radius: 8px; background: var(--page-card); color: var(--page-fg); font: inherit; cursor: pointer; min-height: 36px; }
+      .actions button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+      @media (pointer: coarse) { .actions button { min-height: 44px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Comments</h1>
+      <p class="lead">
+        Select text and press <code>Mod-Alt-M</code> (or the toolbar button) to comment on it. The document stores only
+        <code>[anchored text](comment:ID)</code>; the threads live in this page (the host). <code>Alt-F9</code> and
+        <code>Shift-Alt-F9</code> move between comments. URL parameters: <code>value</code>, <code>readonly=1</code>,
+        <code>layout</code> (<code>document</code> shows the margin markers), <code>dir=rtl</code>, <code>theme=dark</code>.
+      </p>
+      <div id="editor-host" data-testid="editor-host"></div>
+      <div class="actions" role="group" aria-label="Comment commands">
+        <button type="button" id="b-add" data-cmd="comment">Comment on selection</button>
+        <button type="button" id="b-next" data-cmd="nextComment">Next comment</button>
+        <button type="button" id="b-readonly" aria-pressed="false">Read-only</button>
+      </div>
+      <section class="card" aria-labelledby="th-h">
+        <h2 id="th-h">Threads (kept by the host)</h2>
+        <pre class="out" id="output-threads" tabindex="0"></pre>
+      </section>
+      <section class="card" aria-labelledby="md-h">
+        <h2 id="md-h">Markdown (what is stored)</h2>
+        <pre class="out" id="output-md" tabindex="0"></pre>
+      </section>
+      <section class="card" aria-labelledby="view-h">
+        <h2 id="view-h">Read-only view</h2>
+        <div id="view" class="atm-preview" data-testid="view"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import * as C from "../dist/comments.js";
+      import { renderDom } from "../dist/render.js";
+
+      const q = new URLSearchParams(location.search);
+      if (q.get("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
+      if (q.get("dir") === "rtl") document.documentElement.setAttribute("dir", "rtl");
+
+      // The host keeps the threads; the library keeps only the id in the Markdown.
+      const threads = new Map([
+        ["c1", { author: "Ada", text: "Is this the final price?" }],
+        ["c2", { author: "Grace", text: "Checked with legal; fine." }],
+      ]);
+      let seq = 2;
+      const threadsOut = document.getElementById("output-threads");
+      const out = document.getElementById("output-md");
+      const view = document.getElementById("view");
+      view.setAttribute("data-atm-theme", q.get("theme") === "dark" ? "dark" : "light");
+
+      const comments = C.createCommentsPlugin({
+        onCreate: ({ text }) => {
+          const id = "c" + ++seq;
+          threads.set(id, { author: "You", text: "New comment on " + text });
+          return id;
+        },
+        render: (id) => {
+          const t = threads.get(id);
+          if (!t) return null;
+          const box = document.createElement("div");
+          const who = document.createElement("strong");
+          who.textContent = t.author;
+          const p = document.createElement("p");
+          p.textContent = t.text; // text, never markup
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "resolve";
+          b.textContent = comments.getState(id) === "resolved" ? "Reopen" : "Resolve";
+          b.addEventListener("click", () => comments.setState(id, comments.getState(id) === "resolved" ? "open" : "resolved"));
+          box.append(who, p, b);
+          return box;
+        },
+        isResolved: (id) => id === "c2",
+      });
+
+      const show = (md) => {
+        out.textContent = md;
+        threadsOut.textContent = JSON.stringify(Object.fromEntries(threads), null, 2);
+        view.textContent = "";
+        view.appendChild(renderDom(md, { syntax: { inline: C.commentSyntaxes() }, postRender: [comments.postRender] }));
+      };
+
+      const initial =
+        q.get("value") ??
+        [
+          "# Pricing notes",
+          "",
+          "The plan costs [$12 per seat](comment:c1) and includes **unlimited** projects.",
+          "",
+          "Terms follow the [standard contract](comment:c2); see the [terms page](https://example.com/terms) for details.",
+          "",
+          "A third paragraph with nothing to say yet, ready for a new comment.",
+          "",
+        ].join("\n");
+
+      const editor = lib.createEditor(document.getElementById("editor-host"), {
+        value: initial,
+        theme: q.get("theme") === "dark" ? "dark" : "light",
+        layout: q.get("layout") ?? "classic",
+        readOnly: q.get("readonly") === "1",
+        plugins: [comments],
+        minHeight: 260,
+        onChange: show,
+      });
+      show(editor.getValue());
+      for (const b of document.querySelectorAll("[data-cmd]")) b.addEventListener("click", () => editor.exec(b.dataset.cmd));
+      const ro = document.getElementById("b-readonly");
+      ro.setAttribute("aria-pressed", String(editor.isReadOnly()));
+      ro.addEventListener("click", () => {
+        editor.setReadOnly(!editor.isReadOnly());
+        ro.setAttribute("aria-pressed", String(editor.isReadOnly()));
+      });
+      window.__editor = editor;
+      window.__comments = comments;
+      window.__threads = threads;
+      window.__showView = () => show(editor.getValue());
+    </script>
+  </body>
+</html>
