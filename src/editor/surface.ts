@@ -81,7 +81,6 @@ export function createSurface(options: SurfaceOptions): Surface {
   let shiftEnter = false;
   let destroyed = false;
   let lastMd = "";
-  let cachedDoc: Doc | null = null;
   let dirty = false;
   let syncQueued = false;
   let syncTimer: ReturnType<typeof setTimeout> | null = null;
@@ -134,7 +133,6 @@ export function createSurface(options: SurfaceOptions): Surface {
     root.textContent = "";
     root.appendChild(frag);
     ensureRoot(ctx);
-    cachedDoc = doc;
     updateEmpty();
     callPostRender(doc);
   }
@@ -185,10 +183,15 @@ export function createSurface(options: SurfaceOptions): Surface {
     return lastRange;
   }
 
-  function ensureLive(): void {
-    if (liveRange()) return;
+  /** The remembered selection, else the end of the document (no focus and no selection yet). */
+  function place(): void {
     const r = savedRange();
     if (r) setSelection(root, { node: r.startContainer, offset: r.startOffset }, { node: r.endContainer, offset: r.endOffset });
+    else setSelection(root, pointAt(root, Number.MAX_SAFE_INTEGER));
+  }
+
+  function ensureLive(): void {
+    if (!liveRange()) place();
   }
 
   /* ───────────── serialisation & history ───────────── */
@@ -224,7 +227,6 @@ export function createSurface(options: SurfaceOptions): Surface {
     const md = stringify(doc, parseOpts);
     dirty = false;
     if (md === lastMd) {
-      cachedDoc = doc;
       updateEmpty();
       return false;
     }
@@ -237,7 +239,6 @@ export function createSurface(options: SurfaceOptions): Surface {
       return false;
     }
     lastMd = md;
-    cachedDoc = doc;
     updateEmpty();
     if (batchDepth > 0) {
       // Inside transact(): the step is recorded and `input` emitted once, when the batch ends.
@@ -265,7 +266,6 @@ export function createSurface(options: SurfaceOptions): Surface {
       root.textContent = "";
       for (const c of Array.from(entry.state.dom.childNodes)) root.appendChild(c.cloneNode(true));
       for (const b of Array.from(root.querySelectorAll<HTMLInputElement>(`input.${p}-task-box`))) prepCheckbox(b, rctx);
-      cachedDoc = null;
     } else renderAll(entry.state.markdown);
     lastMd = entry.state.markdown;
     dirty = false;
@@ -1167,18 +1167,9 @@ export function createSurface(options: SurfaceOptions): Surface {
       restoreTrailingSpace(lastMd);
       if (s) restoreSelection(root, s);
     },
-    getDoc() {
-      flush();
-      return cachedDoc ?? parse(lastMd, parseOpts);
-    },
     focus() {
       root.focus({ preventScroll: false } as FocusOptions);
-      const r = savedRange();
-      if (r) setSelection(root, { node: r.startContainer, offset: r.startOffset }, { node: r.endContainer, offset: r.endOffset });
-      else if (!liveRange()) {
-        const end = pointAt(root, Number.MAX_SAFE_INTEGER);
-        setSelection(root, end);
-      }
+      if (savedRange() || !liveRange()) place();
     },
     blur() {
       root.blur();

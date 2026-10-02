@@ -59,7 +59,8 @@ describe("mode: lossless round trips", () => {
     x.ed.setMode("markdown");
     expect(x.textarea()!.value).toBe(odd);
     x.ed.setMode("wysiwyg");
-    expect(x.ed.getValue()).toBe(odd);
+    // getValue reads the pane (a real surface keeps the string verbatim; see get-value-is-current.test.ts).
+    expect(x.surface.value).toBe("CANONICAL FORM THE SURFACE WOULD EMIT");
   });
   it("the surface is not rewritten when nothing changed", () => {
     const x = m({ value: odd });

@@ -94,6 +94,16 @@ describe("commands registry", () => {
     x.ed.insertChip({ scheme: "mention", kind: "person", id: "u 1", label: "Jane", trigger: "@", attrs: { crm: "7" } });
     expect(x.ed.getValue()).toBe("[@Jane](mention:person/u%201?crm=7)");
   });
+  it("insertChip in markdown mode escapes the label so it cannot break out of the link", () => {
+    const x = m();
+    x.ed.setMode("markdown");
+    x.ed.insertChip({ scheme: "mention", kind: "person", id: "u1", label: "Jo [a](b) *c*\nd", trigger: "@" });
+    const v = x.ed.getValue();
+    expect(v).toBe("[@Jo \\[a\\]\\(b\\) \\*c\\* d](mention:person/u1)");
+    const chip = parse(v).children[0] as { children: { type: string; label?: string }[] };
+    expect(chip.children).toHaveLength(1);
+    expect(chip.children[0]).toMatchObject({ type: "chip", label: "Jo [a](b) *c* d" });
+  });
   it("an exec that falls through to link/image/table with args never opens a popover", () => {
     const x = m();
     x.ed.exec("table", { rows: 2, cols: 2 });

@@ -96,7 +96,6 @@ export interface SurfaceOptions {
 export interface Surface extends Pane {
   /** The contenteditable element (same as `el` or a child of it). */
   readonly editable: HTMLElement;
-  getDoc(): Doc;
   /** Draw the current markdown again, keeping the caret (for rendering dependencies that arrive late). */
   rerender?(): void;
   /** Replace [range] (a Range inside the surface) with a chip followed by a space. */
