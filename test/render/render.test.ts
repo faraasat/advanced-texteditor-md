@@ -59,10 +59,10 @@ describe("renderHtml classes and structure", () => {
 });
 
 describe("chips", () => {
-  const md = "[@Jane Doe](mention:person/123?clickup=456) [#1](task:issue/1)";
+  const md = "[@Jane Doe](mention:person/123?crm=456) [#1](task:issue/1)";
   it("renders atom spans with data attributes", () => {
     const html = renderMarkdown(md, { chipSchemes: ["task"] });
-    expect(html).toContain('<span class="atm-chip atm-chip-mention atm-chip-kind-person" data-scheme="mention" data-kind="person" data-id="123" data-trigger="@" data-refs="{&quot;clickup&quot;:&quot;456&quot;}">@Jane Doe</span>');
+    expect(html).toContain('<span class="atm-chip atm-chip-mention atm-chip-kind-person" data-scheme="mention" data-kind="person" data-id="123" data-trigger="@" data-refs="{&quot;crm&quot;:&quot;456&quot;}">@Jane Doe</span>');
     expect(html).toContain('atm-chip atm-chip-task atm-chip-kind-issue');
     expect(html).toContain(">#1</span>");
   });

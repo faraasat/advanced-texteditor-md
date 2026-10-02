@@ -7,8 +7,8 @@ const rt = (md: string, o?: ParseOptions) => stringify(parse(md, o), o);
 
 describe("chips", () => {
   it("parses a mention with kind, id and refs", () => {
-    expect(inl("[@Jane Doe](mention:person/123?clickup=456&hub=7)")).toEqual([
-      { type: "chip", scheme: "mention", kind: "person", id: "123", label: "Jane Doe", trigger: "@", attrs: { clickup: "456", hub: "7" } },
+    expect(inl("[@Jane Doe](mention:person/123?crm=456&hub=7)")).toEqual([
+      { type: "chip", scheme: "mention", kind: "person", id: "123", label: "Jane Doe", trigger: "@", attrs: { crm: "456", hub: "7" } },
     ]);
   });
   it("kind may be omitted: scheme:id", () => {
@@ -39,7 +39,7 @@ describe("chips", () => {
     expect(c).toMatchObject({ kind: "a/b", id: "x y)(?&=%", attrs: { "k&": "v=1 2" } });
   });
   it("is stable through parse/stringify", () => {
-    const md = "hi [@Jane Doe](mention:person/123?clickup=456) and [@Bob](mention:b)";
+    const md = "hi [@Jane Doe](mention:person/123?crm=456) and [@Bob](mention:b)";
     expect(rt(md)).toBe(md);
   });
   it("chip labels with special characters survive", () => {

@@ -130,7 +130,7 @@ export const CORPUS: string[] = [
   "![broken](",
   "[![inner](i.png)](http://x.com)",
   // --- chips / mentions
-  "[@Jane Doe](mention:person/123?clickup=456&hub=789)",
+  "[@Jane Doe](mention:person/123?crm=456&hub=789)",
   "[@Jane](mention:abc)",
   "[#12 Fix bug](task:issue/12)",
   "[Task](task:issue/12)",

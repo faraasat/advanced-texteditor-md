@@ -6,7 +6,7 @@ import { BACKSTOP_MS, LINEAR_MAX_RATIO, measureScaling } from "../helpers/scalin
 const BLOCK = `# Heading with *emphasis* and \`code\`
 
 A paragraph with **strong text**, a [link](http://example.com/path?x=1 "title"), a bare http://example.com/bare url,
-an image ![alt](/img.png), math $x^2 + y^2$, costs $5 and $6, ~~strike~~ and a [@Jane Doe](mention:person/12?clickup=345) chip.
+an image ![alt](/img.png), math $x^2 + y^2$, costs $5 and $6, ~~strike~~ and a [@Jane Doe](mention:person/12?crm=345) chip.
 Second line of the paragraph with a footnote.
 
 - item one

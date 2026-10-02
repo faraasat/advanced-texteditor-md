@@ -63,7 +63,7 @@ describe("dom-to-doc: render → DOM → Doc round trip", () => {
 
   it("chips with refs, kinds, triggers and custom chip render", () => {
     const render: RenderOptions = { chips: { task: { scheme: "task", render: (c) => `<b>${c.id}</b>` } }, chipSchemes: ["task"] };
-    for (const md of ["[@Jane Doe](mention:person/123?clickup=456&hub=789)", "[#12 Fix](task:issue/12)", "[Task](task:issue/12)"]) {
+    for (const md of ["[@Jane Doe](mention:person/123?crm=456&hub=789)", "[#12 Fix](task:issue/12)", "[Task](task:issue/12)"]) {
       expect(rt(md, render).out).toBe(stringify(parse(md, render), render));
     }
   });

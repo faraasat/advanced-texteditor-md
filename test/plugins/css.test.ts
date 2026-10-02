@@ -32,7 +32,7 @@ describe("plugins.css", () => {
     expect(TEXT_STYLE_CSS).toContain(createTextStylePlugin().css!.split("\n")[0]);
   });
   it("uses only theme variables with fallbacks, no host names", () => {
-    expect(file).not.toMatch(/dunzo|hub/i);
+    expect(file).not.toMatch(/acme|hub/i);
     for (const m of file.matchAll(/var\((--[\w-]+)(,|\))/g)) expect(m[2], `${m[1]} needs a fallback`).toBe(",");
   });
 });

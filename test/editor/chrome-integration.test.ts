@@ -128,14 +128,14 @@ describe("chrome + real surface", () => {
   it("insertChip puts a mention in the markdown with its refs", async () => {
     const { ed } = make({ value: "hi " });
     ed.focus();
-    ed.insertChip({ scheme: "mention", kind: "person", id: "u1", label: "Jane", trigger: "@", attrs: { clickup: "1" } });
+    ed.insertChip({ scheme: "mention", kind: "person", id: "u1", label: "Jane", trigger: "@", attrs: { crm: "1" } });
     await tick();
-    expect(ed.getValue()).toContain("[@Jane](mention:person/u1?clickup=1)");
+    expect(ed.getValue()).toContain("[@Jane](mention:person/u1?crm=1)");
     expect(ed.getMentions().map((c) => c.id)).toEqual(["u1"]);
   });
 
   it("mention picking inserts a chip that carries the item's colour and badge", async () => {
-    const people = [{ id: "u1", label: "Jane Doe", kind: "person", badge: "Team A", color: 3, refs: { clickup: "123" } }];
+    const people = [{ id: "u1", label: "Jane Doe", kind: "person", badge: "Team A", color: 3, refs: { crm: "123" } }];
     const seen: string[] = [];
     const { ed, editable, root } = make({
       value: "hello ",
@@ -150,7 +150,7 @@ describe("chrome + real surface", () => {
     await tick(60);
     editable.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     await tick(60);
-    expect(ed.getValue()).toContain("(mention:person/u1?clickup=123)");
+    expect(ed.getValue()).toContain("(mention:person/u1?crm=123)");
     const chip = root.querySelector<HTMLElement>("[data-scheme='mention']")!;
     expect(chip.getAttribute("style")).toContain("--atm-chip-color:var(--atm-chip-3)");
     expect(chip.textContent).toContain("Team A");
@@ -223,13 +223,13 @@ describe("split preview chips", () => {
     const calls: unknown[] = [];
     const { ed } = make({
       mode: "split",
-      value: "see [@Jane](mention:person/u1?clickup=9) now",
+      value: "see [@Jane](mention:person/u1?crm=9) now",
       chips: [{ scheme: "mention", onClick: (c) => calls.push(c) }],
     });
     await tick(60);
     const chip = ed.element.querySelector<HTMLElement>(".atm-preview .atm-chip, [aria-label] .atm-chip")!;
     expect(chip).not.toBeNull();
     chip.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(calls).toEqual([{ type: "chip", scheme: "mention", kind: "person", id: "u1", label: "Jane", trigger: "@", attrs: { clickup: "9" } }]);
+    expect(calls).toEqual([{ type: "chip", scheme: "mention", kind: "person", id: "u1", label: "Jane", trigger: "@", attrs: { crm: "9" } }]);
   });
 });

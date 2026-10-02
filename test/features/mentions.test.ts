@@ -66,7 +66,7 @@ describe("mentionHref / parseMentionHref", () => {
   it.each([
     [chip(), "mention:person/u1"],
     [chip({ kind: "" }), "mention:u1"],
-    [chip({ attrs: { clickup: "123" } }), "mention:person/u1?clickup=123"],
+    [chip({ attrs: { crm: "123" } }), "mention:person/u1?crm=123"],
     [chip({ attrs: { a: "1", b: "2" } }), "mention:person/u1?a=1&b=2"],
     [chip({ scheme: "task", kind: "issue", id: "12" }), "task:issue/12"],
     [chip({ id: "a b" }), "mention:person/a%20b"],
@@ -83,7 +83,7 @@ describe("mentionHref / parseMentionHref", () => {
   it.each([
     ["mention:person/u1", { scheme: "mention", kind: "person", id: "u1" }],
     ["mention:u1", { scheme: "mention", kind: "", id: "u1" }],
-    ["mention:person/u1?clickup=123", { scheme: "mention", kind: "person", id: "u1", attrs: { clickup: "123" } }],
+    ["mention:person/u1?crm=123", { scheme: "mention", kind: "person", id: "u1", attrs: { crm: "123" } }],
     ["mention:person/u1?a=1&b=2&c=", { scheme: "mention", kind: "person", id: "u1", attrs: { a: "1", b: "2", c: "" } }],
     ["MENTION:person/u1", { scheme: "mention", kind: "person", id: "u1" }],
     ["task:issue/12", { scheme: "task", kind: "issue", id: "12" }],

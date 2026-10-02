@@ -91,8 +91,8 @@ describe("commands registry", () => {
     x.ed.insertChip({ scheme: "mention", kind: "person", id: "u1", label: "Jane", trigger: "@" });
     expect(x.surface.chips).toHaveLength(1);
     x.ed.setMode("markdown");
-    x.ed.insertChip({ scheme: "mention", kind: "person", id: "u 1", label: "Jane", trigger: "@", attrs: { clickup: "7" } });
-    expect(x.ed.getValue()).toBe("[@Jane](mention:person/u%201?clickup=7)");
+    x.ed.insertChip({ scheme: "mention", kind: "person", id: "u 1", label: "Jane", trigger: "@", attrs: { crm: "7" } });
+    expect(x.ed.getValue()).toBe("[@Jane](mention:person/u%201?crm=7)");
   });
   it("an exec that falls through to link/image/table with args never opens a popover", () => {
     const x = m();

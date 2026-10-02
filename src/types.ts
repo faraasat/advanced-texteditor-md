@@ -38,7 +38,7 @@ export type InlineNode =
       id: string;
       label: string; // text shown, WITHOUT the trigger character
       trigger?: string; // "@", "#", … shown before the label
-      attrs?: Record<string, string>; // extra refs, e.g. { clickup: "123" }
+      attrs?: Record<string, string>; // extra refs, e.g. { crm: "123" }
     }
   /** Output of a user-defined inline syntax (see InlineSyntax). */
   | {
@@ -245,7 +245,7 @@ export type MentionItem = {
   badge?: string;
   /** A theme palette slot 1–8 or any CSS colour. */
   color?: string | number;
-  /** Extra identifiers carried in the wire format, e.g. { clickup: "123" }. */
+  /** Extra identifiers carried in the wire format, e.g. { crm: "123" }. */
   refs?: Record<string, string>;
   data?: unknown;
 };

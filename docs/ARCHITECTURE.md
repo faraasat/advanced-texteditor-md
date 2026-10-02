@@ -24,7 +24,7 @@ classes through `classNames`.
 
 | Thing | Markdown |
 |---|---|
-| Mention / chip | `[@Jane Doe](mention:person/<id>?clickup=123)` — `scheme:kind/id` + optional `?k=v` refs. `kind` may be omitted: `mention:<id>`. The visible `@` is the chip's `trigger`; it is stored as part of the link text. |
+| Mention / chip | `[@Jane Doe](mention:person/<id>?crm=123)` — `scheme:kind/id` + optional `?k=v` refs. `kind` may be omitted: `mention:<id>`. The visible `@` is the chip's `trigger`; it is stored as part of the link text. |
 | Custom chip | `[Task 12](task:issue/12)` for a registered scheme |
 | Image | `![alt](url "title")`; alignment and width in an alt suffix: `![alt|center|480](url "caption")` (`left`/`center`/`right`, 1–9999 px; `&#124;` for a literal trailing pipe; `\|` as the separator inside a table cell). A sole titled image in a top-level paragraph renders as a `<figure>` with the title as `<figcaption>` |
 | Collapsible section | `::: details Summary` … `:::`; `::: details open Summary` renders open (`\open` for a title starting with that word). The open state while editing is never stored |

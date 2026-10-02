@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 const people: MentionItem[] = [
-  { id: "u1", label: "Jane Doe", kind: "person", badge: "Team A", color: 3, refs: { clickup: "123", hub: "h9" } },
+  { id: "u1", label: "Jane Doe", kind: "person", badge: "Team A", color: 3, refs: { crm: "123", hub: "h9" } },
   { id: "u2", label: "Jan Kowalski", kind: "both" },
   { id: "u3", label: "Jade Smith", kind: "person", badge: "Team A", color: 1 },
 ];
@@ -55,7 +55,7 @@ describe("mentions: wiring", () => {
       id: "u1",
       label: "Jane Doe",
       trigger: "@",
-      attrs: { clickup: "123", hub: "h9" },
+      attrs: { crm: "123", hub: "h9" },
     });
   });
   it("the range handed over covers the typed @query", async () => {
@@ -217,8 +217,8 @@ describe("mentions: change notifications", () => {
     expect(seen).toEqual([]);
   });
   it("the chips keep their attrs (the refs)", () => {
-    const x = m({ value: "[@Jane](mention:person/u1?clickup=123&hub=h9)" });
-    expect(x.ed.getMentions()[0].attrs).toEqual({ clickup: "123", hub: "h9" });
+    const x = m({ value: "[@Jane](mention:person/u1?crm=123&hub=h9)" });
+    expect(x.ed.getMentions()[0].attrs).toEqual({ crm: "123", hub: "h9" });
   });
   it("hands the list over to the event too", () => {
     const x = m();
