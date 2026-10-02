@@ -51,14 +51,8 @@ export function applyTheme(root: HTMLElement, theme: ThemeInput, win?: Window | 
     root.setAttribute("data-atm-theme-source", "auto");
     set();
     if (!mq) return () => undefined;
-    if (typeof mq.addEventListener === "function") {
-      mq.addEventListener("change", set);
-      return () => mq.removeEventListener("change", set);
-    }
-    // Safari < 14
-    const legacy = mq as unknown as { addListener(f: () => void): void; removeListener(f: () => void): void };
-    legacy.addListener?.(set);
-    return () => legacy.removeListener?.(set);
+    mq.addEventListener?.("change", set); // Safari < 14 (addListener only) keeps the theme it started with
+    return () => mq.removeEventListener?.("change", set);
   }
   root.setAttribute("data-atm-theme", theme);
   root.setAttribute("data-atm-theme-source", "fixed");
