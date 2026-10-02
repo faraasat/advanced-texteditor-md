@@ -97,6 +97,7 @@ import { createSnippets, localStorageSnippets, importSnippets, exportSnippets, t
 import { createWikiLinks, createLinkManager, findLinks, findBacklinks } from "advanced-texteditor-md/links";
 import { createCommentsPlugin, findComments, type CommentsPlugin } from "advanced-texteditor-md/comments";
 import { createFrontMatterPlugin, getFrontMatter, setFrontMatter, writeFrontMatter, FRONT_MATTER_SYNTAX, type FrontMatter } from "advanced-texteditor-md/frontmatter";
+import { createSourcePanePlugin, tintLine, type SourcePaneOptions } from "advanced-texteditor-md/source";
 import { loadLabels, createBidiPlugin } from "advanced-texteditor-md/i18n";
 import de from "advanced-texteditor-md/i18n/de";
 const snippetList: Snippet[] = [{ id: "sig", name: "Signature", trigger: ";sig", body: "Ada {{cursor}}", scope: "inline" }];
@@ -106,9 +107,11 @@ export const wikiEditor = { chips: wikiLinks.chips, plugins: [wikiLinks.plugin, 
 export const linkList: { kind: string; href: string }[] = findLinks("[a](https://example.com)");
 export const frontMatterRead: FrontMatter | null = getFrontMatter("---\ntitle: A\n---");
 export const frontMatterWritten: string | null = writeFrontMatter("Body", { title: "A" });
+const sourceOptions: SourcePaneOptions = { wrap: true, lineNumbers: true, eagerLines: 1500, labels: { wrap: "Wrap" } };
+export const sourceTint = tintLine("**b**", "^").tokens.length;
 const featurePlugins: Plugin[] = [
   createAlertsPlugin(), createCodeBlocksPlugin(), createTablesPlugin(), createDiagramsPlugin({ renderers: {} }), createExportPlugin(),
-  createMarkdownMentionsPlugin(), createSuggestPlugin({ onSuggest: async () => null }), createDictationPlugin({ lang: "en-US", onError: (e) => e.code }), createReadAloudPlugin({ rate: 1, voice: (voices) => voices[0] }), createBidiPlugin(), createPresentPlugin({ split: "auto" }), createReaderPlugin({ outlineDepth: 2 }), createFrontMatterPlugin({ collapsed: true }), snippets.plugin,
+  createMarkdownMentionsPlugin(), createSuggestPlugin({ onSuggest: async () => null }), createDictationPlugin({ lang: "en-US", onError: (e) => e.code }), createReadAloudPlugin({ rate: 1, voice: (voices) => voices[0] }), createBidiPlugin(), createPresentPlugin({ split: "auto" }), createReaderPlugin({ outlineDepth: 2 }), createFrontMatterPlugin({ collapsed: true }), createSourcePanePlugin(sourceOptions), snippets.plugin,
 ];
 const comments: CommentsPlugin = createCommentsPlugin({ onCreate: () => "c1", render: (id: string) => `Thread ${id}` });
 featurePlugins.push(comments);

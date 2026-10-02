@@ -1,0 +1,101 @@
+/* Source pane v2 (advanced-texteditor-md/source): a tint layer behind the Markdown textarea, line numbers,
+   the current-line band and find boxes. The textarea keeps its caret, selection and input; its text is made
+   transparent and the layer draws the same text in colour. Nothing here is stored in the document.
+   Colours: var(--atm-source-x, var(--atm-*, fallback)); the token colours are the theme's chip palette,
+   which is checked for contrast against each theme's background. */
+
+.atm-source { position: relative; }
+.atm-source > .atm-markdown {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--atm-source-caret, var(--atm-fg, #1f2328));
+}
+.atm-source > .atm-markdown::selection {
+  background: color-mix(in srgb, var(--atm-source-select, var(--atm-accent, #2563eb)) 35%, transparent);
+  color: transparent;
+}
+.atm-source > .atm-markdown::placeholder { color: var(--atm-muted, #59636e); }
+/* Soft wrap off: lines scroll sideways, in the textarea and in the layer alike. */
+.atm-source-nowrap > .atm-markdown,
+.atm-source-nowrap-ta {
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+.atm-source-layer {
+  position: absolute;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+.atm-source-content {
+  position: relative;
+  box-sizing: border-box;
+  color: var(--atm-source-fg, var(--atm-fg, #1f2328));
+  counter-reset: atm-src;
+}
+.atm-src-line { position: relative; }
+.atm-source-numbers .atm-src-line { counter-increment: atm-src; }
+.atm-source-numbers .atm-src-line::before {
+  content: counter(atm-src);
+  position: absolute;
+  inset-inline-end: 100%;
+  margin-inline-end: 0.75ch;
+  text-align: end;
+  white-space: nowrap;
+  color: var(--atm-source-gutter-fg, var(--atm-muted, #59636e));
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+.atm-source-numbers .atm-src-current::before { color: var(--atm-source-fg, var(--atm-fg, #1f2328)); font-weight: 700; }
+.atm-src-current { background: color-mix(in srgb, var(--atm-source-band, var(--atm-accent, #2563eb)) 8%, transparent); }
+
+/* Line kinds */
+.atm-src-l-h1, .atm-src-l-h2, .atm-src-l-h3, .atm-src-l-h4, .atm-src-l-h5, .atm-src-l-h6 { color: var(--atm-source-heading, var(--atm-chip-4, #6d28d9)); font-weight: 700; }
+.atm-src-l-quote { color: var(--atm-source-muted, var(--atm-muted, #59636e)); }
+.atm-src-l-fence, .atm-src-l-hr, .atm-src-l-front, .atm-src-l-def { color: var(--atm-source-muted, var(--atm-muted, #59636e)); }
+.atm-src-l-code { color: var(--atm-source-code, var(--atm-chip-6, #115e59)); }
+.atm-src-l-math { color: var(--atm-source-math, var(--atm-chip-3, #92400e)); }
+.atm-src-l-table { color: var(--atm-source-muted, var(--atm-muted, #59636e)); }
+
+/* Tokens. Bold, italic, underline and line-through carry meaning beside the colour. */
+.atm-src-strong { font-weight: 700; }
+.atm-src-em { font-style: italic; }
+.atm-src-strike { text-decoration: line-through; color: var(--atm-source-muted, var(--atm-muted, #59636e)); }
+.atm-src-mark { color: var(--atm-source-muted, var(--atm-muted, #59636e)); font-weight: 400; font-style: normal; }
+.atm-src-code { color: var(--atm-source-code, var(--atm-chip-6, #115e59)); }
+.atm-src-link { color: var(--atm-source-link, var(--atm-chip-1, #1d4ed8)); }
+.atm-src-url { color: var(--atm-source-url, var(--atm-chip-8, #475569)); text-decoration: underline dotted; text-underline-offset: 0.2em; }
+.atm-src-image { color: var(--atm-source-image, var(--atm-chip-5, #9d174d)); }
+.atm-src-chip { color: var(--atm-source-chip, var(--atm-chip-2, #166534)); }
+.atm-src-math { color: var(--atm-source-math, var(--atm-chip-3, #92400e)); }
+.atm-src-table { color: var(--atm-source-muted, var(--atm-muted, #59636e)); }
+.atm-src-key { color: var(--atm-source-key, var(--atm-chip-1, #1d4ed8)); font-weight: 600; }
+.atm-src-info { color: var(--atm-source-heading, var(--atm-chip-4, #6d28d9)); font-style: italic; }
+.atm-src-escape { color: var(--atm-source-muted, var(--atm-muted, #59636e)); }
+.atm-src-footnote { color: var(--atm-source-math, var(--atm-chip-3, #92400e)); }
+.atm-src-list { color: var(--atm-source-list, var(--atm-accent, #2563eb)); font-weight: 700; }
+.atm-src-task { color: var(--atm-source-list, var(--atm-accent, #2563eb)); font-weight: 700; }
+
+/* Find matches drawn over the tinted text */
+.atm-source-marks { position: absolute; inset: 0; pointer-events: none; }
+.atm-source-find {
+  position: absolute;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--atm-warn, #9a6700) 30%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--atm-warn, #9a6700) 70%, transparent);
+}
+.atm-source-find-current {
+  background: color-mix(in srgb, var(--atm-accent, #2563eb) 35%, transparent);
+  outline: 2px solid var(--atm-accent, #2563eb);
+}
+
+@media (forced-colors: active) {
+  .atm-source-layer { display: none; }
+  .atm-source > .atm-markdown { color: CanvasText; caret-color: CanvasText; }
+}
+@media print { .atm-source-layer { display: none; } .atm-source > .atm-markdown { color: CanvasText; } }

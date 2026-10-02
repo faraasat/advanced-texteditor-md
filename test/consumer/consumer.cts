@@ -23,4 +23,6 @@ import { createCommentsPlugin } from "advanced-texteditor-md/comments";
 export const usedComments = [createCommentsPlugin];
 import { createFrontMatterPlugin } from "advanced-texteditor-md/frontmatter";
 export const usedFrontMatter = [createFrontMatterPlugin];
+import { createSourcePanePlugin } from "advanced-texteditor-md/source";
+export const usedSource = [createSourcePanePlugin];
 export const usedViews = [createPresentView, splitSlides, createReaderView];

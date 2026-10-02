@@ -123,6 +123,7 @@ else is a subpath so you only pay for what you import.
 | `/links` | `createWikiLinks` (type `[[`, pick a page, get a chip stored as `[Title](wiki:id)`; pages the host's `resolve` says are gone are marked broken) and `createLinkManager` (a dialog listing every link with its state; edit, remove, go to, optional host `check`, upgrade `http:` to `https:` in one undo step); pure `findLinks`, `findWikiIds`, `findBacklinks` |
 | `/comments` | `createCommentsPlugin`: comments anchored to text, stored as `[anchored text](comment:ID)` with the threads kept by the host (`onCreate`, `render`, `isResolved`); highlight, resolved state, margin markers in the document layout, a thread panel, `Mod-Alt-M` / `Alt-F9` keys, read-only views; `findComments`, `commentIds`, `removeCommentMarks` |
 | `/frontmatter` | `createFrontMatterPlugin`: the `---` YAML block at the top of a document as a properties panel (text, number, date, switch and list fields, add and remove, collapse), edited line by line so comments, order and anything the panel cannot edit are kept byte for byte; `getFrontMatter`, `setFrontMatter`, `writeFrontMatter` over a safe YAML subset; a read-only list in views |
+| `/source` | `createSourcePanePlugin`: the Markdown pane (Markdown and split modes) as a small source editor: syntax tint, line numbers that follow wrapped lines, soft-wrap toggle, current-line band, pairing of brackets and emphasis, Tab / Shift+Tab indent, Alt+ArrowUp / Alt+ArrowDown move lines, Mod-D duplicate, the find plugin's matches drawn over the tint; nothing is stored |
 | `/i18n`, `/i18n/<lang>` | `loadLabels`, `resolveLocale`, `isRtl`, `createBidiPlugin`; label bundles for en, es, fr, de, pt, it, nl, ru, ja, zh, ar, hi, tr (each at most 1.5 kB gzip) |
 | `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
 
@@ -388,6 +389,16 @@ renderDom(md, { syntax: { block: [FRONT_MATTER_SYNTAX] }, postRender: [fm.postRe
 ```
 
 The block is the very first thing in the file, between `---` fences, and starts with a `key:` line. In the editor it is one atomic block with a properties panel; editing a field rewrites only that property's lines, so comments, blank lines, order, quoting and anything the panel cannot edit (anchors, aliases, tags, block scalars, nested maps) stay exactly as written. The Markdown view shows the YAML as text. See [docs/PLUGINS.md](./docs/PLUGINS.md#front-matter-advanced-texteditor-mdfrontmatter).
+
+### Source pane
+
+```ts
+import { createSourcePanePlugin } from "advanced-texteditor-md/source";
+
+createEditor(el, { mode: "markdown", plugins: [createSourcePanePlugin({ wrap: true, lineNumbers: true })] });
+```
+
+In the Markdown and split modes the textarea gets a colour layer behind it (headings, emphasis, code, links, chips, math, tables, front matter), line numbers that count source lines and not wrapped rows, a soft-wrap toggle, a band behind the caret's line, pairing of `( [ { " ' ` * _ ~ $`, `Tab` / `Shift+Tab` to indent the selected lines, `Alt+ArrowUp` / `Alt+ArrowDown` to move them and `Mod-D` to duplicate them. The stored Markdown is exactly the textarea's text; every key is one undo step. Press `Escape`, then `Tab`, to leave the pane. Code folding is not offered. See [docs/PLUGINS.md](./docs/PLUGINS.md#source-pane-advanced-texteditor-mdsource).
 
 ### Mentions, badges, colours, merged identities
 

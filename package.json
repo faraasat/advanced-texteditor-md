@@ -319,6 +319,16 @@
         "default": "./dist/speech.cjs"
       }
     },
+    "./source": {
+      "import": {
+        "types": "./dist/source.d.ts",
+        "default": "./dist/source.js"
+      },
+      "require": {
+        "types": "./dist/source.d.cts",
+        "default": "./dist/source.cjs"
+      }
+    },
     "./frontmatter": {
       "import": {
         "types": "./dist/frontmatter.d.ts",
@@ -520,6 +530,9 @@
       ],
       "speech": [
         "./dist/speech.d.ts"
+      ],
+      "source": [
+        "./dist/source.d.ts"
       ],
       "frontmatter": [
         "./dist/frontmatter.d.ts"

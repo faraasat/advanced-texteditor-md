@@ -765,3 +765,13 @@ drag-reordering a list by state, and a task filter that survives re-rendering of
 - **One stylesheet, two homes.** The shadow root needs the CSS as a string (`FRONT_MATTER_CSS`); a read-only view in the page needs it in `style.css`. They are the same text and `test/extensions/frontmatter/css.test.ts` fails when they differ.
 - **Size.** 14.84 kB gzip of 15, the panel stylesheet being about 2 kB of it.
 - **Not done:** nested maps and multi-line values are shown as "kept as written", not editable; a TOML or JSON front matter is not recognised.
+
+## 2026-10-03: Source pane v2 (`advanced-texteditor-md/source`)
+
+- **A mirror layer, not a different editor.** The Markdown pane stays a plain `<textarea>`, so selection, IME, spellcheck, accessibility and the platform's text editing keep working. The colours come from a DOM copy of the text behind it (see PLUGINS.md). The textarea's text is transparent, so the two must wrap identically: the layer copies the computed font, padding, tab size, wrapping and direction and is re-laid-out on resize, theme, density and scrollbar changes.
+- **Folding was dropped on purpose.** Hiding lines of a textarea needs a second model of the text (what is shown versus what is stored) and moves the caret into invisible text; screen readers would read hidden lines. Not worth it for a Markdown editor. Do not add it without a design that keeps the textarea's value equal to what is shown.
+- **Every edit is `transact` + `insertText`.** That keeps one undo step and one `change` per key, the same history as typing, and never assigns `textarea.value` (which would clear the browser's undo stack).
+- **Pairing is conservative.** Only closers the plugin inserted are typed over; a quote after a letter (`don't`) is not paired; Backspace removes an empty pair only.
+- **Tab traps keyboard users, so it announces itself** (`aria-description`) and Escape then Tab leaves. `tabIndent: false` leaves Tab alone.
+- **Matching shares the find plugin's functions.** The pure core of find and replace moved to `src/plugins/find-core.ts` (re-exported from `find-replace.ts`, so nothing changes for users); importing it from the source pane no longer pulls the find bar and its styles into the entry (16.6 kB became 11.6 kB gzip).
+- **A find box with no width is skipped.** A range that ends at a span boundary reports an empty rectangle next to the real one.

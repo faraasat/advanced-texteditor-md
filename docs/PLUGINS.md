@@ -1597,3 +1597,38 @@ One atomic `contenteditable=false` block; the panel lives in a shadow root, so n
 ### Styling
 
 Colours read `--atm-fm-*` variables (`bg`, `fg`, `border`, `muted`, `accent`, `ring`, `danger`, `field-bg`, `field-border`) and fall back to the theme's `--atm-*`; custom properties cross the shadow boundary. A read-only view is drawn in the page with the same rules from `style.css`; a test keeps the two copies equal. Reduced motion, coarse pointers (44 px targets), forced colors and print are handled.
+
+## Source pane (`advanced-texteditor-md/source`)
+
+The Markdown pane as a small source editor. The entry is about 11.6 kB gzipped. It works on the textarea of the `markdown` and `split` modes and does nothing in Write mode. Server-safe at import.
+
+```ts
+import { createSourcePanePlugin } from "advanced-texteditor-md/source";
+createEditor(el, { plugins: [createSourcePanePlugin({ tint: true, lineNumbers: true, wrap: true })] });
+```
+
+**Markdown stored:** nothing new. The text is the textarea's text, byte for byte; the layer, the numbers and the find boxes are decoration outside the textarea.
+
+### How the tint works
+
+A textarea cannot colour parts of its text, and the CSS Custom Highlight API needs DOM ranges that a textarea's text does not have. So the plugin keeps a **mirror**: an `aria-hidden`, `pointer-events: none` layer behind the textarea holding the same text as real DOM (one block per source line, the same font, padding, wrapping and direction, copied from the textarea's computed style), coloured with spans. The textarea above it keeps its caret, selection and input, and its own text is made transparent. Because each line block wraps exactly like its line in the textarea, the line numbers (a CSS counter per block), the current-line band (the block's background) and the find boxes (ranges over the mirror's text) need no measuring. Text goes in with `textContent`, never as markup. Updates are incremental (only the lines between the common prefix and suffix are rebuilt); documents over `eagerLines` (1500) lines are tinted near the viewport only. Forced-colors mode turns the layer off and shows the textarea's own text.
+
+### Options
+
+`tint` (default true; line numbers and the band need it), `lineNumbers`, `wrap`, `currentLine`, `autoPair`, `tabIndent`, `lineCommands`, `findHighlights`, `toolbar` (two toggles, group "view"), `eagerLines`, `labels`. Commands: `source:wrap`, `source:lineNumbers` (a boolean argument sets, none toggles), `source:indent`, `source:outdent`, `source:moveLineUp`, `source:moveLineDown`, `source:duplicateLine`. The pure helpers are exported for hosts that want their own keys: `tintLine`, `lineStates`, `nextState`, `indentLines`, `moveLines`, `duplicateLines`, `pairAction`, `backspacePair`, `applyEdit`.
+
+### Keys
+
+`Tab` / `Shift+Tab` indent and outdent the selected lines (two spaces; a list item moves under the previous item); `Alt+ArrowUp` / `Alt+ArrowDown` move them; `Mod-D` duplicates; a typed opener adds its closer, typing the closer over one the plugin inserted just steps over it, and Backspace in an empty pair removes both. Tab is a trap for keyboard users, so the textarea says so (`aria-description`) and **Escape, then Tab, leaves the pane**. Every edit goes through `editor.transact` and `editor.insertText` over the selection: one undo step, one `change`. A read-only editor ignores all of them. IME composition is never intercepted.
+
+### Find and replace
+
+With the find plugin's bar open, its matches (the same `compileQuery` and `scan` functions, the same limits) are drawn over the tinted text; at most 2000 boxes are drawn.
+
+### Not offered
+
+Code folding. A folded region is text that exists in the textarea but not on screen, which the mirror cannot reproduce without moving the caret and selection into hidden text; the cost in complexity and in screen-reader behaviour was judged larger than the benefit (see DECISIONS.md, "Source pane v2").
+
+### Styling
+
+Token colours use the theme's chip palette (`--atm-chip-*`, which is checked against each theme's background) and can be overridden with `--atm-source-*` (`heading`, `link`, `url`, `code`, `math`, `chip`, `image`, `key`, `muted`, `fg`, `band`, `caret`, `select`, `gutter-fg`). Meaning never rests on colour alone: strong is bold, emphasis italic, strike struck, urls underlined.
