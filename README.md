@@ -114,6 +114,7 @@ else is a subpath so you only pay for what you import.
 | `/export` | `createExportPlugin`, `exportHtml` (fragment or standalone document): copy as Markdown / HTML / text / rich text, download `.md` / `.html`, print, import `.md` / `.txt` / `.html`, drop a Markdown file |
 | `/chips` | mentions and chips v2: hover cards, group mentions, `#tag` / channel / command presets, recent-and-frequent ranking, mentions in the Markdown pane, chip icons, removable and editable chips, a chip picker |
 | `/blocks` | `createContentBlocksPlugins`: `::: columns`, a footnote editor and back links, rule styles, `createShortcodes`, date chips `[2026-10-02](date:2026-10-02)`, file-attachment cards, image galleries |
+| `/deflists` | definition lists (`Term` and `: Definition`) as a plugin block syntax: `DEFINITION_LIST_SYNTAX`, `createDefinitionListsPlugin` (Enter / Backspace flow, `/definition`), `upgradeDefinitionLists` (real `<dl>` in views) |
 | `/writing` | host-driven writing aids: ghost-text suggestions, selection actions, spellcheck and language, a word goal and `readingStats`, lint squiggles with fixes |
 | `/i18n`, `/i18n/<lang>` | `loadLabels`, `resolveLocale`, `isRtl`, `createBidiPlugin`; label bundles for en, es, fr, de, pt, it, nl, ru, ja, zh, ar, hi, tr (each at most 1.5 kB gzip) |
 | `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
@@ -124,6 +125,21 @@ Server-only use never needs the editor:
 import { renderHtml } from "advanced-texteditor-md/render";
 const html = renderHtml(markdown, { links: { allowedHosts: ["example.com"] } });
 ```
+
+### Definition lists
+
+```ts
+import { createEditor, renderHtml } from "advanced-texteditor-md";
+import { createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX } from "advanced-texteditor-md/deflists";
+
+createEditor(el, { value: "Term\n: Definition", plugins: [createDefinitionListsPlugin()] });
+renderHtml("Term\n: Definition", { syntax: { block: DEFINITION_LIST_SYNTAX } }); // div[role=term] / div[role=definition]
+```
+
+This is not a `ParseOptions` flag: the syntax rides on `BlockSyntax.match`, so the parser and the render-only entry carry none of
+it (about 6 kB gzip, loaded only when imported). Pass `DEFINITION_LIST_SYNTAX` as `syntax.block` to `parse`, `stringify`,
+`renderHtml` and `renderDom`; the editor plugin registers it itself. Plain CommonMark and GitHub show the lines as a paragraph.
+See [docs/PLUGINS.md](docs/PLUGINS.md#definition-lists-advanced-texteditor-mddeflists).
 
 ## Options
 

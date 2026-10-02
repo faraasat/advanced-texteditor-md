@@ -9,3 +9,5 @@ export const used = [createEditor, parse, texToMathML, BUILTIN_EMBEDS, highlight
 import { createAlertsPlugin } from "advanced-texteditor-md/alerts";
 import en from "advanced-texteditor-md/i18n/en";
 export const usedFeatures = [createAlertsPlugin, en];
+import { createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX } from "advanced-texteditor-md/deflists";
+export const usedDeflists = [createDefinitionListsPlugin({ labels: { insert: "x" } }), DEFINITION_LIST_SYNTAX];

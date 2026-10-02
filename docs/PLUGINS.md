@@ -1217,3 +1217,74 @@ A single language can also be imported directly: `import ar from "advanced-texte
 
 Limits: the editor's own stylesheet still has a few physical-side rules, listed in docs/DECISIONS.md (2026-10-02, "Internationalisation"); the plugin's CSS fixes the quote bar and the collapsible-section arrow for RTL.
 
+## Definition lists (`advanced-texteditor-md/deflists`)
+
+`Term` followed by `: Definition` lines (PHP Markdown Extra and Pandoc style). It is a plugin block syntax, not a parse option: the parser calls `BlockSyntax.match` at the start of each block, so nothing is added to the parser, the render-only entry or the editor entry. The subpath is about 6 kB bundled.
+
+```ts
+import { createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists } from "advanced-texteditor-md/deflists";
+
+createEditor(el, { plugins: [createDefinitionListsPlugin()] });               // registers the syntax itself
+const opts = { syntax: { block: DEFINITION_LIST_SYNTAX } };                   // parse / stringify / renderHtml / renderDom
+view.appendChild(renderDom(md, { ...opts, postRender: [createDefinitionListsPlugin().postRender!] })); // real <dl>
+// or, for markup you inserted yourself: renderHtml(md, opts) then upgradeDefinitionLists(view)
+```
+
+`DEFINITION_LIST_SYNTAX` is an array of three syntaxes (`deflist`, `dt`, `dd`), like `COLUMNS_SYNTAX`; `dt` and `dd` only carry the ARIA roles and never open a `::: dt` container.
+
+### Syntax
+
+```
+Term
+: Definition on one line
+
+Another term
+Its alias
+: A definition that continues
+    on indented lines (2-4 spaces),
+  or lazily
+without one.
+
+    A second paragraph, a list, a code fence: anything indented four spaces.
+
+Loose term
+
+: A blank line between term and definition (or between definitions or groups) makes the whole list loose.
+```
+
+- Term lines: one or more non-blank lines that do not start another block (heading, quote, list item, fence, `$$`, reference or footnote definition, rule or table delimiter row, a line starting with `:::`). At most 16 term lines; more stay a paragraph. Each term line is its own `dt`.
+- Definition: `:` then 1-3 spaces (or a bare `:`), at column 0. Continuation lines are indented 2-4 spaces or are lazy paragraph lines; a definition holds several blocks when the continuation is indented. Lists, code, quotes and further definition lists nest.
+- Several term/definition groups in a row form one list. **The term must start a block**: every non-blank line from the block's start up to the first `: ` line is a term (so `para line` directly above `Term` is also a term). Put a blank line before the list to keep a paragraph apart.
+- Document shape: `custom "deflist"` (`data.loose` = `""` when loose) with children `custom "dt"` (one paragraph) and `custom "dd"` (blocks).
+
+### Stored form
+
+`stringify` writes `Term` / `: Definition`, continuation indented four spaces, a definition that starts as indented code under a bare `:`. Tight lists have no blank lines; a loose list has one between every part except consecutive terms. The form is a fixed point (property test over 2500 seeded cases, `test/extensions/deflists/roundtrip.test.ts`). A term with no definition is written as a paragraph after the list; a definition with no term gets the term `&nbsp;`. A term that would read as something else (starting with `:`, a rule, ...) has its first character written as a character reference.
+
+What other renderers show: GitHub and CommonMark render the lines as one paragraph (`Term` newline `: Definition`); most Markdown Extra / Pandoc based tools render a real `dl`.
+
+### Editor
+
+| | |
+|---|---|
+| Command | `definitionList`: an empty list in place of an empty paragraph; the paragraph holding the caret becomes the first term; otherwise inserted below the block. Does nothing inside a list. One undo step. |
+| Slash / toolbar | "Definition list" (`/definition`, `/glossary`), toolbar group `blocks` |
+| Enter at the end of a term | into its definition (made if missing) |
+| Enter in the middle / at the start of a term | splits the term / adds an empty term above |
+| Enter at the end of a one-paragraph definition | a new term |
+| Enter in an empty definition or empty last term | leaves the list (an empty paragraph after it) |
+| Enter elsewhere in a definition | the surface's own split (a second paragraph of the definition) |
+| Backspace at the start of the first term | lifts that line out of the list |
+| Backspace at the start of a definition or later term | removes it when empty, otherwise joins the line above |
+| Shift/Mod/Alt combos, IME composition, read-only | not taken |
+
+Options: `labels` (`insert`, `description`, `term`, `definition`; placeholders of empty parts, never stored), `classPrefix`. Markdown mode is plain text.
+
+### Views
+
+The renderer's tag allow-list has no `dl`, so `renderHtml` emits `div.atm-custom-deflist` > `div[role=term]` / `div[role=definition]`. `upgradeDefinitionLists(root, classPrefix?)` (also run by the plugin's `postRender` in every non-editor render) rebuilds them as `<dl><dt><dd>` by moving nodes; the editor surface keeps divs because `DT`/`DD` are leaf blocks there and a definition may hold several blocks. Styling: `--atm-dl-term`, `--atm-dl-definition`, `--atm-dl-indent`, `--atm-dl-rule`, `--atm-dl-placeholder`; logical properties, print and forced-colors rules included.
+
+### Limits
+
+- A paragraph line that starts with `: ` (typed text, `\: x` in source, or text after a hard break) is read as a definition after a reparse when term-like lines come before it. The parser's escaper (`lineStarts`) does not know about it, and this module cannot extend it without a core change; `stringify` converges on the list reading after one more pass. Avoid starting a line with `: `.
+- Terms are one line each (hard breaks fold to a space). Definitions do not take attributes. No `Tab` nesting.

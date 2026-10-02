@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- **Definition lists** (`advanced-texteditor-md/deflists`): `Term` + `: Definition` as a plugin block syntax on `BlockSyntax.match` / `serialize`
+  (no parser change, the entry does not grow), an editor plugin with Enter / Backspace flow, `/definition` and the `definitionList`
+  command, and `upgradeDefinitionLists` for real `<dl>` in views.
 - **Chrome v2: seven new layouts**: `ribbon` (tabbed, grouped, labelled; collapsible), `sidebar` (outline + inspector around
   a page), `focus` (fading chrome, immersive mode, typewriter scrolling), `tabs` (Write / Preview / Markdown), `compact`,
   `mobile` (keyboard-pinned toolbar, bottom sheets) and `auto` (mobile below a breakpoint). `layoutOptions` configures them.

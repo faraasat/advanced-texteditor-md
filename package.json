@@ -259,6 +259,16 @@
         "default": "./dist/blocks.cjs"
       }
     },
+    "./deflists": {
+      "import": {
+        "types": "./dist/deflists.d.ts",
+        "default": "./dist/deflists.js"
+      },
+      "require": {
+        "types": "./dist/deflists.d.cts",
+        "default": "./dist/deflists.cjs"
+      }
+    },
     "./writing": {
       "import": {
         "types": "./dist/writing.d.ts",
@@ -412,6 +422,9 @@
       ],
       "blocks": [
         "./dist/blocks.d.ts"
+      ],
+      "deflists": [
+        "./dist/deflists.d.ts"
       ],
       "writing": [
         "./dist/writing.d.ts"

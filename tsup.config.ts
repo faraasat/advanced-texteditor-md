@@ -26,6 +26,7 @@ export default defineConfig({
     export: "src/extensions/export/index.ts",
     chips: "src/extensions/chips/index.ts",
     blocks: "src/extensions/blocks/index.ts",
+    deflists: "src/extensions/deflists/index.ts",
     writing: "src/extensions/writing/index.ts",
     i18n: "src/extensions/i18n/index.ts",
     "i18n/en": "src/extensions/i18n/en.ts",

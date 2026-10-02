@@ -627,3 +627,22 @@ rather than a scroll listener in the entry.
 ## 2026-10-02 — Eager budget 62.2 -> 63 kB for the large-document speed fix
 Serialising a 200 kB document cost 964 ms because computing the saved selection was quadratic in the number of blocks (4.9 s at 500 kB). The fix (`src/editor/selection.ts`: scan from the caret's own block, keep a cached length per block) brings it to about 44 ms at 200 kB and about 100 ms at 500 kB, measured in a profiling build. The code must run on every edit, so it cannot be lazy: it costs +0.64 kB gzip (62.19 -> 62.83), together with the `BlockSyntax.match`/`serialize` hook that front matter and definition lists need. The budget is 63 kB, not 62.2.
 A per-block cache of parsed blocks and Markdown ("incremental serialisation") was also built and REMOVED: it produced Markdown that differed from the full path for custom blocks and footnote definitions, and the full path is already fast enough after the selection fix. `getValue()` still waits 120-300 ms after typing in documents over 20 kB.
+
+<!-- feature:deflists -->
+## 2026-10-02: Definition lists (`advanced-texteditor-md/deflists`)
+
+**A plugin block syntax, not `ParseOptions.definitionLists`.** The parser and the render-only entry (limit 14 kB) cannot take a new block rule without growing, and the editor entry is over its budget already. `BlockSyntax.match` / `serialize` cost the eager code nothing more, so the feature is `syntax: { block: DEFINITION_LIST_SYNTAX }` and `createDefinitionListsPlugin()` registers it for the editor. Rejected: an opt-in flag with the matcher in the parser (eager growth even when off), and a `::: deflist` container (not the syntax people type or other tools read).
+
+**Syntax.** PHP Markdown Extra / Pandoc: terms are the non-blank non-block lines before the first `: ` line (at most 16, so the lookahead is bounded and a long paragraph is never scanned twice); definitions are `:` plus 1-3 spaces; continuation indented 2-4 spaces or lazy; several blocks per definition; a blank line makes the list loose. Linear time: every line is read once, lookahead is bounded, no regular expression runs unanchored over a whole line (a `[ \t]+$` trim was replaced by a loop). Checked with `measureScaling` in `test/security/deflists.test.ts`.
+
+**Three syntaxes in one array.** The renderer finds tag and attributes by node name, so `dt` and `dd` need entries to carry `role="term"` / `role="definition"`. They have a `match` that returns null so they never open a `::: dt` container. Hence `DEFINITION_LIST_SYNTAX` is an array (like `COLUMNS_SYNTAX`).
+
+**Divs in the editor, `dl` in views.** The tag allow-list may not change and the surface treats `DT`/`DD` as leaf blocks (one paragraph), which a multi-block definition is not. Views rebuild real `dl` by moving nodes in `postRender` (mode "view"). `renderHtml` alone keeps the ARIA-role divs.
+
+**Keys through `Plugin.keydown`**, like columns: Enter at the end of a term goes to (or makes) its definition, Enter at the end of a definition starts a term, Enter on an empty part leaves the list, Backspace at the start lifts or joins. A term without a definition is written as a paragraph after the list; a definition without a term gets `&nbsp;`.
+
+**Known gap, needs a core change.** `lineStarts` in `src/parser/stringify.ts` escapes characters that would start a block, but not `: `. A paragraph line starting with `: ` that follows term-like lines is read as a definition after the next parse. Proposal: in `lineStarts`, `if (c === ":" && /^:(?:[ \t]|$)/.test(l) && x.bl.some((s) => s.name === "deflist")) return "\\" + l;` (and read `\:` back as text, which the parser already does). Not done here (core files are out of scope). The round trip test skips lists whose paragraphs contain such a line for the single-pass check; the stable wrapper converges for all.
+
+**Also found.** The inline parser is quadratic on a very long run of internal spaces in one line (`"a" + " \t".repeat(n) + "b"`), with or without this syntax; and a paragraph holding only a non-breaking space is written and then dropped on the next parse. Neither is changed here.
+
+**Not supported.** Term attributes, nested nesting by Tab, `dl` for `renderHtml` (allow-list), several lines per term.

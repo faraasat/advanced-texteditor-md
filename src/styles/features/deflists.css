@@ -1,0 +1,59 @@
+/* Definition lists (advanced-texteditor-md/deflists). The same rules style the editor surface and
+   renderHtml output (div[role=term] / div[role=definition]) and the real <dl><dt><dd> that
+   upgradeDefinitionLists builds for views. Colours: var(--atm-dl-x, var(--atm-*, fallback)). */
+.atm-custom-deflist {
+  margin: 0 0 0.75em;
+}
+.atm-custom-dt {
+  margin: 0.75em 0 0;
+  font-weight: 600;
+  color: var(--atm-dl-term, inherit);
+  break-after: avoid;
+}
+.atm-custom-dt > p { margin: 0; }
+.atm-custom-deflist > :first-child { margin-block-start: 0; }
+.atm-custom-dd {
+  margin: 0.2em 0 0;
+  margin-inline-start: 0;
+  padding-inline-start: var(--atm-dl-indent, 1.5rem);
+  color: var(--atm-dl-definition, inherit);
+}
+.atm-custom-dd > :last-child { margin-bottom: 0; }
+.atm-custom-dd > :first-child { margin-top: 0; }
+/* A tight list keeps its definitions close to the term; a loose one breathes. */
+.atm-custom-deflist[data-loose] > .atm-custom-dd { margin-top: 0.5em; }
+.atm-custom-deflist[data-loose] > .atm-custom-dt { margin-top: 1.25em; }
+.atm-custom-deflist[data-loose] > :first-child { margin-top: 0; }
+
+/* Editing: placeholders of empty parts, and a faint rule showing where a definition belongs. */
+.atm-surface .atm-custom-dt,
+.atm-surface .atm-custom-dd { position: relative; }
+.atm-surface .atm-dl-empty::before {
+  content: attr(data-atm-placeholder);
+  position: absolute;
+  inset-inline-start: var(--atm-dl-ph-inset, 0);
+  top: 0;
+  color: var(--atm-dl-placeholder, var(--atm-muted, #59636e));
+  font-weight: 400;
+  pointer-events: none;
+  user-select: none;
+}
+.atm-surface .atm-custom-dd.atm-dl-empty::before { inset-inline-start: var(--atm-dl-indent, 1.5rem); }
+.atm-surface .atm-custom-dd {
+  border-inline-start: 2px solid var(--atm-dl-rule, var(--atm-border, #d0d7de));
+  margin-inline-start: 0.25rem;
+}
+
+@media (max-width: 40rem) {
+  .atm-custom-dd { padding-inline-start: var(--atm-dl-indent-narrow, 1rem); }
+  .atm-surface .atm-custom-dd.atm-dl-empty::before { inset-inline-start: var(--atm-dl-indent-narrow, 1rem); }
+}
+@media print {
+  .atm-custom-dt { break-after: avoid; }
+  .atm-custom-dd { break-inside: avoid; }
+  .atm-surface .atm-custom-dd { border: 0; margin-inline-start: 0; }
+}
+@media (forced-colors: active) {
+  .atm-surface .atm-custom-dd { border-inline-start-color: CanvasText; }
+  .atm-surface .atm-dl-empty::before { color: GrayText; }
+}

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md definition lists</title>
+    <meta name="description" content="Definition lists: Term and : Definition, typed in the editor, stored as Markdown and shown as a real dl in views." />
+    <!-- The built library. Run `npm run build` first (see example/README.md). -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; }
+      @media (prefers-color-scheme: dark) { :root { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; } }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 64ch; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      pre.out { margin: 0; max-height: 240px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      #view, #ssr { color: var(--page-fg); background: transparent; }
+      :root[data-theme="dark"] { color-scheme: dark; --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; }
+      :root[data-theme="light"] { color-scheme: light; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Definition lists</h1>
+      <p class="lead">
+        Type a term and press Enter: the caret moves to its definition; Enter again starts the next term; Enter on an empty
+        line leaves the list. <code>/definition</code> inserts one. URL parameters: <code>value</code>, <code>theme</code> (light, dark),
+        <code>dir</code> (ltr, rtl), <code>mode</code>.
+      </p>
+      <div id="editor-host" data-testid="editor-host"></div>
+      <section class="card" aria-labelledby="md-h">
+        <h2 id="md-h">Markdown (what is stored)</h2>
+        <pre class="out" id="output-md" tabindex="0"></pre>
+      </section>
+      <section class="card" aria-labelledby="view-h">
+        <h2 id="view-h">Read-only view (real dl, dt, dd)</h2>
+        <div id="view" class="atm-preview" data-testid="view"></div>
+      </section>
+      <section class="card" aria-labelledby="ssr-h">
+        <h2 id="ssr-h">renderHtml, no upgrade (div with ARIA roles)</h2>
+        <div id="ssr" class="atm-preview" data-testid="ssr"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import * as D from "../dist/deflists.js";
+
+      const q = new URLSearchParams(location.search);
+      const theme = q.get("theme") === "dark" ? "dark" : q.get("theme") === "light" ? "light" : null;
+      if (theme) document.documentElement.dataset.theme = theme;
+      if (q.get("dir") === "rtl") document.documentElement.dir = "rtl";
+      const plugin = D.createDefinitionListsPlugin();
+      const out = document.getElementById("output-md");
+      const view = document.getElementById("view");
+      const ssr = document.getElementById("ssr");
+      const showView = (md) => {
+        out.textContent = md;
+        view.textContent = "";
+        view.appendChild(lib.renderDom(md, { syntax: { block: D.DEFINITION_LIST_SYNTAX }, postRender: [plugin.postRender] }));
+        ssr.innerHTML = lib.renderHtml(md, { syntax: { block: D.DEFINITION_LIST_SYNTAX } });
+      };
+      const initial =
+        q.get("value") ??
+        "# Glossary\n\nMarkdown\n: A plain-text format with a small set of marks.\n\nWYSIWYG\nWhat you see is what you get\n: An editor that shows the result while you type.\n: Also written *what-you-see*.\n\nPlugin\n\n: Code that adds a feature.\n\n    It may register a block syntax, a command and a slash item.\n\n    ```js\n    editor.exec(\"definitionList\");\n    ```\n";
+      const editor = lib.createEditor(document.getElementById("editor-host"), {
+        value: initial,
+        theme: theme ?? "light",
+        mode: q.get("mode") ?? "wysiwyg",
+        plugins: [plugin],
+        minHeight: 220,
+        onChange: showView,
+      });
+      showView(editor.getValue());
+      window.__editor = editor;
+      window.__showView = () => showView(editor.getValue());
+    </script>
+  </body>
+</html>

@@ -87,6 +87,7 @@ import { createDiffView, diffWords, createHistoryStore } from "advanced-textedit
 import { createExportPlugin, exportHtml } from "advanced-texteditor-md/export";
 import { createChipCardsPlugin, createTagTrigger, createMarkdownMentionsPlugin } from "advanced-texteditor-md/chips";
 import { createContentBlocksPlugins, createShortcodes } from "advanced-texteditor-md/blocks";
+import { createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists } from "advanced-texteditor-md/deflists";
 import { createSuggestPlugin, readingStats } from "advanced-texteditor-md/writing";
 import { loadLabels, createBidiPlugin } from "advanced-texteditor-md/i18n";
 import de from "advanced-texteditor-md/i18n/de";
@@ -96,5 +97,7 @@ const featurePlugins: Plugin[] = [
 ];
 export const features = [
   featurePlugins, alertSyntax, parseCodeInfo, diffLang, csvToTable, renderDiagrams, createDiffView, diffWords, createHistoryStore, exportHtml,
-  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, readingStats, loadLabels, de.bold,
+  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists, readingStats, loadLabels, de.bold,
 ];
+export const deflistsTyped: Plugin = createDefinitionListsPlugin({ labels: { term: "Term" }, classPrefix: "atm" });
+export const deflistsParsed = parse("Term\n: Definition", { syntax: { block: DEFINITION_LIST_SYNTAX } });

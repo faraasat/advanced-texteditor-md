@@ -267,6 +267,8 @@ function lineStarts(s: string, x: Ctx): string {
         return l;
       }
       if (c >= "0" && c <= "9") return l.replace(/^(\d{1,9})([.)])(?=[ \t]|$)/, "$1\\$2");
+      // `: text` reads as a definition under the deflists syntax; escaping it costs nothing elsewhere.
+      if (c === ":" && (l[1] === " " || l[1] === "\t")) return "\\" + l;
       // A line that would open or close a `:::` container (the built-in details one included).
       for (const f of fences) if (l.startsWith(f) && (l.trim() === f || blockOpen(l, x))) return "\\" + l;
       return l;
