@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2 - 2026-10-03
+
+### Fixed
+- **Compact layout: pressing a control below the editor lost the click.** The toolbar folded to one row on blur, so a button under the editor moved up between mousedown and mouseup and the release landed beside it. The fold now waits for the pointer release (and is skipped if focus returned).
+
 ## 0.3.1 - 2026-10-03
 
 ### Added

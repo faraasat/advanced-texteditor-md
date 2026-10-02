@@ -315,6 +315,19 @@ describe("layouts v2", () => {
     x.surface.editable.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: document.body }));
     expect(x.root.classList.contains("atm-expanded")).toBe(false);
   });
+  it("compact: a press that takes focus away waits for the release before the toolbar folds", async () => {
+    // Folding on blur moved a button below the editor out from under the pointer: mousedown blurred the
+    // editor, the toolbar lost a row, and the mouseup landed on empty space — the click never happened.
+    const x = m({ layout: "compact" });
+    await new Promise((r) => setTimeout(r, 60));
+    x.surface.editable.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    await until(() => x.root.classList.contains("atm-expanded"));
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    x.surface.editable.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: null }));
+    expect(x.root.classList.contains("atm-expanded")).toBe(true);
+    document.body.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    await until(() => !x.root.classList.contains("atm-expanded"));
+  });
   it("mobile: the toolbar sits at the bottom with no status bar", () => {
     const x = m({ layout: "mobile" });
     expect(q(x.root, ".atm-toolbar")!.classList.contains("atm-toolbar-bottom")).toBe(true);

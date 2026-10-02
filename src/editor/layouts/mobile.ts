@@ -25,16 +25,39 @@ function compact(host: LayoutHost): () => void {
     root.classList.toggle(`${host.prefix}-expanded`, v);
     host.toolbar()?.relayout();
   };
+  const win = host.doc.defaultView;
+  let down = false;
+  let folding = false;
   const into = () => set(true);
   const out = (e: FocusEvent) => {
     const to = e.relatedTarget as Node | null;
-    if (!to || !root.contains(to)) set(false);
+    if (to && root.contains(to)) return;
+    // Folding while a press is still down shifts whatever sits below the editor, so the release lands
+    // beside the control that was pressed and the click is lost. Wait for the release.
+    if (down) folding = true;
+    else set(false);
+  };
+  const press = () => (down = true);
+  const release = () => {
+    down = false;
+    if (!folding) return;
+    folding = false;
+    // After the click the press produced, and not if focus came back meanwhile.
+    win?.setTimeout(() => {
+      if (!root.contains(host.doc.activeElement)) set(false);
+    }, 0);
   };
   root.addEventListener("focusin", into);
   root.addEventListener("focusout", out);
+  host.doc.addEventListener("pointerdown", press, true);
+  host.doc.addEventListener("pointerup", release, true);
+  host.doc.addEventListener("pointercancel", release, true);
   return () => {
     root.removeEventListener("focusin", into);
     root.removeEventListener("focusout", out);
+    host.doc.removeEventListener("pointerdown", press, true);
+    host.doc.removeEventListener("pointerup", release, true);
+    host.doc.removeEventListener("pointercancel", release, true);
     set(false);
   };
 }

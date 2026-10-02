@@ -1,6 +1,6 @@
 {
   "name": "advanced-texteditor-md",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "A dependency-free WYSIWYG editor that stores Markdown. Mentions, chips, images and uploads, tables, task lists, LaTeX, code highlighting, custom syntax and plugins. Tailwind-friendly and themeable.",
   "keywords": [
     "accessible",
