@@ -414,14 +414,19 @@ export function createLinkPreviewController(init: LinkPreviewControllerInit): Li
   function hydrate(root: HTMLElement, opts?: { replace?: boolean }): void {
     if (destroyed || !modes.includes("card")) return;
     // sweep: sources that left the DOM take their cards with them
-    for (const [node, rec] of [...hydrated]) if (!node.isConnected) release(node, rec);
+    // (and sources that stopped being a candidate: the marker was removed because the line changed)
+    for (const [node, rec] of [...hydrated]) if (!node.isConnected || !node.matches(SELECTOR)) release(node, rec);
     // read phase
     const todo: { node: Element; url: string }[] = [];
     root.querySelectorAll(SELECTOR).forEach((node) => {
       const raw = urlOfNode(node);
       if (!raw) return;
       const rec = hydrated.get(node);
-      if (rec && rec.url === raw) return;
+      if (rec && rec.url === raw) {
+        // An edit may have moved the card away from its source (Enter splits the line): put it back.
+        if (rec.card && rec.card.previousSibling !== node && rec.card.isConnected) node.after(rec.card);
+        return;
+      }
       todo.push({ node, url: raw });
     });
     // write phase

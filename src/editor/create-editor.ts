@@ -24,17 +24,18 @@ import type {
   Slot,
   SlashItem,
   ToolbarItem,
-  UploadRejectReason,
 } from "../types";
 import type { Pane, Surface, SurfaceOptions } from "./pane-types";
 import { parse, walk, docToText } from "../parser";
 import { renderDom, renderHtml } from "../render";
-import { createMathRenderer } from "../math";
 import { createHighlighter } from "../highlight";
-import { createMentionController, mentionHref, type MentionController } from "../features/mentions";
-import { urlAllowed, validateFile } from "../features/upload-policy";
+import { chipHref } from "../parser/chip";
+import type { MentionController } from "../features/mentions";
 import { createSurface as realCreateSurface } from "./surface";
-import { MarkdownPane, mdDest } from "./markdown-pane";
+import { LazyMarkdownPane, warmMarkdownPane } from "./markdown-proxy";
+import { chunks } from "./lazy-chunks";
+import { createLazyMath } from "./lazy-math";
+import { detectSlash } from "./slash-detect";
 import { createKeymap, type Keymap } from "./keymap";
 import { DEFAULT_LABELS, fmt, resolveLabels, type Labels } from "./i18n";
 import { applyTheme } from "./theme";
@@ -49,17 +50,8 @@ import {
   type ToolbarHandle,
 } from "./toolbar";
 import { createStatusBar, type StatusBarHandle } from "./status-bar";
-import { builtinSlashItems, createSlashMenu, type SlashMenu } from "./slash";
-import {
-  COMMON_LANGUAGES,
-  openCodeLanguagePopover,
-  openImagePopover,
-  openLinkPopover,
-  openMathPopover,
-  openTablePopover,
-  type PopoverHandle,
-  type PopoverHost,
-} from "./popovers";
+import type { SlashMenu } from "./slash";
+import type { PopoverHandle, PopoverHost } from "./popovers";
 import { Emitter, SR_ONLY, coalesce, cx, detectPlatform, emojiShortcut, h, schedule } from "./dom";
 
 export { DEFAULT_LABELS };
@@ -225,7 +217,14 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
 
   const mathOn = features.math !== false;
   let mathRenderer = options.math?.renderer;
-  if (mathRenderer === undefined && mathOn) mathRenderer = createMathRenderer();
+  // The default renderer is a lazy chunk: formulas show their TeX until it arrives, then redraw.
+  if (mathRenderer === undefined && mathOn) {
+    mathRenderer = createLazyMath(options.classPrefix ?? PREFIX, () => {
+      if (destroyed) return;
+      (surface as Surface | null)?.rerender?.();
+      if (mode === "split") previewCo.run();
+    });
+  }
 
   const chipDefs: Record<string, ChipDefinition> = {};
   for (const d of options.chips ?? []) chipDefs[d.scheme] = { ...d, kinds: d.kinds ? { ...d.kinds } : undefined };
@@ -245,7 +244,15 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     highlight: highlighter,
     mathRenderer: mathRenderer ?? null,
     chips: chipDefs,
+    labels: { code: labels.codeBlock, openOriginal: labels.openOriginal },
+    embeds: options.embeds,
+    linkPreview: options.linkPreview,
   };
+
+  // The editing surface renders embeds itself but marks no `data-atm-standalone-link` paragraphs:
+  // there the rich-links module marks the LINK (so its card lands inside the paragraph, where the
+  // position model skips it). The split preview and getHtml() keep the paragraph marker.
+  const surfaceRender: RenderOptions = { ...render, linkPreview: undefined };
 
   /* ── state ── */
   // Assigned once the instance object exists; everything that needs it runs later.
@@ -354,10 +361,45 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   if (options.theme !== undefined) themeCleanup = applyTheme(root, options.theme, win);
   else if (!target.closest("[data-atm-theme]")) themeCleanup = applyTheme(root, "auto", win);
 
+  /* ── link previews and embeds: a lazy chunk, fetched only when one of the options is set ── */
+  const richWanted = !!options.linkPreview || !!options.embeds?.length;
+  let rich: import("./rich-links").RichLinks | null = null;
+  function loadRich() {
+    if (!richWanted) return;
+    const make = (m: typeof import("./rich-links")) => {
+      if (destroyed || rich) return;
+      rich = m.createRichLinks({
+        doc,
+        prefix: options.classPrefix ?? PREFIX,
+        render: surfaceRender,
+        linkPreview: options.linkPreview,
+        embeds: options.embeds ?? [],
+        links: options.links,
+        labels: {
+          embedActions: labels.embedActions,
+          embedConvert: labels.embedConvert,
+          embedOpen: labels.embedOpen,
+          openOriginal: labels.openOriginal,
+          previewLoading: labels.previewLoading,
+        },
+        previewPane: regions.previewPane,
+        notifyEdit: () => surface?.editable.dispatchEvent(new (win.InputEvent ?? win.Event)("input", { bubbles: true, inputType: "insertReplacementText" } as InputEventInit)),
+      });
+      if (surface) rich.attachSurface(surface.editable);
+      if (mode === "split") rich.previewRendered();
+    };
+    const cached = chunks.rich.get();
+    if (cached) make(cached);
+    else
+      chunks.rich.load().then(make, () => {
+        /* offline or blocked chunk: cards and embed toolbars are an enhancement, the text is intact */
+      });
+  }
+
   /* ── panes ── */
 
   let surface: Surface | null = null;
-  let md: MarkdownPane | null = null;
+  let md: LazyMarkdownPane | null = null;
   let surfaceValue: string | null = null;
   let mdValue: string | null = null;
   const paneOffs: (() => void)[] = [];
@@ -384,21 +426,18 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     keys ??= createKeymap(keymap);
     const cmd = keys.resolve(ev);
     if (!cmd || cmd === "undo" || cmd === "redo" || !commands.has(cmd)) return false;
-    ev.preventDefault();
     exec(cmd);
     return true;
   };
-  const onKeyDown = (ev: KeyboardEvent): boolean => {
-    const consumed =
-      !!mentionCtl?.handleKeyDown(ev) || !!slash?.handleKeyDown(ev) || !!layout.onKeyDown?.(ev, layoutHost) || routeShortcut(ev);
-    // The surface only stops when told a key was consumed; it is the browser default (a new
-    // paragraph on Enter, a caret move on the arrows) that must not run as well.
-    if (consumed) ev.preventDefault();
-    return consumed;
-  };
+  // Returning true makes the pane cancel the event itself (pane-types.ts), so nothing here calls
+  // preventDefault.
+  const onKeyDown = (ev: KeyboardEvent): boolean =>
+    (ev.key === "Escape" && slashLoading && (slashDismissed = true), false) ||
+    !!mentionCtl?.handleKeyDown(ev) || !!slash?.handleKeyDown(ev) || !!layout.onKeyDown?.(ev, layoutHost) || routeShortcut(ev);
   const afterInput = () => {
     mentionCtl?.notifyInput();
-    slash?.notifyInput();
+    if (slash) slash.notifyInput();
+    else loadSlashIfTyped();
   };
   const onFiles = (files: File[], source: "paste" | "drop") => {
     const up = options.upload;
@@ -414,7 +453,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       document: doc,
       classPrefix: options.classPrefix ?? PREFIX,
       placeholder: options.placeholder ?? labels.placeholder,
-      render,
+      render: surfaceRender,
       features: { ...features, slashMenu: features.slashMenu ?? true },
       history: options.history,
       maxLength: options.maxLength,
@@ -441,6 +480,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       surfaceValue = value;
     }
     attachSurfaceMenus(s);
+    rich?.attachSurface(s.editable);
     return s;
   }
 
@@ -455,49 +495,79 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
           return r;
         },
       }));
-      mentionCtl = createMentionController({
-        root: s.editable,
-        options: wrapped,
-        document: doc,
-        labels: { noResults: labels.noResults, searching: labels.searching },
-        getRect: () => s.getCaretRect() ?? zeroRect(),
-        onPick: (item, index, range) => {
-          const o = mentionOpts[index];
-          learn(o, [item]);
-          const chip: Omit<Chip, "type"> = {
-            scheme: o.scheme ?? "mention",
-            kind: item.kind ?? "",
-            id: item.id,
-            label: item.label,
-            trigger: o.trigger ?? "@",
-          };
-          if (item.refs && Object.keys(item.refs).length) chip.attrs = { ...item.refs };
-          s.replaceRangeWithChip(range, chip);
-        },
-      });
+      // The typeahead is a lazy chunk, fetched when the editor is created with `mentions`.
+      const make = (m: typeof import("../features/mentions")) => {
+          if (destroyed || surface !== s || mentionCtl) return;
+          mentionCtl = m.createMentionController({
+            root: s.editable,
+            options: wrapped,
+            document: doc,
+            labels: { noResults: labels.noResults, searching: labels.searching },
+            classes: { menu: classes.menu, menuItem: classes.menuItem, menuItemActive: classes.menuItemActive },
+            getRect: () => s.getCaretRect() ?? zeroRect(),
+            onPick: (item, index, range) => {
+              const o = mentionOpts[index];
+              learn(o, [item]);
+              const chip: Omit<Chip, "type"> = {
+                scheme: o.scheme ?? "mention",
+                kind: item.kind ?? "",
+                id: item.id,
+                label: item.label,
+                trigger: o.trigger ?? "@",
+              };
+              if (item.refs && Object.keys(item.refs).length) chip.attrs = { ...item.refs };
+              s.replaceRangeWithChip(range, chip);
+            },
+          });
+          mentionCtl.notifyInput(); // the user may already have typed the trigger
+      };
+      const cached = chunks.mentions.get();
+      if (cached) make(cached);
+      else
+        chunks.mentions.load().then(make, () => {
+          /* offline: no typeahead, typing and every chip already in the text are unaffected */
+        });
     }
-    // The editable is role="textbox", which does not support aria-expanded (axe: critical). The
-    // mention controller writes it anyway, so drop it again whenever it appears.
-    const stripExpanded = new (win.MutationObserver ?? MutationObserver)(() => {
-      if (s.editable.hasAttribute("aria-expanded")) s.editable.removeAttribute("aria-expanded");
+  }
+
+  /**
+   * The slash menu is a lazy chunk too, fetched the first time the text before the caret is an open
+   * slash command (the same `detectSlash` the menu itself uses). Typing "/" is then handled once it
+   * arrives; keys typed in between are ordinary text.
+   */
+  let slashLoading = false;
+  let slashDismissed = false; // Escape pressed while the chunk was downloading: do not open afterwards
+  function loadSlashIfTyped() {
+    if (slash || slashLoading || destroyed || features.slashMenu === false || !surface) return;
+    const sel = doc.getSelection();
+    const n = sel && sel.rangeCount && sel.isCollapsed ? sel.anchorNode : null;
+    if (!n || n.nodeType !== 3 || !surface.editable.contains(n)) return;
+    if (!detectSlash((n as Text).data.slice(0, sel!.anchorOffset))) return;
+    const s = surface;
+    const make = (m: typeof import("./slash")) => {
+        if (destroyed || surface !== s || slash) return;
+        slashItems = [...m.builtinSlashItems(labels, features, { images: true }), ...pluginSlash];
+        slash = m.createSlashMenu({
+          doc,
+          editable: s.editable,
+          root,
+          prefix: PREFIX,
+          labels,
+          classes,
+          editor: api,
+          getItems: () => slashItems,
+          getRect: () => s.getCaretRect(),
+          notifyEdit: () => s.editable.dispatchEvent(new (win.InputEvent ?? win.Event)("input", { bubbles: true, inputType: "deleteContentBackward" } as InputEventInit)),
+        });
+        if (!slashDismissed) slash.notifyInput();
+        slashDismissed = false;
+    };
+    const cached = chunks.slash.get();
+    if (cached) return make(cached);
+    slashLoading = true;
+    chunks.slash.load().then(make, () => {
+      slashLoading = false; // offline: "/" stays text; the next "/" tries again
     });
-    stripExpanded.observe(s.editable, { attributes: true, attributeFilter: ["aria-expanded"] });
-    s.editable.removeAttribute("aria-expanded");
-    paneOffs.push(() => stripExpanded.disconnect());
-    if (features.slashMenu !== false) {
-      slash = createSlashMenu({
-        doc,
-        editable: s.editable,
-        root,
-        prefix: PREFIX,
-        labels,
-        classes,
-        editor: api,
-        getItems: () => slashItems,
-        getRect: () => s.getCaretRect(),
-        notifyEdit: () => s.editable.dispatchEvent(new (win.InputEvent ?? win.Event)("input", { bubbles: true, inputType: "deleteContentBackward" } as InputEventInit)),
-      });
-    }
   }
 
   /**
@@ -518,9 +588,9 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     }
   }
 
-  function ensureMd(): MarkdownPane {
+  function ensureMd(): LazyMarkdownPane {
     if (md) return md;
-    const m = new MarkdownPane({
+    const m: LazyMarkdownPane = new LazyMarkdownPane({
       document: doc,
       classPrefix: PREFIX,
       placeholder: options.placeholder ?? labels.placeholder,
@@ -534,6 +604,12 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       onFiles,
       keymap,
       runExternal: (cmd, args) => exec(cmd, args),
+    }, () => {
+      // The textarea has arrived (it is a lazy chunk): measure it and refresh the toolbar.
+      if (destroyed) return;
+      m.refreshSize();
+      toolbar?.relayout();
+      toolbar?.refresh();
     });
     md = m;
     regions.markdownPane.appendChild(m.el);
@@ -584,7 +660,35 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     const frag = renderDom(getDoc(), render, doc);
     regions.previewPane.textContent = "";
     regions.previewPane.appendChild(frag);
+    rich?.previewRendered();
   }
+
+  // Chips in the split preview are plain rendered DOM: one delegated listener gives them the same
+  // ChipDefinition.onClick the surface and the read-only view call.
+  const onPreviewClick = (ev: MouseEvent) => {
+    const t = ev.target as Element | null;
+    const el = t && typeof t.closest === "function" ? (t.closest(`.${PREFIX}-chip`) as HTMLElement | null) : null;
+    if (!el || !regions.previewPane.contains(el)) return;
+    const scheme = el.getAttribute("data-scheme") ?? "";
+    const def = chipDefs[scheme];
+    if (!def?.onClick) return;
+    const trigger = el.getAttribute("data-trigger") ?? "";
+    const badge = el.querySelector(`.${PREFIX}-chip-badge`)?.textContent ?? "";
+    let text = el.textContent ?? "";
+    if (badge && text.endsWith(badge)) text = text.slice(0, -badge.length);
+    if (trigger && text.startsWith(trigger)) text = text.slice(trigger.length);
+    const chip: Chip = { type: "chip", scheme, kind: el.getAttribute("data-kind") ?? "", id: el.getAttribute("data-id") ?? "", label: text };
+    if (trigger) chip.trigger = trigger;
+    try {
+      const refs = JSON.parse(el.getAttribute("data-refs") ?? "null");
+      if (refs && typeof refs === "object") chip.attrs = refs as Record<string, string>;
+    } catch {
+      /* no refs */
+    }
+    def.onClick(chip, ev);
+  };
+  regions.previewPane.addEventListener("click", onPreviewClick);
+  offs.push(() => regions.previewPane.removeEventListener("click", onPreviewClick));
 
   function statsOf(): { words: number; characters: number } {
     const text = docToText(getDoc());
@@ -601,6 +705,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   function afterValueChange(fire: boolean) {
     if (hidden) hidden.value = value;
     if (mode === "split") previewCo.run();
+    rich?.schedule();
     updateStatus();
     toolbar?.refresh();
     const list = collectMentions();
@@ -631,6 +736,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     toolbar?.refresh();
     events.emit("selection", undefined);
     pingLayout();
+    rich?.schedule(); // a card appears once the caret has left its line
   }
 
   /* ── layout host, toolbar, status, mode switch ── */
@@ -653,10 +759,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     },
   };
 
-  const slashItems: SlashItem[] = [
-    ...builtinSlashItems(labels, features, { images: true }),
-    ...pluginSlash,
-  ];
+  let slashItems: SlashItem[] = [...pluginSlash];
 
   const uploadEnabled = !!options.upload?.handler;
   let toolbar: ToolbarHandle | null = null;
@@ -752,6 +855,22 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     }
   }
 
+  // Intent warms the lazy chunks: reaching for the mode switch fetches the Markdown pane, reaching
+  // for a toolbar button that opens a popover fetches the popovers. Nothing is fetched otherwise.
+  if (modeSwitch) {
+    const warmMd = () => void warmMarkdownPane().catch(() => undefined);
+    listen(modeSwitch.el, "pointerover", warmMd);
+    listen(modeSwitch.el, "focusin", warmMd);
+  }
+  if (regions.toolbar) {
+    const warmPop = (e: Event) => {
+      const b = (e.target as Element | null)?.closest?.("[data-id]");
+      if (b && PANE_COMMANDS.has(b.getAttribute("data-id") ?? "")) void loadPopovers().catch(() => undefined);
+    };
+    listen(regions.toolbar, "pointerover", warmPop);
+    listen(regions.toolbar, "focusin", warmPop);
+  }
+
   /* ── focus / narrow tracking ── */
 
   let hadFocus = false;
@@ -823,7 +942,14 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     return activePane().getCaretRect();
   }
 
-  function withPopover(open: (done: (restoreFocus: boolean) => void, saved: Saved) => PopoverHandle): boolean {
+  // The popovers (link, image, table, math, code language) are one lazy chunk. The arguments a
+  // popover needs (caret rectangle, selected text) are read when the command runs; only the
+  // opening waits for the chunk. A toolbar button warms it on pointer or keyboard intent.
+  type PopMod = typeof import("./popovers");
+  const loadPopovers = (): Promise<PopMod> => chunks.popovers.load();
+  let popToken = 0;
+
+  function withPopover(build: (done: (restoreFocus: boolean) => void, saved: Saved) => (m: PopMod) => PopoverHandle): boolean {
     if (readOnly || destroyed) return false;
     popover?.close(false);
     const saved = saveSelection();
@@ -831,7 +957,42 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       popover = null;
       if (restore) restoreSelection(saved);
     };
-    popover = open(done, saved);
+    const open = build(done, saved);
+    const token = ++popToken;
+    const cached = chunks.popovers.get();
+    if (cached) {
+      popover = open(cached); // already downloaded: opens at once
+      return true;
+    }
+    // Cold start: the chunk is on its way. Characters typed meanwhile would replace the selection
+    // the popover is about to act on, so hold them and hand them to the popover's first field.
+    const held: string[] = [];
+    const hold = (e: Event) => {
+      const ie = e as InputEvent;
+      if (!ie.inputType?.startsWith("insert")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (ie.data) held.push(ie.data);
+    };
+    root.addEventListener("beforeinput", hold, true);
+    const release = () => root.removeEventListener("beforeinput", hold, true);
+    loadPopovers().then(
+      (m) => {
+        release();
+        if (destroyed || token !== popToken) return;
+        popover = open(m);
+        const f = doc.activeElement as HTMLInputElement | HTMLTextAreaElement | null;
+        if (held.length && f && root.contains(f) && typeof f.value === "string") {
+          f.value += held.join("");
+          f.dispatchEvent(new (win.Event ?? Event)("input", { bubbles: true }));
+        }
+      },
+      () => {
+        release();
+        done(true); // offline: nothing opened, the selection is where it was
+        if (held.length && !destroyed) activePane().insertText(held.join(""));
+      },
+    );
     return true;
   }
 
@@ -851,69 +1012,62 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   const chromeCommands: Record<string, Command> = {
     link(_ed, args) {
       if (args !== undefined) return activePane().exec("link", args);
-      return withPopover((done, saved) =>
-        openLinkPopover(popHost, {
+      return withPopover((done, saved) => {
+        const a = {
           anchor: anchorRect(),
           fallback: pendingAnchor,
           selection: activePane().getSelectionText(),
           canRemove: activePane().isActive("link"),
           links: options.links,
-          onApply: (v) => applyToPane(saved, "link", { url: v.href, text: v.text }),
+          onApply: (v: { href: string; text?: string }) => applyToPane(saved, "link", { url: v.href, text: v.text }),
           onRemove: () => applyToPane(saved, "unlink", undefined),
           onClose: done,
-        }),
-      );
+        };
+        return (m) => m.openLinkPopover(popHost, a);
+      });
     },
     image(_ed, args) {
       if (args !== undefined) return activePane().exec("image", args);
-      return withPopover((done, saved) =>
-        openImagePopover(popHost, {
+      return withPopover((done, saved) => {
+        const a = {
           anchor: anchorRect(),
           fallback: pendingAnchor,
           selection: activePane().getSelectionText(),
           links: options.upload?.urls ?? options.links,
-          upload: uploadEnabled ? { accept: imageAccept(), urls: options.upload?.urls, onFiles: (files) => void api.uploadFiles(files) } : undefined,
-          onApply: (v) => applyToPane(saved, "image", { url: v.src, alt: v.alt }),
+          upload: uploadEnabled ? { accept: imageAccept(), urls: options.upload?.urls, onFiles: (files: File[]) => void api.uploadFiles(files) } : undefined,
+          onApply: (v: { src: string; alt: string }) => applyToPane(saved, "image", { url: v.src, alt: v.alt }),
           onClose: done,
-        }),
-      );
+        };
+        return (m) => m.openImagePopover(popHost, a);
+      });
     },
     table(_ed, args) {
       if (args !== undefined) return activePane().exec("table", args);
-      return withPopover((done, saved) =>
-        openTablePopover(popHost, {
-          anchor: anchorRect(),
-          fallback: pendingAnchor,
-          onPick: (size) => applyToPane(saved, "table", size),
-          onClose: done,
-        }),
-      );
+      return withPopover((done, saved) => {
+        const a = { anchor: anchorRect(), fallback: pendingAnchor, onPick: (size: unknown) => applyToPane(saved, "table", size), onClose: done };
+        return (m) => m.openTablePopover(popHost, a);
+      });
     },
     math(_ed, args) {
       if (args !== undefined) return activePane().exec("math", args);
-      return withPopover((done, saved) =>
-        openMathPopover(popHost, {
+      return withPopover((done, saved) => {
+        const a = {
           anchor: anchorRect(),
           fallback: pendingAnchor,
           tex: activePane().getSelectionText(),
           preview: render.mathRenderer ?? undefined,
-          onApply: (v) => applyToPane(saved, v.display ? "mathBlock" : "math", v.tex),
+          onApply: (v: { tex: string; display: boolean }) => applyToPane(saved, v.display ? "mathBlock" : "math", v.tex),
           onClose: done,
-        }),
-      );
+        };
+        return (m) => m.openMathPopover(popHost, a);
+      });
     },
     codeLanguage(_ed, args) {
       if (args !== undefined) return activePane().exec("codeBlockLang", args);
-      const langs = highlighter ? COMMON_LANGUAGES.filter((l) => highlighter!.has(l)) : [];
-      return withPopover((done, saved) =>
-        openCodeLanguagePopover(popHost, {
-          anchor: anchorRect(),
-          fallback: pendingAnchor,
-          languages: langs,
-          onApply: (lang) => applyToPane(saved, "codeBlockLang", lang),
-          onClose: done,
-        }),
-      );
+      return withPopover((done, saved) => {
+        const a = { anchor: anchorRect(), fallback: pendingAnchor, onApply: (lang: string) => applyToPane(saved, "codeBlockLang", lang), onClose: done };
+        return (m) => m.openCodeLanguagePopover(popHost, { ...a, languages: highlighter ? m.COMMON_LANGUAGES.filter((l) => highlighter!.has(l)) : [] });
+      });
     },
     attach() {
       if (readOnly || !uploadEnabled) return false;
@@ -962,66 +1116,24 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     return picker;
   }
 
-  const reasonText = (r: UploadRejectReason): string =>
-    labels[("reason" + r.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join("")) as keyof typeof labels] as string;
-
-  function rejectFile(file: File, reason: UploadRejectReason) {
-    options.upload?.onReject?.(file, reason);
-    options.onUpload?.({ type: "rejected", file, reason });
-    toast(fmt(labels.uploadRejected, { name: file.name, reason: reasonText(reason) }), "error");
-  }
-
-  async function runUpload(file: File, kind: "image" | "file"): Promise<void> {
-    const up = options.upload!;
-    const ac = new AbortController();
-    uploads.add(ac);
-    uploading++;
-    updateStatus();
-    options.onUpload?.({ type: "start", file });
-    const holder = surface && mode === "wysiwyg" ? surface.insertUploadPlaceholder(file.name) : null;
-    const dropHolder = () => {
-      try {
-        holder?.remove();
-      } catch {
-        /* the surface may already be gone */
-      }
-    };
-    try {
-      const res = await up.handler(file, {
-        signal: ac.signal,
-        kind,
-        onProgress: (f) => holder?.setProgress(Math.max(0, Math.min(1, Number.isFinite(f) ? f : 0))),
-      });
-      if (destroyed || ac.signal.aborted) return dropHolder();
-      const as = res.as ?? ((res.mime ?? file.type ?? "").startsWith("image/") ? "image" : "link");
-      if (!urlAllowed(res.url, up.urls ?? options.links, as === "image" ? "image" : "link")) {
-        dropHolder();
-        const error = new Error("The uploaded file's address is not allowed");
-        options.onUpload?.({ type: "error", file, error });
-        toast(fmt(labels.uploadFailed, { name: file.name }), "error");
-        return;
-      }
-      dropHolder();
-      const name = res.name ?? file.name;
-      if (mode === "wysiwyg" && surface) surface.insertAsset({ url: res.url, name, alt: res.alt, as });
-      else {
-        const m = ensureMd();
-        const label = (as === "image" ? (res.alt ?? name) : name).replace(/([\[\]\\])/g, "\\$1");
-        m.insertText(as === "image" ? `![${label}](${mdDest(res.url)})` : `[${label}](${mdDest(res.url)})`);
-      }
-      options.onUpload?.({ type: "done", file, result: res });
-      announce(fmt(labels.uploadDone, { name }));
-    } catch (error) {
-      dropHolder();
-      if (destroyed || ac.signal.aborted) return;
-      options.onUpload?.({ type: "error", file, error });
-      toast(fmt(labels.uploadFailed, { name: file.name }), "error");
-    } finally {
-      uploads.delete(ac);
-      uploading--;
+  // The upload pipeline (policy, placeholder, handler, URL check) is a lazy chunk.
+  const uploadsHost = {
+    options,
+    labels,
+    toast,
+    announce,
+    isDestroyed: () => destroyed,
+    isReadOnly: () => readOnly,
+    visibleSurface: () => (surface && mode === "wysiwyg" ? surface : null),
+    markdownPane: () => ensureMd(),
+    uploading(delta: 1 | -1) {
+      uploading += delta;
       if (!destroyed) updateStatus();
-    }
-  }
+    },
+    signals: uploads,
+  };
+  let uploadsApi: import("./uploads").Uploads | null = null;
+  const withUploads = (m: typeof import("./uploads")) => (uploadsApi ??= m.createUploads(uploadsHost));
 
   /* ── commands ── */
 
@@ -1154,7 +1266,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
 
   /* ── the instance ── */
 
-  const stringKey = (c: Omit<Chip, "type">) => `[${(c.trigger ?? "") + c.label}](${mentionHref(c)})`;
+  const stringKey = (c: Omit<Chip, "type">) => `[${(c.trigger ?? "") + c.label}](${chipHref({ type: "chip", ...c })})`;
 
   const live_: EditorInstance = {
     element: root,
@@ -1211,19 +1323,14 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     redo: () => (readOnly ? false : activePane().redo()),
     uploadFiles(files) {
       if (destroyed) return Promise.resolve();
-      const up = options.upload;
-      const jobs: Promise<void>[] = [];
-      let accepted = 0;
-      for (const file of files) {
-        const v = validateFile(file, up && !readOnly ? up : null, { countInBatch: accepted });
-        if (!v.ok) {
-          rejectFile(file, v.reason);
-          continue;
-        }
-        accepted++;
-        jobs.push(runUpload(file, v.kind));
-      }
-      return Promise.all(jobs).then(() => undefined);
+      const cached = chunks.uploads.get();
+      if (cached) return withUploads(cached).uploadFiles(files);
+      return chunks.uploads.load().then(
+        (m) => withUploads(m).uploadFiles(files),
+        () => {
+          toast(fmt(labels.uploadFailed, { name: files[0]?.name ?? "" }), "error");
+        },
+      );
     },
     on: (type, fn) => events.on(type, fn),
     destroy,
@@ -1271,6 +1378,8 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     for (const t of timers) clearTimeout(t);
     timers.clear();
     previewCo.cancel();
+    rich?.destroy();
+    rich = null;
     detachLayout();
     layoutUpdates.clear();
     ro?.disconnect();
@@ -1321,6 +1430,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   else ensureMd();
   if (mode === "split") renderPreview();
   updateStatus();
+  loadRich();
 
   const pluginCleanups: (() => void)[] = [];
   for (const pl of plugins) {

@@ -8,81 +8,150 @@
  * --atm-tok-attr-name  --atm-tok-attr-value  --atm-tok-regex  --atm-tok-variable
  * --atm-tok-meta
  *
- * The defaults below are the fallback inside var(), so a variable you define
- * always wins, in light and in dark. Dark applies under [data-atm-theme="dark"]
- * (on the editor or any ancestor) and, when nothing says "light", to a dark OS.
+ * THIS FILE is the single source of the syntax colours of every built-in theme (light, dark,
+ * sepia, slate, contrast). A theme only sets the private layer `--atm-th-*`; a token reads
+ * `--atm-tok-*` first, then the theme layer, so a variable you define always wins, in every
+ * theme. `themes.css` carries no syntax colours. Dark applies under [data-atm-theme="dark"]
+ * (on the editor or any ancestor) and, when nothing says otherwise, to a dark OS. To add a
+ * theme, add one `[data-atm-theme="name"]` block of 16 values here.
  */
 
-/* light (default) */
-.atm-tok-comment { color: var(--atm-tok-comment, #57606a); font-style: italic; }
-.atm-tok-string { color: var(--atm-tok-string, #0a3069); }
-.atm-tok-number { color: var(--atm-tok-number, #0550ae); }
-.atm-tok-keyword { color: var(--atm-tok-keyword, #cf222e); }
-.atm-tok-literal { color: var(--atm-tok-literal, #0550ae); }
-.atm-tok-function { color: var(--atm-tok-function, #8250df); }
-.atm-tok-type { color: var(--atm-tok-type, #953800); }
-.atm-tok-operator { color: var(--atm-tok-operator, #24292f); }
-.atm-tok-punctuation { color: var(--atm-tok-punctuation, #57606a); }
-.atm-tok-property { color: var(--atm-tok-property, #0550ae); }
-.atm-tok-tag { color: var(--atm-tok-tag, #116329); }
-.atm-tok-attr-name { color: var(--atm-tok-attr-name, #953800); }
-.atm-tok-attr-value { color: var(--atm-tok-attr-value, #0a3069); }
-.atm-tok-regex { color: var(--atm-tok-regex, #116329); }
-.atm-tok-variable { color: var(--atm-tok-variable, #953800); }
-.atm-tok-meta { color: var(--atm-tok-meta, #57606a); }
-
-/* explicit light, even inside a dark page */
-[data-atm-theme="light"] .atm-tok-comment { color: var(--atm-tok-comment, #57606a); }
-[data-atm-theme="light"] .atm-tok-string { color: var(--atm-tok-string, #0a3069); }
-[data-atm-theme="light"] .atm-tok-number { color: var(--atm-tok-number, #0550ae); }
-[data-atm-theme="light"] .atm-tok-keyword { color: var(--atm-tok-keyword, #cf222e); }
-[data-atm-theme="light"] .atm-tok-literal { color: var(--atm-tok-literal, #0550ae); }
-[data-atm-theme="light"] .atm-tok-function { color: var(--atm-tok-function, #8250df); }
-[data-atm-theme="light"] .atm-tok-type { color: var(--atm-tok-type, #953800); }
-[data-atm-theme="light"] .atm-tok-operator { color: var(--atm-tok-operator, #24292f); }
-[data-atm-theme="light"] .atm-tok-punctuation { color: var(--atm-tok-punctuation, #57606a); }
-[data-atm-theme="light"] .atm-tok-property { color: var(--atm-tok-property, #0550ae); }
-[data-atm-theme="light"] .atm-tok-tag { color: var(--atm-tok-tag, #116329); }
-[data-atm-theme="light"] .atm-tok-attr-name { color: var(--atm-tok-attr-name, #953800); }
-[data-atm-theme="light"] .atm-tok-attr-value { color: var(--atm-tok-attr-value, #0a3069); }
-[data-atm-theme="light"] .atm-tok-regex { color: var(--atm-tok-regex, #116329); }
-[data-atm-theme="light"] .atm-tok-variable { color: var(--atm-tok-variable, #953800); }
-[data-atm-theme="light"] .atm-tok-meta { color: var(--atm-tok-meta, #57606a); }
+/* light (default) and explicit light, even inside a dark page */
+:root,
+[data-atm-theme="light"] {
+  --atm-th-comment: #57606a;
+  --atm-th-string: #0a3069;
+  --atm-th-number: #0550ae;
+  --atm-th-keyword: #cf222e;
+  --atm-th-literal: #0550ae;
+  --atm-th-function: #8250df;
+  --atm-th-type: #953800;
+  --atm-th-operator: #24292f;
+  --atm-th-punctuation: #57606a;
+  --atm-th-property: #0550ae;
+  --atm-th-tag: #116329;
+  --atm-th-attr-name: #953800;
+  --atm-th-attr-value: #0a3069;
+  --atm-th-regex: #116329;
+  --atm-th-variable: #953800;
+  --atm-th-meta: #57606a;
+}
 
 /* dark: explicit */
-[data-atm-theme="dark"] .atm-tok-comment { color: var(--atm-tok-comment, #8b949e); }
-[data-atm-theme="dark"] .atm-tok-string { color: var(--atm-tok-string, #a5d6ff); }
-[data-atm-theme="dark"] .atm-tok-number { color: var(--atm-tok-number, #79c0ff); }
-[data-atm-theme="dark"] .atm-tok-keyword { color: var(--atm-tok-keyword, #ff7b72); }
-[data-atm-theme="dark"] .atm-tok-literal { color: var(--atm-tok-literal, #79c0ff); }
-[data-atm-theme="dark"] .atm-tok-function { color: var(--atm-tok-function, #d2a8ff); }
-[data-atm-theme="dark"] .atm-tok-type { color: var(--atm-tok-type, #ffa657); }
-[data-atm-theme="dark"] .atm-tok-operator { color: var(--atm-tok-operator, #c9d1d9); }
-[data-atm-theme="dark"] .atm-tok-punctuation { color: var(--atm-tok-punctuation, #8b949e); }
-[data-atm-theme="dark"] .atm-tok-property { color: var(--atm-tok-property, #79c0ff); }
-[data-atm-theme="dark"] .atm-tok-tag { color: var(--atm-tok-tag, #7ee787); }
-[data-atm-theme="dark"] .atm-tok-attr-name { color: var(--atm-tok-attr-name, #79c0ff); }
-[data-atm-theme="dark"] .atm-tok-attr-value { color: var(--atm-tok-attr-value, #a5d6ff); }
-[data-atm-theme="dark"] .atm-tok-regex { color: var(--atm-tok-regex, #7ee787); }
-[data-atm-theme="dark"] .atm-tok-variable { color: var(--atm-tok-variable, #ffa657); }
-[data-atm-theme="dark"] .atm-tok-meta { color: var(--atm-tok-meta, #8b949e); }
-
-/* dark: follow the OS unless the theme says light */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-atm-theme="light"]) .atm-tok-comment:not([data-atm-theme="light"] *) { color: var(--atm-tok-comment, #8b949e); }
-  :root:not([data-atm-theme="light"]) .atm-tok-string:not([data-atm-theme="light"] *) { color: var(--atm-tok-string, #a5d6ff); }
-  :root:not([data-atm-theme="light"]) .atm-tok-number:not([data-atm-theme="light"] *) { color: var(--atm-tok-number, #79c0ff); }
-  :root:not([data-atm-theme="light"]) .atm-tok-keyword:not([data-atm-theme="light"] *) { color: var(--atm-tok-keyword, #ff7b72); }
-  :root:not([data-atm-theme="light"]) .atm-tok-literal:not([data-atm-theme="light"] *) { color: var(--atm-tok-literal, #79c0ff); }
-  :root:not([data-atm-theme="light"]) .atm-tok-function:not([data-atm-theme="light"] *) { color: var(--atm-tok-function, #d2a8ff); }
-  :root:not([data-atm-theme="light"]) .atm-tok-type:not([data-atm-theme="light"] *) { color: var(--atm-tok-type, #ffa657); }
-  :root:not([data-atm-theme="light"]) .atm-tok-operator:not([data-atm-theme="light"] *) { color: var(--atm-tok-operator, #c9d1d9); }
-  :root:not([data-atm-theme="light"]) .atm-tok-punctuation:not([data-atm-theme="light"] *) { color: var(--atm-tok-punctuation, #8b949e); }
-  :root:not([data-atm-theme="light"]) .atm-tok-property:not([data-atm-theme="light"] *) { color: var(--atm-tok-property, #79c0ff); }
-  :root:not([data-atm-theme="light"]) .atm-tok-tag:not([data-atm-theme="light"] *) { color: var(--atm-tok-tag, #7ee787); }
-  :root:not([data-atm-theme="light"]) .atm-tok-attr-name:not([data-atm-theme="light"] *) { color: var(--atm-tok-attr-name, #79c0ff); }
-  :root:not([data-atm-theme="light"]) .atm-tok-attr-value:not([data-atm-theme="light"] *) { color: var(--atm-tok-attr-value, #a5d6ff); }
-  :root:not([data-atm-theme="light"]) .atm-tok-regex:not([data-atm-theme="light"] *) { color: var(--atm-tok-regex, #7ee787); }
-  :root:not([data-atm-theme="light"]) .atm-tok-variable:not([data-atm-theme="light"] *) { color: var(--atm-tok-variable, #ffa657); }
-  :root:not([data-atm-theme="light"]) .atm-tok-meta:not([data-atm-theme="light"] *) { color: var(--atm-tok-meta, #8b949e); }
+[data-atm-theme="dark"] {
+  --atm-th-comment: #8b949e;
+  --atm-th-string: #a5d6ff;
+  --atm-th-number: #79c0ff;
+  --atm-th-keyword: #ff7b72;
+  --atm-th-literal: #79c0ff;
+  --atm-th-function: #d2a8ff;
+  --atm-th-type: #ffa657;
+  --atm-th-operator: #c9d1d9;
+  --atm-th-punctuation: #8b949e;
+  --atm-th-property: #79c0ff;
+  --atm-th-tag: #7ee787;
+  --atm-th-attr-name: #79c0ff;
+  --atm-th-attr-value: #a5d6ff;
+  --atm-th-regex: #7ee787;
+  --atm-th-variable: #ffa657;
+  --atm-th-meta: #8b949e;
 }
+
+/* sepia */
+[data-atm-theme="sepia"] {
+  --atm-th-comment: #6b5a45;
+  --atm-th-string: #7a3b00;
+  --atm-th-number: #14532d;
+  --atm-th-keyword: #a1252b;
+  --atm-th-literal: #1e40af;
+  --atm-th-function: #5b21b6;
+  --atm-th-type: #78350f;
+  --atm-th-operator: #433422;
+  --atm-th-punctuation: #655339;
+  --atm-th-property: #1e40af;
+  --atm-th-tag: #14532d;
+  --atm-th-attr-name: #78350f;
+  --atm-th-attr-value: #7a3b00;
+  --atm-th-regex: #14532d;
+  --atm-th-variable: #78350f;
+  --atm-th-meta: #655339;
+}
+
+/* slate */
+[data-atm-theme="slate"] {
+  --atm-th-comment: #a8b3c4;
+  --atm-th-string: #a5d6ff;
+  --atm-th-number: #79c0ff;
+  --atm-th-keyword: #ff9b94;
+  --atm-th-literal: #79c0ff;
+  --atm-th-function: #d2a8ff;
+  --atm-th-type: #ffb86b;
+  --atm-th-operator: #e2e8f0;
+  --atm-th-punctuation: #a8b3c4;
+  --atm-th-property: #79c0ff;
+  --atm-th-tag: #7ee787;
+  --atm-th-attr-name: #79c0ff;
+  --atm-th-attr-value: #a5d6ff;
+  --atm-th-regex: #7ee787;
+  --atm-th-variable: #ffb86b;
+  --atm-th-meta: #a8b3c4;
+}
+
+/* contrast */
+[data-atm-theme="contrast"] {
+  --atm-th-comment: #d0d0d0;
+  --atm-th-string: #a5f3fc;
+  --atm-th-number: #7dd3fc;
+  --atm-th-keyword: #ff9e9e;
+  --atm-th-literal: #7dd3fc;
+  --atm-th-function: #e9c8ff;
+  --atm-th-type: #ffd08a;
+  --atm-th-operator: #ffffff;
+  --atm-th-punctuation: #e0e0e0;
+  --atm-th-property: #7dd3fc;
+  --atm-th-tag: #9dffa0;
+  --atm-th-attr-name: #7dd3fc;
+  --atm-th-attr-value: #a5f3fc;
+  --atm-th-regex: #9dffa0;
+  --atm-th-variable: #ffd08a;
+  --atm-th-meta: #e0e0e0;
+}
+
+/* dark OS, when no theme is set on the root */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-atm-theme]) {
+    --atm-th-comment: #8b949e;
+    --atm-th-string: #a5d6ff;
+    --atm-th-number: #79c0ff;
+    --atm-th-keyword: #ff7b72;
+    --atm-th-literal: #79c0ff;
+    --atm-th-function: #d2a8ff;
+    --atm-th-type: #ffa657;
+    --atm-th-operator: #c9d1d9;
+    --atm-th-punctuation: #8b949e;
+    --atm-th-property: #79c0ff;
+    --atm-th-tag: #7ee787;
+    --atm-th-attr-name: #79c0ff;
+    --atm-th-attr-value: #a5d6ff;
+    --atm-th-regex: #7ee787;
+    --atm-th-variable: #ffa657;
+    --atm-th-meta: #8b949e;
+  }
+}
+
+.atm-tok-comment { color: var(--atm-tok-comment, var(--atm-th-comment)); font-style: italic; }
+.atm-tok-string { color: var(--atm-tok-string, var(--atm-th-string)); }
+.atm-tok-number { color: var(--atm-tok-number, var(--atm-th-number)); }
+.atm-tok-keyword { color: var(--atm-tok-keyword, var(--atm-th-keyword)); }
+.atm-tok-literal { color: var(--atm-tok-literal, var(--atm-th-literal)); }
+.atm-tok-function { color: var(--atm-tok-function, var(--atm-th-function)); }
+.atm-tok-type { color: var(--atm-tok-type, var(--atm-th-type)); }
+.atm-tok-operator { color: var(--atm-tok-operator, var(--atm-th-operator)); }
+.atm-tok-punctuation { color: var(--atm-tok-punctuation, var(--atm-th-punctuation)); }
+.atm-tok-property { color: var(--atm-tok-property, var(--atm-th-property)); }
+.atm-tok-tag { color: var(--atm-tok-tag, var(--atm-th-tag)); }
+.atm-tok-attr-name { color: var(--atm-tok-attr-name, var(--atm-th-attr-name)); }
+.atm-tok-attr-value { color: var(--atm-tok-attr-value, var(--atm-th-attr-value)); }
+.atm-tok-regex { color: var(--atm-tok-regex, var(--atm-th-regex)); }
+.atm-tok-variable { color: var(--atm-tok-variable, var(--atm-th-variable)); }
+.atm-tok-meta { color: var(--atm-tok-meta, var(--atm-th-meta)); }

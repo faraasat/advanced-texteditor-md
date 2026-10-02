@@ -9,14 +9,10 @@ import { fmt } from "./i18n";
 import { cx, h, placeNear, uid } from "./dom";
 import { ICONS } from "./toolbar";
 
-export type SlashMatch = { query: string; start: number };
+import { detectSlash, type SlashMatch } from "./slash-detect";
 
-/** Is the text before the caret an open slash command? `/` must start the text or follow whitespace. */
-export function detectSlash(textBeforeCaret: string): SlashMatch | null {
-  const m = /(^|\s)\/([^\s/]{0,30})$/.exec(textBeforeCaret);
-  if (!m) return null;
-  return { query: m[2], start: m.index + m[1].length };
-}
+export { detectSlash };
+export type { SlashMatch };
 
 /** Rank items by how well they match `query`. Empty query keeps the order. */
 export function filterSlashItems(items: SlashItem[], query: string): SlashItem[] {

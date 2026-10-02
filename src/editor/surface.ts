@@ -127,6 +127,21 @@ export function createSurface(options: SurfaceOptions): Surface {
     updateEmpty();
   }
 
+  /**
+   * The parser drops trailing spaces of a paragraph, but the stored value keeps them (setValue is
+   * verbatim). Show the spaces that end the document so the caret can sit after them: typing `@`
+   * right after `cc ` must still see the whitespace the mention trigger needs.
+   */
+  function restoreTrailingSpace(md: string): void {
+    const m = /([ \t]+)\n*$/.exec(md);
+    const last = root.lastElementChild;
+    if (!m || !last || !/^(P|H[1-6])$/.test(last.tagName)) return;
+    let tail: ChildNode | null = last.lastChild;
+    while (tail && tail.nodeType === 1 && (tail as Element).tagName === "BR") tail = tail.previousSibling;
+    if (tail && tail.nodeType === 3) (tail as Text).data += m[1];
+    else last.appendChild(root.ownerDocument.createTextNode(m[1]));
+  }
+
   function updateEmpty(): void {
     const empty =
       lastMd.trim() === "" &&
@@ -734,7 +749,12 @@ export function createSurface(options: SurfaceOptions): Surface {
   }
 
   function onKeyDown(ev: KeyboardEvent): void {
-    if (options.beforeKeyDown?.(ev)) return;
+    // Contract (pane-types.ts): a consumed key is cancelled HERE, so no caller has to remember to.
+    if (options.beforeKeyDown?.(ev)) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      return;
+    }
     if (ev.defaultPrevented) return;
     if (ev.isComposing || ev.keyCode === 229) return;
     if (mathEdit) {
@@ -1062,12 +1082,23 @@ export function createSurface(options: SurfaceOptions): Surface {
       dirty = false;
       clearPending();
       renderAll(lastMd);
+      restoreTrailingSpace(lastMd);
       history.reset({ markdown: lastMd }, null);
       selBefore = null;
     },
     getValue() {
       flush();
       return lastMd;
+    },
+    rerender() {
+      // Something the rendering depends on arrived late (the math renderer): draw the same
+      // markdown again, keeping the caret. Never while a formula is being edited or composed.
+      if (destroyed || mathEdit || composing) return;
+      flush();
+      const s = saveSelection(root);
+      renderAll(lastMd);
+      restoreTrailingSpace(lastMd);
+      if (s) restoreSelection(root, s);
     },
     getDoc() {
       flush();

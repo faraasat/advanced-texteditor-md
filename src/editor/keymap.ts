@@ -8,6 +8,10 @@
  * Server-safe: `isApple()` reads `navigator` only when called.
  */
 
+import { isApple } from "./platform";
+
+export { isApple };
+
 export const DEFAULT_KEYMAP: Readonly<Record<string, string>> = {
   "Mod-b": "bold",
   "Mod-i": "italic",
@@ -36,14 +40,6 @@ export const DEFAULT_KEYMAP: Readonly<Record<string, string>> = {
 
 const ORDER = ["Alt", "Ctrl", "Meta", "Shift"] as const;
 type Mod = (typeof ORDER)[number];
-
-export function isApple(nav: { platform?: string; userAgent?: string; userAgentData?: { platform?: string } } | undefined =
-  typeof navigator === "undefined" ? undefined : (navigator as never)): boolean {
-  if (!nav) return false;
-  // navigator.platform first: it reflects the OS even when the user agent string is overridden.
-  const p = nav.platform || nav.userAgentData?.platform || nav.userAgent || "";
-  return /Mac|iPhone|iPad|iPod/i.test(p);
-}
 
 const ALIAS: Record<string, string> = {
   esc: "escape",

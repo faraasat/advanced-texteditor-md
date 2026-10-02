@@ -20,4 +20,7 @@ const markdown: LanguageDef = {
     { token: "", regex: /[\w']+/ },
   ],
 };
+// Named as well as default, so `require()` returns { default, markdown } like any other module (a lone
+// default export is flattened by CommonJS interop, which no longer matches the d.cts).
+export { markdown };
 export default markdown;

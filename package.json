@@ -3,24 +3,38 @@
   "version": "0.1.0",
   "description": "A dependency-free WYSIWYG editor that stores Markdown. Mentions, chips, images and uploads, tables, task lists, LaTeX, code highlighting, custom syntax and plugins. Tailwind-friendly and themeable.",
   "keywords": [
+    "accessible",
+    "code highlighting",
+    "contenteditable",
+    "custom syntax",
     "editor",
-    "wysiwyg",
-    "markdown",
-    "markdown editor",
-    "rich text",
-    "text editor",
+    "embeds",
     "gfm",
     "github flavored markdown",
-    "mentions",
     "latex",
+    "lazy loading",
+    "link preview",
+    "markdown",
+    "markdown editor",
+    "markdown-wysiwyg",
     "mathml",
+    "mention",
+    "mentions",
+    "plugin",
+    "rich text",
+    "ssr",
     "tailwind",
+    "text editor",
+    "themeable",
     "typescript",
-    "zero dependencies",
-    "plugin"
+    "wysiwyg",
+    "wysiwyg-markdown",
+    "zero dependencies"
   ],
   "homepage": "https://github.com/faraasat/advanced-texteditor-md",
-  "bugs": { "url": "https://github.com/faraasat/advanced-texteditor-md/issues" },
+  "bugs": {
+    "url": "https://github.com/faraasat/advanced-texteditor-md/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/faraasat/advanced-texteditor-md.git"
@@ -33,40 +47,145 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./parser": {
-      "import": { "types": "./dist/parser.d.ts", "default": "./dist/parser.js" },
-      "require": { "types": "./dist/parser.d.cts", "default": "./dist/parser.cjs" }
+      "import": {
+        "types": "./dist/parser.d.ts",
+        "default": "./dist/parser.js"
+      },
+      "require": {
+        "types": "./dist/parser.d.cts",
+        "default": "./dist/parser.cjs"
+      }
     },
     "./render": {
-      "import": { "types": "./dist/render.d.ts", "default": "./dist/render.js" },
-      "require": { "types": "./dist/render.d.cts", "default": "./dist/render.cjs" }
+      "import": {
+        "types": "./dist/render.d.ts",
+        "default": "./dist/render.js"
+      },
+      "require": {
+        "types": "./dist/render.d.cts",
+        "default": "./dist/render.cjs"
+      }
     },
     "./math": {
-      "import": { "types": "./dist/math.d.ts", "default": "./dist/math.js" },
-      "require": { "types": "./dist/math.d.cts", "default": "./dist/math.cjs" }
+      "import": {
+        "types": "./dist/math.d.ts",
+        "default": "./dist/math.js"
+      },
+      "require": {
+        "types": "./dist/math.d.cts",
+        "default": "./dist/math.cjs"
+      }
     },
     "./highlight": {
-      "import": { "types": "./dist/highlight.d.ts", "default": "./dist/highlight.js" },
-      "require": { "types": "./dist/highlight.d.cts", "default": "./dist/highlight.cjs" }
-    },
-    "./highlight/*": {
-      "import": { "types": "./dist/highlight/*.d.ts", "default": "./dist/highlight/*.js" },
-      "require": { "types": "./dist/highlight/*.d.cts", "default": "./dist/highlight/*.cjs" }
+      "import": {
+        "types": "./dist/highlight.d.ts",
+        "default": "./dist/highlight.js"
+      },
+      "require": {
+        "types": "./dist/highlight.d.cts",
+        "default": "./dist/highlight.cjs"
+      }
     },
     "./uploaders": {
-      "import": { "types": "./dist/uploaders.d.ts", "default": "./dist/uploaders.js" },
-      "require": { "types": "./dist/uploaders.d.cts", "default": "./dist/uploaders.cjs" }
+      "import": {
+        "types": "./dist/uploaders.d.ts",
+        "default": "./dist/uploaders.js"
+      },
+      "require": {
+        "types": "./dist/uploaders.d.cts",
+        "default": "./dist/uploaders.cjs"
+      }
+    },
+    "./plugins": {
+      "import": {
+        "types": "./dist/plugins.d.ts",
+        "default": "./dist/plugins.js"
+      },
+      "require": {
+        "types": "./dist/plugins.d.cts",
+        "default": "./dist/plugins.cjs"
+      }
+    },
+    "./mentions": {
+      "import": {
+        "types": "./dist/mentions.d.ts",
+        "default": "./dist/mentions.js"
+      },
+      "require": {
+        "types": "./dist/mentions.d.cts",
+        "default": "./dist/mentions.cjs"
+      }
+    },
+    "./paste": {
+      "import": {
+        "types": "./dist/paste.d.ts",
+        "default": "./dist/paste.js"
+      },
+      "require": {
+        "types": "./dist/paste.d.cts",
+        "default": "./dist/paste.cjs"
+      }
+    },
+    "./link-preview": {
+      "import": {
+        "types": "./dist/link-preview.d.ts",
+        "default": "./dist/link-preview.js"
+      },
+      "require": {
+        "types": "./dist/link-preview.d.cts",
+        "default": "./dist/link-preview.cjs"
+      }
+    },
+    "./embeds": {
+      "import": {
+        "types": "./dist/embeds.d.ts",
+        "default": "./dist/embeds.js"
+      },
+      "require": {
+        "types": "./dist/embeds.d.cts",
+        "default": "./dist/embeds.cjs"
+      }
+    },
+    "./highlight/*": {
+      "import": {
+        "types": "./dist/highlight/*.d.ts",
+        "default": "./dist/highlight/*.js"
+      },
+      "require": {
+        "types": "./dist/highlight/*.d.cts",
+        "default": "./dist/highlight/*.cjs"
+      }
     },
     "./style.css": "./dist/style.css",
+    "./style.min.css": "./dist/style.min.css",
     "./tailwind.css": "./dist/tailwind.css",
     "./package.json": "./package.json"
   },
-  "sideEffects": ["**/*.css"],
-  "files": ["dist", "README.md", "LICENSE", "CHANGELOG.md"],
-  "engines": { "node": ">=18" },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "docs/CUSTOM_SYNTAX.md",
+    "docs/PLUGINS.md",
+    "docs/THEMING.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsup && node scripts/copy-css.mjs",
     "typecheck": "tsc --noEmit",
@@ -75,7 +194,8 @@
     "size": "node scripts/size.mjs",
     "test:e2e": "playwright test",
     "release": "standard-version",
-    "prepublishOnly": "npm run typecheck && vitest run && npm run build && npm run size"
+    "prepublishOnly": "npm run typecheck && vitest run && npm run build && npm run size && npm run check:package",
+    "check:package": "node scripts/check-package.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -88,5 +208,45 @@
     "typescript": "^5.9.3",
     "vitest": "^5.0.3"
   },
-  "publishConfig": { "access": "public", "provenance": true }
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "typesVersions": {
+    "*": {
+      "parser": [
+        "./dist/parser.d.ts"
+      ],
+      "render": [
+        "./dist/render.d.ts"
+      ],
+      "math": [
+        "./dist/math.d.ts"
+      ],
+      "highlight": [
+        "./dist/highlight.d.ts"
+      ],
+      "highlight/*": [
+        "./dist/highlight/*.d.ts"
+      ],
+      "uploaders": [
+        "./dist/uploaders.d.ts"
+      ],
+      "plugins": [
+        "./dist/plugins.d.ts"
+      ],
+      "mentions": [
+        "./dist/mentions.d.ts"
+      ],
+      "paste": [
+        "./dist/paste.d.ts"
+      ],
+      "link-preview": [
+        "./dist/link-preview.d.ts"
+      ],
+      "embeds": [
+        "./dist/embeds.d.ts"
+      ]
+    }
+  }
 }

@@ -59,13 +59,19 @@ src/
     commands.ts       built-in commands
     history.ts        undo/redo
     keymap.ts toolbar.ts layouts.ts markdown-pane.ts status-bar.ts slash.ts
+    lazy-chunks.ts markdown-proxy.ts lazy-math.ts uploads.ts rich-links.ts platform.ts
   plugins/            definePlugin + built-in example plugins (highlight mark, callout)
   styles/             style.css, themes, tailwind.css
   index.ts            public re-exports
 ```
 
 Subpath bundles (tree-shaking): `.` (editor) · `./parser` · `./render` · `./math` ·
-`./highlight` + `./highlight/<lang>` · `./uploaders` · `./style.css` · `./tailwind.css`.
+`./highlight` + `./highlight/<lang>` · `./uploaders` · `./plugins` · `./mentions` · `./paste` ·
+`./link-preview` · `./embeds` · `./style.css` · `./style.min.css` · `./tailwind.css`.
+
+Lazy chunks (`src/editor/lazy-chunks.ts`, loaded with `import()` on first use): popovers, slash, mentions,
+uploads, markdown-pane, math, paste, rich-links. `preloadChunks()` loads them all. The editor entry loads none of
+them statically (`scripts/size.mjs` checks it). See DECISIONS.md, "Size budget and lazy chunks".
 `./parser`, `./render`, `./math` and `./highlight` import NO DOM globals at module
 load and are server-safe. The editor reads `document` only when `createEditor` runs.
 
@@ -82,7 +88,7 @@ load and are server-safe. The editor reads `document` only when `createEditor` r
 5. Accessibility is part of "done": roles, names, keyboard operation, focus
    handling, `prefers-reduced-motion`.
 6. Size budgets (gzip, measured by `npm run size`): parse+render ≤ 14 kB,
-   math ≤ 5 kB, editor entry (everything but highlight langs) ≤ 55 kB, each
+   math ≤ 5 kB, editor entry ≤ 62 kB (target 48), each lazy chunk ≤ 15 kB, each
    highlight language ≤ 2 kB.
 7. Document decisions in `docs/DECISIONS.md` (append; date them).
 8. Only edit files in your own module directory unless this file says otherwise.

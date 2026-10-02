@@ -85,6 +85,24 @@ describe("custom inline syntax", () => {
     expect(n[1]).toMatchObject({ type: "custom", name: "kbd", children: [{ type: "text", value: "Ctrl+C" }] });
     expect(rt("press [[Ctrl+C]] now", oo)).toBe("press [[Ctrl+C]] now");
   });
+  it("stringify calls InlineSyntax.serialize for a pattern-only syntax", () => {
+    const oo: ParseOptions = { syntax: { inline: [{ name: "kbd", pattern: /\[\[(.+?)\]\]/y, tag: "kbd", serialize: (i) => `[[${i}]]` }] } };
+    const doc = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ type: "custom" as const, name: "kbd", children: [{ type: "text" as const, value: "Ctrl" }] }] }] };
+    expect(stringify(doc, oo)).toBe("[[Ctrl]]");
+    // an edit to the children wins over the stale `_raw`
+    const d2 = parse("press [[Ctrl]] now", oo);
+    ((d2.children[0] as any).children[1] as any).children = [{ type: "text", value: "Alt" }];
+    expect(stringify(d2, oo)).toBe("press [[Alt]] now");
+    // data (without _-keys) reaches serialize
+    const seen: unknown[] = [];
+    const o3: ParseOptions = { syntax: { inline: [{ name: "t", pattern: /\{(.+?)@(?<k>\w+)\}/y, serialize: (i, d) => (seen.push(d), `{${i}@${d?.k}}`) }] } };
+    expect(rt("{b@a}", o3)).toBe("{b@a}");
+    expect(seen.every((d) => d && !("_raw" in (d as object)))).toBe(true);
+  });
+  it("a throwing serialize falls back to the matched source", () => {
+    const oo: ParseOptions = { syntax: { inline: [{ name: "kbd", pattern: /\[\[(.+?)\]\]/y, serialize: () => { throw new Error("x"); } }] } };
+    expect(rt("[[A]]", oo)).toBe("[[A]]");
+  });
   it("round-trips and escapes literal markers in text", () => {
     expect(rt("a ==b== c", o)).toBe("a ==b== c");
     const md = stringify({ type: "doc", children: [{ type: "paragraph", children: [{ type: "text", value: "x ==y== z" }] }] }, o);

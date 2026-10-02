@@ -126,19 +126,8 @@ export function coalesce(fn: () => void, win?: Window | null): { run(): void; ca
 
 /* ───────────────────────────── platform ───────────────────────────── */
 
-export type Platform = "mac" | "windows" | "linux" | "other";
-
-export function detectPlatform(nav?: Partial<Navigator> & { userAgentData?: { platform?: string } }): Platform {
-  const n = nav ?? (typeof navigator !== "undefined" ? (navigator as Navigator & { userAgentData?: { platform?: string } }) : undefined);
-  if (!n) return "other";
-  // Same order as keymap.ts `isApple()` (a tooltip must agree with the key): navigator.platform
-  // reflects the OS even when the user agent string is overridden; the rest are fallbacks.
-  const s = (n.platform || n.userAgentData?.platform || n.userAgent || "").toLowerCase();
-  if (/mac|iphone|ipad|ipod/.test(s)) return "mac";
-  if (/win/.test(s)) return "windows";
-  if (/linux|x11|cros|android/.test(s)) return "linux";
-  return "other";
-}
+export { detectPlatform, type Platform } from "./platform";
+import { detectPlatform, type Platform } from "./platform";
 
 /** "Mod-Shift-b" -> "⌘⇧B" on macOS, "Ctrl+Shift+B" elsewhere. */
 export function formatShortcut(shortcut: string, platform: Platform = detectPlatform()): string {

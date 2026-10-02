@@ -90,6 +90,11 @@ export const EXTRA_LABELS = {
   paragraphHint: "Paragraph",
   moreItems: "More formatting options",
   previewRegion: "Preview",
+  embedActions: "Embed actions",
+  embedConvert: "Convert to link",
+  embedOpen: "Open",
+  openOriginal: "Open original",
+  previewLoading: "Loading preview",
   unknownShortcut: "your system's emoji shortcut",
 };
 

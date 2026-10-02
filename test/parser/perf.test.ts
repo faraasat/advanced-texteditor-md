@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parse, stringify } from "../../src/parser";
 import { renderHtml } from "../../src/render";
+import { BACKSTOP_MS, LINEAR_MAX_RATIO, measureScaling } from "../helpers/scaling";
 
 const BLOCK = `# Heading with *emphasis* and \`code\`
 
@@ -38,41 +39,38 @@ function build(bytes: number) {
   return s;
 }
 
-describe("performance", () => {
-  const doc200k = build(200_000);
-  it("parses a 200 kB document in under 400 ms", () => {
+describe("performance (asserted by how the work grows, not by wall-clock)", () => {
+  const sized = (n: number) => build(n);
+  it("parse, stringify and render scale linearly with the document", () => {
     parse(BLOCK); // warm up the JIT
-    const t = performance.now();
-    const d = parse(doc200k);
-    const ms = performance.now() - t;
-    expect(d.children.length).toBeGreaterThan(500);
-    expect(ms).toBeLessThan(400);
-  });
-  it("stringify (stable) and render stay fast on the same document", () => {
-    const d = parse(doc200k);
-    let t = performance.now();
-    stringify(d, { stable: false });
-    expect(performance.now() - t).toBeLessThan(400);
-    t = performance.now();
-    renderHtml(d);
-    expect(performance.now() - t).toBeLessThan(400);
+    for (const [name, work] of [
+      ["parse", (src: string) => () => void parse(src)],
+      ["stringify", (src: string) => { const d = parse(src); return () => void stringify(d, { stable: false }); }],
+      ["render", (src: string) => { const d = parse(src); return () => void renderHtml(d); }],
+    ] as const) {
+      const r = measureScaling((n) => work(sized(n)), 50_000);
+      expect(r.ratio, `${name}: ${r.small.toFixed(1)} ms at 50 kB, ${r.large.toFixed(1)} ms at 200 kB`).toBeLessThan(LINEAR_MAX_RATIO);
+      expect(r.large).toBeLessThan(BACKSTOP_MS);
+    }
+    expect(parse(sized(200_000)).children.length).toBeGreaterThan(500);
   });
   it.each([
-    ["one huge paragraph of emphasis", "a *b* **c** `d` [e](f) ".repeat(8000)],
-    ["unmatched stars", "*a ".repeat(20000)],
-    ["unmatched brackets", "[a ".repeat(20000)],
-    ["unmatched backticks", "`a ".repeat(20000)],
-    ["unmatched dollars", "$5 ".repeat(20000)],
-    ["nested emphasis", "*a ".repeat(2000) + "b" + "* ".repeat(2000)],
-    ["deep blockquote", "> ".repeat(2000) + "x"],
-    ["many list items", "- a\n".repeat(20000)],
-    ["lazy quote lines", "> a\n".repeat(1) + "b\n".repeat(20000)],
-    ["table with many rows", "|a|b|\n|-|-|\n" + "|1|2|\n".repeat(20000)],
-    ["unclosed custom syntax", "== a ".repeat(10000)],
-  ])("pathological input stays near-linear: %s", (_n, src) => {
-    const t = performance.now();
-    parse(src, { syntax: { inline: [{ name: "m", open: "==" }], block: [{ name: "n" }] } });
-    expect(performance.now() - t).toBeLessThan(1500);
+    ["one huge paragraph of emphasis", (n: number) => "a *b* **c** `d` [e](f) ".repeat(n)],
+    ["unmatched stars", (n: number) => "*a ".repeat(n)],
+    ["unmatched brackets", (n: number) => "[a ".repeat(n)],
+    ["unmatched backticks", (n: number) => "`a ".repeat(n)],
+    ["unmatched dollars", (n: number) => "$5 ".repeat(n)],
+    ["nested emphasis", (n: number) => "*a ".repeat(n / 10) + "b" + "* ".repeat(n / 10)],
+    ["deep blockquote", (n: number) => "> ".repeat(n / 10) + "x"],
+    ["many list items", (n: number) => "- a\n".repeat(n)],
+    ["lazy quote lines", (n: number) => "> a\n" + "b\n".repeat(n)],
+    ["table with many rows", (n: number) => "|a|b|\n|-|-|\n" + "|1|2|\n".repeat(n)],
+    ["unclosed custom syntax", (n: number) => "== a ".repeat(n / 2)],
+  ])("pathological input stays near-linear: %s", (_n, make) => {
+    const opts = { syntax: { inline: [{ name: "m", open: "==" }], block: [{ name: "n" }] } };
+    const r = measureScaling((n) => { const src = make(n); return () => void parse(src, opts); }, 2500);
+    expect(r.ratio, `${r.small.toFixed(1)} ms -> ${r.large.toFixed(1)} ms for 4x the input`).toBeLessThan(LINEAR_MAX_RATIO);
+    expect(r.large).toBeLessThan(BACKSTOP_MS);
   });
   it.each([
     ["deep blockquotes", "> ".repeat(5000) + "x"],

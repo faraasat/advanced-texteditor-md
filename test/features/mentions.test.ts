@@ -499,14 +499,15 @@ describe("keyboard", () => {
 });
 
 describe("accessibility", () => {
-  it("wires the combobox pattern onto the editable", async () => {
+  it("sets only ARIA 1.2 attributes a textbox supports (never aria-expanded / aria-haspopup)", async () => {
     mount();
-    expect(root.getAttribute("aria-haspopup")).toBe("listbox");
-    expect(root.getAttribute("aria-expanded")).toBe("false");
+    expect(root.hasAttribute("aria-haspopup")).toBe(false);
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
     type("@");
     await flush();
     const list = document.querySelector('[role="listbox"]') as HTMLElement;
-    expect(root.getAttribute("aria-expanded")).toBe("true");
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("aria-haspopup")).toBe(false);
     expect(root.getAttribute("aria-controls")).toBe(list.id);
     expect(list.id).toBeTruthy();
     const opts = options();
@@ -522,9 +523,21 @@ describe("accessibility", () => {
     type("@");
     await flush();
     ctrl!.handleKeyDown(key("Escape"));
-    expect(root.getAttribute("aria-expanded")).toBe("false");
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
     expect(root.hasAttribute("aria-activedescendant")).toBe(false);
     expect(root.hasAttribute("aria-controls")).toBe(false);
+  });
+  it("host slot classes reach the menu, the rows and the active row", async () => {
+    mount({}, { classes: { menu: "m1 m2", menuItem: "row", menuItemActive: "on" } } as never);
+    type("@");
+    await flush();
+    expect(menu()!.classList.contains("m1") && menu()!.classList.contains("m2")).toBe(true);
+    const opts = options();
+    expect(opts.every((o) => o.classList.contains("row"))).toBe(true);
+    expect(opts[0].classList.contains("on")).toBe(true);
+    ctrl!.handleKeyDown(key("ArrowDown"));
+    expect(opts[0].classList.contains("on")).toBe(false);
+    expect(opts[1].classList.contains("on")).toBe(true);
   });
   it("announces the result count politely", async () => {
     mount();
@@ -557,14 +570,13 @@ describe("accessibility", () => {
     expect((document.querySelector('[role="listbox"]') as HTMLElement).getAttribute("aria-label")).toBeTruthy();
   });
   it("destroy removes the menu and restores the editable's attributes", async () => {
-    root.setAttribute("aria-haspopup", "dialog");
     mount();
     type("@");
     await flush();
     ctrl!.destroy();
     expect(menu()).toBeNull();
     expect(document.querySelector('[role="status"]')).toBeNull();
-    expect(root.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(root.hasAttribute("aria-haspopup")).toBe(false);
     expect(root.hasAttribute("aria-expanded")).toBe(false);
     expect(root.hasAttribute("aria-controls")).toBe(false);
     expect(ctrl!.isOpen()).toBe(false);

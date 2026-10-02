@@ -153,6 +153,19 @@ export type RenderOptions = ParseOptions & {
   classNames?: Partial<Record<string, string>>;
   /** Chip rendering overrides, keyed by scheme or `scheme:kind`. */
   chips?: Record<string, ChipDefinition>;
+  /**
+   * Embed providers. A top-level paragraph holding only a URL that one of them accepts renders as a
+   * sandboxed iframe block instead. Needs no DOM, so `renderHtml` can do it on a server.
+   */
+  embeds?: EmbedProvider[];
+  /**
+   * Set this and every paragraph that holds only a URL carries `data-atm-standalone-link="<url>"`,
+   * the marker `createLinkPreviewController().hydrate(root)` turns into a card in the browser. The
+   * `resolve` function is not used here (rendering never fetches); only `modes` is read.
+   */
+  linkPreview?: LinkPreviewOptions;
+  /** Text labels the output needs. Defaults are English. */
+  labels?: { code?: string; openOriginal?: string };
 };
 
 /* ───────────────────────────── Highlight / math ───────────────────────────── */
@@ -272,6 +285,12 @@ export type EmbedProvider = {
   sandbox?: string;
   allow?: string;
   title?: string;
+  /**
+   * Exact hostnames (or `*.suffix`) the generated iframe `src` may point to. Without it the `src`
+   * may only be on the same site as the pasted URL. Set it whenever the player lives on another
+   * domain (the built-ins all do).
+   */
+  embedHosts?: string[];
 };
 
 /* ───────────────────────────── Assets & uploads ───────────────────────────── */

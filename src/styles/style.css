@@ -738,19 +738,6 @@
   gap: 1rem;
 }
 
-/* The surface stylesheet also declares a chip palette on `.atm-surface`, which would shadow the
-   theme's AA-checked one for every chip. `inherit` hands the theme's value back down. */
-.atm .atm-surface {
-  --atm-chip-1: inherit;
-  --atm-chip-2: inherit;
-  --atm-chip-3: inherit;
-  --atm-chip-4: inherit;
-  --atm-chip-5: inherit;
-  --atm-chip-6: inherit;
-  --atm-chip-7: inherit;
-  --atm-chip-8: inherit;
-}
-
 /* ───────────────────────────── chips (fallback look) ─────────────────────────────
  * :where() has no specificity, so any chip rule in the surface stylesheet or in the
  * host's CSS replaces this one. The palette colour arrives as --atm-chip-color. */

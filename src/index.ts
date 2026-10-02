@@ -9,6 +9,7 @@ export type * from "./types";
 export const VERSION = "0.1.0";
 
 export { createEditor } from "./editor/create-editor";
+export { preloadChunks } from "./editor/lazy-chunks";
 export { DEFAULT_LABELS } from "./editor/i18n";
 export { defineLayout, LAYOUTS } from "./editor/layouts";
 export type { RuntimeLayout, LayoutHost, LayoutBuildContext } from "./editor/layouts";
@@ -18,16 +19,12 @@ export { parse, stringify, walk, docToText } from "./parser";
 export type { StringifyOptions } from "./parser";
 export { renderHtml, renderDom, renderMarkdown, safeUrl } from "./render";
 export { createHighlighter, defineLanguage } from "./highlight";
-export { createMathRenderer, texToMathML } from "./math";
-export type { MathOptions } from "./math";
 
-export { DEFAULT_DENY_EXTENSIONS, safeFileName, validateFile, urlAllowed, normalizeUrl } from "./features/upload-policy";
-export type { FileLike, ValidateResult } from "./features/upload-policy";
-export { createPutUploader, createFormUploader, createPresignedUploader, createDataUrlUploader, probeImage } from "./features/uploaders";
-export type { UploadHandler, PutUploaderOptions, FormUploaderOptions, PresignedUploaderOptions } from "./features/uploaders";
-export { htmlToMarkdown, looksLikeMarkdown } from "./features/paste";
-export type { PasteOptions } from "./features/paste";
-export { createMentionController, mentionHref, parseMentionHref, detectTrigger } from "./features/mentions";
-export type { MentionController, MentionControllerOptions, ChipRef } from "./features/mentions";
+// Everything below lives in a subpath on purpose: importing it from the main entry would put it in
+// the editor's first download. Ready-made plugins: `/plugins`; math: `advanced-texteditor-md/math`; uploads and the upload/URL
+// policy: `/uploaders`; the mention typeahead and `mentionHref`: `/mentions`; the clipboard
+// converter: `/paste`; link previews: `/link-preview`; embeds: `/embeds`; more plugins: `/plugins`.
 
-export * from "./plugins";
+// Plugin authoring helpers (identity functions that type a plugin or a syntax). The ready-made
+// plugins (highlightMark, callout, kbd, subSup, and the rest) are in `advanced-texteditor-md/plugins`.
+export { definePlugin, defineInlineSyntax, defineBlockSyntax } from "./plugins/define";

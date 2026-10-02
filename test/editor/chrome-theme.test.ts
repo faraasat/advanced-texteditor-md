@@ -21,7 +21,7 @@ function blocks(source: string): Record<string, Record<string, string>> {
     const sel = m[1].replace(/\/\*[\s\S]*?\*\//g, "").trim();
     const vars: Record<string, string> = {};
     for (const d of m[2].matchAll(/(--atm-[\w-]+)\s*:\s*([^;]+);/g)) vars[d[1]] = d[2].trim();
-    const key = sel.includes('data-atm-theme="light"') ? "light" : sel.match(/data-atm-theme="(\w+)"/)?.[1] ?? "light";
+    const key = sel.includes(":not([data-atm-theme])") ? "auto-dark" : sel.includes('data-atm-theme="light"') ? "light" : sel.match(/data-atm-theme="(\w+)"/)?.[1] ?? "light";
     out[key] = { ...(out[key] ?? {}), ...vars };
   }
   return out;
@@ -73,19 +73,35 @@ describe("themes.css", () => {
   });
 });
 
-describe("themes.css: tokens for the plugins and for themes highlight.css does not know", () => {
-  const t = blocks(css("themes.css"));
+describe("highlight.css: the single source of every theme's syntax colours", () => {
+  const th = blocks(css("themes.css"));
+  const hl = blocks(css("highlight.css"));
   const TOKENS = ["comment", "string", "number", "keyword", "literal", "function", "type", "operator", "punctuation", "property", "tag", "attr-name", "attr-value", "regex", "variable", "meta"];
-  for (const n of ["sepia", "slate", "contrast"]) {
-    it(`${n}: every syntax token passes AA on the background and on the code background`, () => {
+  for (const n of ["light", "dark", "sepia", "slate", "contrast"]) {
+    it(`${n}: every syntax token is defined and passes AA on the background and on the code background`, () => {
       for (const k of TOKENS) {
-        const c = hex(t[n][`--atm-tok-${k}`] ?? "#000000");
-        expect(t[n][`--atm-tok-${k}`], `${n} ${k} defined`).toBeTruthy();
-        expect(ratio(c, hex(t[n]["--atm-bg"])), `${n} ${k} on bg`).toBeGreaterThanOrEqual(4.5);
-        expect(ratio(c, hex(t[n]["--atm-code-bg"])), `${n} ${k} on code bg`).toBeGreaterThanOrEqual(4.5);
+        const v = hl[n]?.[`--atm-th-${k}`];
+        expect(v, `${n} ${k} defined`).toMatch(/^#[0-9a-f]{6}$/i);
+        const c = hex(v);
+        expect(ratio(c, hex(th[n]["--atm-bg"])), `${n} ${k} on bg`).toBeGreaterThanOrEqual(4.5);
+        expect(ratio(c, hex(th[n]["--atm-code-bg"])), `${n} ${k} on code bg`).toBeGreaterThanOrEqual(4.5);
       }
     });
   }
+  it("themes.css carries no syntax colours (no duplicate of highlight.css)", () => {
+    expect(css("themes.css")).not.toMatch(/--atm-(tok|th)-[\w-]+\s*:/);
+  });
+  it("a dark OS without a theme gets the dark layer, identical to the dark theme's", () => {
+    for (const k of TOKENS) expect(hl["auto-dark"][`--atm-th-${k}`]).toBe(hl.dark[`--atm-th-${k}`]);
+  });
+  it("a token reads the public override first, then the theme layer", () => {
+    const h = css("highlight.css");
+    for (const k of TOKENS) expect(h).toContain(`.atm-tok-${k} { color: var(--atm-tok-${k}, var(--atm-th-${k}));`);
+  });
+});
+
+describe("themes.css: tokens for the plugins", () => {
+  const t = blocks(css("themes.css"));
   for (const n of ["light", "dark", "sepia", "slate", "contrast"]) {
     it(`${n}: the mark colours and the callout accents pass`, () => {
       expect(ratio(hex(t[n]["--atm-mark-fg"]), hex(t[n]["--atm-mark-bg"])), "mark").toBeGreaterThanOrEqual(7);
@@ -98,10 +114,6 @@ describe("themes.css: tokens for the plugins and for themes highlight.css does n
       }
     });
   }
-  it("light and dark tokens are left to highlight.css", () => {
-    expect(t.light["--atm-tok-keyword"]).toBeUndefined();
-    expect(t.dark["--atm-tok-keyword"]).toBeUndefined();
-  });
 });
 
 describe("style.css", () => {
@@ -125,8 +137,13 @@ describe("style.css", () => {
   it("never uses a non-existent class from the chrome", () => {
     for (const c of ["atm-toolbar", "atm-btn", "atm-popover", "atm-menu", "atm-statusbar", "atm-mode-switch", "atm-tab", "atm-toast", "atm-table-cell", "atm-mention-menu"]) expect(s).toContain(`.${c}`);
   });
-  it("hands the theme's chip palette back down inside the surface", () => {
-    expect(s).toMatch(/\.atm \.atm-surface \{[^}]*--atm-chip-1: inherit;[^}]*--atm-chip-8: inherit;/);
+  it("themes.css is the single source of the chip palette (no copy in surface.css, no inherit workaround)", () => {
+    expect(css("surface.css")).not.toMatch(/--atm-chip-\d\s*:/);
+    expect(s).not.toMatch(/--atm-chip-\d: inherit/);
+  });
+  it("a bare surface on a dark OS gets the dark palette, identical to the dark theme's", () => {
+    const t2 = blocks(css("themes.css"));
+    for (let i = 1; i <= 8; i++) expect(t2["auto-dark"][`--atm-chip-${i}`]).toBe(t2.dark[`--atm-chip-${i}`]);
   });
   it("uses the surface stylesheet's font variable name", () => {
     expect(s).not.toMatch(/var\(--atm-font,/);

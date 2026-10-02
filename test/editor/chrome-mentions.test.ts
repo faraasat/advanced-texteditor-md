@@ -43,8 +43,7 @@ describe("mentions: wiring", () => {
     await tick(30);
     const opts = document.querySelectorAll('[role="option"]');
     expect(opts.length).toBe(2);
-    // aria-expanded is not allowed on role=textbox (axe: critical), so it is stripped; the
-    // listbox is still wired up with aria-controls / aria-activedescendant by the controller.
+    // a textbox supports neither aria-expanded nor aria-haspopup (axe: critical); never set.
     expect(x.surface.editable.hasAttribute("aria-expanded")).toBe(false);
     expect(x.surface.editable.getAttribute("aria-controls")).toBeTruthy();
     key(x.surface.editable, "Enter");
@@ -105,6 +104,14 @@ describe("mentions: wiring", () => {
     x.ed.destroy();
     expect(document.querySelectorAll('[role="option"]').length).toBe(0);
     expect(ed.hasAttribute("aria-expanded")).toBe(false);
+  });
+  it("the host's menu / menuItem slot classes reach the mention menu", async () => {
+    const x = m({ mentions: { search }, classNames: { menu: "my-menu", menuItem: "my-row", menuItemActive: "my-on" } });
+    typeAt(x, "hi @Jan");
+    await tick(30);
+    expect(document.querySelector(".atm-mention-menu.my-menu")).not.toBeNull();
+    expect(document.querySelectorAll(".atm-mention-option.my-row").length).toBe(2);
+    expect(document.querySelectorAll(".atm-mention-option.my-on").length).toBe(1);
   });
 });
 

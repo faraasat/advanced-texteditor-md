@@ -39,7 +39,8 @@ export function tokensToVars(tokens: ThemeTokens): Record<string, string> {
   return out;
 }
 
-const ALL_VARS = [...Object.values(TOKEN_VARS), ...Array.from({ length: 8 }, (_, i) => `--atm-chip-${i + 1}`)];
+// A function, not a constant built at load: a top-level expression with calls cannot be tree-shaken.
+const allVars = (): string[] => [...Object.values(TOKEN_VARS), ...Array.from({ length: 8 }, (_, i) => `--atm-chip-${i + 1}`)];
 
 /**
  * Apply a theme to the editor root.
@@ -50,7 +51,7 @@ const ALL_VARS = [...Object.values(TOKEN_VARS), ...Array.from({ length: 8 }, (_,
  * Returns a cleanup that removes the matchMedia listener.
  */
 export function applyTheme(root: HTMLElement, theme: ThemeInput, win?: Window | null): () => void {
-  for (const v of ALL_VARS) root.style.removeProperty(v);
+  for (const v of allVars()) root.style.removeProperty(v);
   root.removeAttribute("data-atm-theme");
   root.removeAttribute("data-atm-theme-source");
   const w = win ?? root.ownerDocument.defaultView;

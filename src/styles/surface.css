@@ -378,18 +378,6 @@
   margin: 0 0 0.75em;
 }
 
-/* Chip palette: light defaults */
-:root {
-  --atm-chip-1: #0969da;
-  --atm-chip-2: #1a7f37;
-  --atm-chip-3: #8250df;
-  --atm-chip-4: #bf3989;
-  --atm-chip-5: #bc4c00;
-  --atm-chip-6: #9a6700;
-  --atm-chip-7: #0e7490;
-  --atm-chip-8: #cf222e;
-}
-
 /* Dark */
 [data-atm-theme="dark"] .atm-surface,
 .atm-surface[data-atm-theme="dark"] {
@@ -399,27 +387,9 @@
   --atm-s-border: var(--atm-border, #30363d);
   --atm-s-accent: var(--atm-accent, #4493f8);
   --atm-s-code-bg: var(--atm-code-bg, #161b22);
-  --atm-chip-1: #4493f8;
-  --atm-chip-2: #3fb950;
-  --atm-chip-3: #a371f7;
-  --atm-chip-4: #db61a2;
-  --atm-chip-5: #f0883e;
-  --atm-chip-6: #d29922;
-  --atm-chip-7: #39c5cf;
-  --atm-chip-8: #f85149;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-atm-theme="light"]) {
-    --atm-chip-1: #4493f8;
-    --atm-chip-2: #3fb950;
-    --atm-chip-3: #a371f7;
-    --atm-chip-4: #db61a2;
-    --atm-chip-5: #f0883e;
-    --atm-chip-6: #d29922;
-    --atm-chip-7: #39c5cf;
-    --atm-chip-8: #f85149;
-  }
   :root:not([data-atm-theme="light"]) .atm-surface:not([data-atm-theme="light"]) {
     --atm-s-bg: var(--atm-bg, #0d1117);
     --atm-s-fg: var(--atm-fg, #e6edf3);

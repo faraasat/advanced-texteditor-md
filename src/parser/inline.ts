@@ -368,8 +368,12 @@ export function parseInline(src: string, ctx: Ctx): InlineNode[] {
     const c = src[i];
     switch (c) {
       case "\n": {
-        const hard = / {2,}$/.test(buf);
-        buf = buf.replace(/ +$/, "");
+        // Only the tail matters: a regex anchored with `$` would rescan the whole buffer at every
+        // newline (quadratic in the length of a multi-line paragraph).
+        let e = buf.length;
+        while (e > 0 && buf.charCodeAt(e - 1) === 32) e--;
+        const hard = buf.length - e >= 2;
+        if (e < buf.length) buf = buf.slice(0, e);
         if (hard) add({ type: "break" });
         else buf += "\n";
         i = skipSp(i + 1);

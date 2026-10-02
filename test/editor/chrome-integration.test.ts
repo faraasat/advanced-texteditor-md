@@ -186,3 +186,50 @@ describe("chrome + real surface", () => {
     expect(document.querySelector("[role='listbox'],[role='dialog']")).toBeNull();
   });
 });
+
+describe("setValue is verbatim and mentions still open after trailing whitespace", () => {
+  const search = async () => [{ id: "u1", label: "Jane Doe" }];
+  it("getValue() after setValue(x) equals x, trailing space included", () => {
+    const { ed } = make({ value: "" });
+    for (const v of ["cc ", "hello\n", "a  ", "x\n\n"]) {
+      ed.setValue(v);
+      expect(ed.getValue()).toBe(v);
+    }
+  });
+  it("typing @ after 'cc ' opens the mention menu", async () => {
+    const { ed, editable } = make({ mentions: { search, debounceMs: 0 } });
+    ed.setValue("cc ");
+    editable.focus();
+    // Put the caret at the end of the paragraph's text the way a click would, then insert "@" the
+    // way the browser does (it edits the text node; the surface sees an input event).
+    const p = editable.querySelector("p")!;
+    let tn = p.lastChild as Text;
+    expect(tn.data).toBe("cc "); // the display keeps the space the stored value has
+    tn.data += "@";
+    const r = document.createRange();
+    r.setStart(tn, tn.data.length);
+    r.collapse(true);
+    const sel = document.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(r);
+    editable.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "@" }));
+    await tick(60);
+    expect(document.querySelector(".atm-mention-menu")).not.toBeNull();
+  });
+});
+
+describe("split preview chips", () => {
+  it("clicking a chip in the preview calls ChipDefinition.onClick with the chip", async () => {
+    const calls: unknown[] = [];
+    const { ed } = make({
+      mode: "split",
+      value: "see [@Jane](mention:person/u1?clickup=9) now",
+      chips: [{ scheme: "mention", onClick: (c) => calls.push(c) }],
+    });
+    await tick(60);
+    const chip = ed.element.querySelector<HTMLElement>(".atm-preview .atm-chip, [aria-label] .atm-chip")!;
+    expect(chip).not.toBeNull();
+    chip.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(calls).toEqual([{ type: "chip", scheme: "mention", kind: "person", id: "u1", label: "Jane", trigger: "@", attrs: { clickup: "9" } }]);
+  });
+});

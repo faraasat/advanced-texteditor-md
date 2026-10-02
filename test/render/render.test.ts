@@ -13,7 +13,7 @@ describe("renderHtml classes and structure", () => {
     ["ol start", "3. a", '<ol class="atm-ol atm-tight" start="3"><li class="atm-li">a</li></ol>'],
     ["loose ul", "- a\n\n- b", '<ul class="atm-ul"><li class="atm-li"><p class="atm-p">a</p></li><li class="atm-li"><p class="atm-p">b</p></li></ul>'],
     ["hr", "---", '<hr class="atm-hr">'],
-    ["code", "```js\nx < 1\n```", '<pre class="atm-pre"><code class="atm-code language-js" data-lang="js">x &lt; 1</code></pre>'],
+    ["code", "```js\nx < 1\n```", '<pre class="atm-pre" tabindex="0" role="region" aria-label="Code (js)"><code class="atm-code language-js" data-lang="js">x &lt; 1</code></pre>'],
     ["inline code", "`a<b`", '<p class="atm-p"><code class="atm-code atm-code-inline">a&lt;b</code></p>'],
     ["em/strong/del", "*a* **b** ~~c~~", '<p class="atm-p"><em class="atm-em">a</em> <strong class="atm-strong">b</strong> <del class="atm-del">c</del></p>'],
     ["math inline", "$a<b$", '<p class="atm-p"><span class="atm-math atm-math-inline"><code class="atm-math-src">a&lt;b</code></span></p>'],
@@ -184,5 +184,12 @@ describe("renderDom", () => {
   it("accepts an explicit document", () => {
     const frag = renderDom("x", {}, document);
     expect(frag.firstChild?.nodeName).toBe("P");
+  });
+});
+
+describe("code block accessibility", () => {
+  it("is a focusable, named region (axe scrollable-region-focusable); the name is configurable", () => {
+    expect(renderHtml(parse("```\nx\n```"), { labels: { code: "Snippet" } })).toContain('<pre class="atm-pre" tabindex="0" role="region" aria-label="Snippet">');
+    expect(renderDom(parse("```\nx\n```")).firstElementChild!.getAttribute("tabindex")).toBe("0");
   });
 });

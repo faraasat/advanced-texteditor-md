@@ -7,7 +7,7 @@
  * never reaches this function (paste goes through `htmlToMarkdown`).
  */
 import type { BlockNode, Doc, InlineNode, InlineSyntax } from "../types";
-import { inlineToText, mergeText } from "../parser/util";
+import { mergeText } from "../parser/util";
 import { BLOCK_TAGS, isEl, isText, trailingBr } from "./selection";
 import { IMG_X, LINK_X } from "./surface/render";
 
@@ -117,7 +117,7 @@ function inlineOf(nodes: ArrayLike<Node>, x: X): InlineNode[] {
     if (!isEl(n)) return;
     const t = n.tagName;
     if (DROP.has(t)) return;
-    if (has(n, x, "upload")) return;
+    if (has(n, x, "upload") || n.hasAttribute("data-atm-preview-card")) return;
     if (t === "BR") {
       if (n !== tail) out.push({ type: "break" });
       return;
@@ -145,19 +145,7 @@ function inlineOf(nodes: ArrayLike<Node>, x: X): InlineNode[] {
       }
       const kids = inlineOf(n.childNodes, x);
       const c: InlineNode = { type: "custom", name, children: kids };
-      // A pattern syntax is written back from `_raw`; when it has `serialize`, refresh `_raw`
-      // from the (possibly edited) content so edits are not lost (stringify does not call it).
-      const sy = x.o.syntax?.inline?.find((s) => s.name === name);
-      let d = data;
-      if (sy && !sy.open && sy.serialize) {
-        const { _raw, ...rest } = d ?? {};
-        void _raw;
-        try {
-          d = { ...rest, _raw: sy.serialize(inlineToText(kids), Object.keys(rest).length ? rest : undefined) };
-        } catch {
-          /* keep the original source */
-        }
-      }
+      const d = data;
       if (d) c.data = d;
       return void out.push(c);
     }
@@ -384,6 +372,13 @@ function blockOf(e: HTMLElement, x: X, out: BlockNode[], defs?: Map<string, Bloc
     out.push({ type: "math", tex: texOf(e) });
     return;
   }
+  if (has(e, x, "embed") && e.getAttribute("data-atm-embed-url")) {
+    // An embed block is one paragraph holding the bare URL (the markdown never mentions the player).
+    const url = e.getAttribute("data-atm-embed-url")!;
+    out.push({ type: "paragraph", children: [{ type: "link", href: url, children: [{ type: "text", value: url }] }] });
+    return;
+  }
+  if (e.hasAttribute("data-atm-preview-card")) return;
   if (has(e, x, "custom")) {
     const b: BlockNode = { type: "custom", name: customName(e, x, "block"), children: blocksOf(e, x) };
     const d = customData(e);

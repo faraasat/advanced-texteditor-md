@@ -9,8 +9,7 @@
  * ancestor, or on the editor element; the closest declaration wins.
  *
  * Also per theme: --atm-mark-bg/-fg (the ==mark== plugin), --atm-callout-note|tip|warning
- * (the callout plugin) and, where highlight.css has no rule for the theme (sepia, slate,
- * contrast), the --atm-tok-* syntax colours.
+ * (the callout plugin). The syntax colours (--atm-tok-*) for every theme live in highlight.css.
  *
  * --atm-chip-1 ... --atm-chip-8 are the mention/chip palette. Each colour is
  * used as chip text over a 14% tint of itself and passes WCAG AA (>= 4.5:1)
@@ -109,22 +108,6 @@
   --atm-callout-note: #1e40af;
   --atm-callout-tip: #14532d;
   --atm-callout-warning: #78350f;
-  --atm-tok-comment: #6b5a45;
-  --atm-tok-string: #7a3b00;
-  --atm-tok-number: #14532d;
-  --atm-tok-keyword: #a1252b;
-  --atm-tok-literal: #1e40af;
-  --atm-tok-function: #5b21b6;
-  --atm-tok-type: #78350f;
-  --atm-tok-operator: #433422;
-  --atm-tok-punctuation: #655339;
-  --atm-tok-property: #1e40af;
-  --atm-tok-tag: #14532d;
-  --atm-tok-attr-name: #78350f;
-  --atm-tok-attr-value: #7a3b00;
-  --atm-tok-regex: #14532d;
-  --atm-tok-variable: #78350f;
-  --atm-tok-meta: #655339;
   color-scheme: light;
 }
 
@@ -155,22 +138,6 @@
   --atm-callout-note: #93c5fd;
   --atm-callout-tip: #86efac;
   --atm-callout-warning: #fcd34d;
-  --atm-tok-comment: #a8b3c4;
-  --atm-tok-string: #a5d6ff;
-  --atm-tok-number: #79c0ff;
-  --atm-tok-keyword: #ff9b94;
-  --atm-tok-literal: #79c0ff;
-  --atm-tok-function: #d2a8ff;
-  --atm-tok-type: #ffb86b;
-  --atm-tok-operator: #e2e8f0;
-  --atm-tok-punctuation: #a8b3c4;
-  --atm-tok-property: #79c0ff;
-  --atm-tok-tag: #7ee787;
-  --atm-tok-attr-name: #79c0ff;
-  --atm-tok-attr-value: #a5d6ff;
-  --atm-tok-regex: #7ee787;
-  --atm-tok-variable: #ffb86b;
-  --atm-tok-meta: #a8b3c4;
   color-scheme: dark;
 }
 
@@ -201,21 +168,20 @@
   --atm-callout-note: #66b3ff;
   --atm-callout-tip: #66ff66;
   --atm-callout-warning: #ffd24d;
-  --atm-tok-comment: #d0d0d0;
-  --atm-tok-string: #a5f3fc;
-  --atm-tok-number: #7dd3fc;
-  --atm-tok-keyword: #ff9e9e;
-  --atm-tok-literal: #7dd3fc;
-  --atm-tok-function: #e9c8ff;
-  --atm-tok-type: #ffd08a;
-  --atm-tok-operator: #ffffff;
-  --atm-tok-punctuation: #e0e0e0;
-  --atm-tok-property: #7dd3fc;
-  --atm-tok-tag: #9dffa0;
-  --atm-tok-attr-name: #7dd3fc;
-  --atm-tok-attr-value: #a5f3fc;
-  --atm-tok-regex: #9dffa0;
-  --atm-tok-variable: #ffd08a;
-  --atm-tok-meta: #e0e0e0;
   color-scheme: dark;
+}
+
+/* A bare surface (no chrome, no data-atm-theme anywhere) on a dark OS: the chrome resolves
+   "auto" in JS and sets data-atm-theme, so this only serves `createSurface` used on its own. */
+@media (prefers-color-scheme: dark) {
+  :root:root:not([data-atm-theme]) {
+    --atm-chip-1: #93c5fd;
+    --atm-chip-2: #86efac;
+    --atm-chip-3: #fcd34d;
+    --atm-chip-4: #c4b5fd;
+    --atm-chip-5: #f9a8d4;
+    --atm-chip-6: #5eead4;
+    --atm-chip-7: #fca5a5;
+    --atm-chip-8: #cbd5e1;
+  }
 }

@@ -41,8 +41,11 @@ export class FakeSurface implements Surface {
     this.editable.setAttribute("tabindex", "0");
     this.el.appendChild(this.editable);
     const kd = (e: Event) => {
-      // Like the real surface: it only stops handling; cancelling the browser default is the callback's job.
-      options.beforeKeyDown?.(e as KeyboardEvent);
+      // Like the real surface: a consumed key is cancelled by the pane (pane-types.ts contract).
+      if (options.beforeKeyDown?.(e as KeyboardEvent)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     };
     const inp = () => options.afterInput?.();
     this.editable.addEventListener("keydown", kd);

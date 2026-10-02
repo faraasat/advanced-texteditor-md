@@ -1,6 +1,8 @@
 import type { BlockNode, Doc, InlineNode, RenderOptions } from "../types";
-import { inlineToText, parse } from "../parser/index";
+import { parse } from "../parser/parse";
+import { inlineToText } from "../parser/util";
 import { safeUrl, isExternal } from "./policy";
+import { embedSpec, findStandaloneUrl, matchEmbed, type EmbedMatch } from "./embed";
 
 export { safeUrl } from "./policy";
 
@@ -22,6 +24,17 @@ const escH = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
 const safeColor = (c: string) => /^[#\w\s%.,()\/-]+$/.test(c) && !/url\(|expression|javascript/i.test(c);
 const fnId = (l: string) => l.replace(/[^\w-]/g, (c) => "_" + c.charCodeAt(0).toString(16));
+
+/**
+ * The embed a top-level block renders as, if any. ONE predicate for the renderer and for the
+ * editing surface (which pairs the Doc with the DOM it rendered, in order, and must know which
+ * paragraphs produced no link).
+ */
+export function embedOf(b: BlockNode, o: RenderOptions): EmbedMatch | null {
+  if (b.type !== "paragraph" || !o.embeds?.length) return null;
+  const url = findStandaloneUrl(b);
+  return url && safeUrl(url, o.links, "link") !== null ? matchEmbed(url, o.embeds) : null;
+}
 
 function toVN(doc: Doc, o: RenderOptions): VN[] {
   const p = o.classPrefix ?? "atm";
@@ -172,11 +185,31 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
     return el("code", { class: k("math-src") }, [tex]);
   };
 
-  const blocks = (bs: BlockNode[], tight = false): VN[] => bs.flatMap((b) => block(b, tight));
+  let nest = 0; // 1 = a top-level block
+  const blocks = (bs: BlockNode[], tight = false): VN[] => {
+    nest++;
+    try {
+      return bs.flatMap((b) => block(b, tight));
+    } finally {
+      nest--;
+    }
+  };
+  // A paragraph holding only a URL: an embed block when a provider accepts it (top level only),
+  // else a marker the link-preview controller hydrates (see features/link-preview.ts).
+  const standalone = (b: Extract<BlockNode, { type: "paragraph" }>): VN[] | null => {
+    const url = o.embeds?.length || o.linkPreview ? findStandaloneUrl(b) : null;
+    if (!url || safeUrl(url, pol, "link") === null) return null; // a link the policy refuses is neither a card nor a player
+    const m = nest === 1 ? embedOf(b, o) : null;
+    if (m) {
+      const sp = embedSpec(m, { openOriginal: o.labels?.openOriginal }, p);
+      return [el("div", sp.wrap, [el("iframe", sp.frame), el("a", sp.open, [sp.openText])])];
+    }
+    return o.linkPreview ? [el("p", { class: k("p", "paragraph"), "data-atm-standalone-link": url }, inl(b.children))] : null;
+  };
   const block = (b: BlockNode, tight: boolean): VN[] => {
     switch (b.type) {
       case "paragraph":
-        return tight ? inl(b.children) : [el("p", { class: k("p", "paragraph") }, inl(b.children))];
+        return tight ? inl(b.children) : standalone(b) ?? [el("p", { class: k("p", "paragraph") }, inl(b.children))];
       case "heading":
         return [el("h" + b.level, { class: k("h" + b.level, "heading") }, inl(b.children))];
       case "blockquote":
@@ -213,7 +246,9 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
         }
         const lang = b.lang.replace(/[^\w+#.-]/g, "");
         return [
-          el("pre", { class: k("pre", "codeBlock") }, [
+          // A scrollable region must be keyboard-focusable (axe: scrollable-region-focusable), and a
+          // focusable region needs a name.
+          el("pre", { class: k("pre", "codeBlock"), tabindex: "0", role: "region", "aria-label": (o.labels?.code || "Code") + (lang ? ` (${lang})` : "") }, [
             el("code", { class: k("code") + (lang ? " language-" + lang : ""), "data-lang": lang || undefined }, [body]),
           ]),
         ];

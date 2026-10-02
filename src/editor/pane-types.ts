@@ -56,7 +56,11 @@ export interface SurfaceOptions {
   labels: Required<import("../types").EditorLabels>;
   /**
    * Called for every keydown BEFORE the surface handles it. Return true when
-   * consumed (the mention menu and slash menu use this).
+   * consumed (the mention menu and slash menu use this). A `true` makes the PANE
+   * call `preventDefault()` AND `stopPropagation()` on the event itself: the
+   * callback must not cancel it (and does not need to), and the browser default
+   * (a new paragraph on Enter, a caret move on the arrows) never runs as well.
+   * Both panes (the surface and the Markdown textarea) honour this.
    */
   beforeKeyDown?: (ev: KeyboardEvent) => boolean;
   /** Called after every input event, so menus can update their query. */
@@ -75,6 +79,8 @@ export interface Surface extends Pane {
   /** The contenteditable element (same as `el` or a child of it). */
   readonly editable: HTMLElement;
   getDoc(): Doc;
+  /** Draw the current markdown again, keeping the caret (for rendering dependencies that arrive late). */
+  rerender?(): void;
   /** Replace [range] (a Range inside the surface) with a chip followed by a space. */
   replaceRangeWithChip(range: Range, chip: Omit<ChipNode, "type">): void;
   insertChip(chip: Omit<ChipNode, "type">): void;

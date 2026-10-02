@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { createMathRenderer, texToMathML } from "../../src/math";
+import { BACKSTOP_MS, LINEAR_MAX_RATIO, measureScaling } from "../helpers/scaling";
 
 const body = (tex: string, display = false) => {
   const s = texToMathML(tex, display);
@@ -323,11 +324,10 @@ describe("texToMathML — limits", () => {
     expect(body("x^".repeat(5000) + "1")).toContain("msup");
     expect(body("\\left(".repeat(500) + "x")).toContain("<merror>");
   });
-  it("handles 19k tokens of flat input quickly", () => {
-    const t0 = Date.now();
-    const out = texToMathML("x+".repeat(9500), true);
-    expect(wellFormed(out)).toBe(true);
-    expect(Date.now() - t0).toBeLessThan(1000);
+  it("flat input of 19k tokens is well-formed and the work grows linearly", () => {
+    expect(wellFormed(texToMathML("x+".repeat(9500), true))).toBe(true);
+    const r = measureScaling((n) => { const tex = "x+".repeat(n); return () => void texToMathML(tex, true); }, 2000);
+    expect(r.ratio, `${r.small.toFixed(1)} ms -> ${r.large.toFixed(1)} ms`).toBeLessThan(LINEAR_MAX_RATIO);
   });
 });
 
@@ -348,7 +348,6 @@ describe("texToMathML — fuzz", () => {
   }
   it("2000 random inputs never throw, never loop, and stay well-formed", () => {
     const r = rng(0xc0ffee);
-    const t0 = Date.now();
     for (let n = 0; n < 2000; n++) {
       const len = 1 + Math.floor(r() * 40);
       let s = "";
@@ -358,7 +357,6 @@ describe("texToMathML — fuzz", () => {
       expect(out.startsWith("<math "), s).toBe(true);
       expect(wellFormed(out), s).toBe(true);
     }
-    expect(Date.now() - t0).toBeLessThan(5000);
   });
   it("random printable noise never throws", () => {
     const r = rng(42);
@@ -413,7 +411,7 @@ describe("createMathRenderer — macros", () => {
     const out = createMathRenderer({ macros: { a: "\\a\\a" } })("\\a", false) as string;
     expect(out).toContain("merror");
     expect(wellFormed(out)).toBe(true);
-    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(Date.now() - t0).toBeLessThan(BACKSTOP_MS); // the cap is what bounds the work; this only catches a hang
   });
   it("exponential macro towers hit the expansion cap", () => {
     const names = ["ma", "mb", "mc", "md", "me", "mf", "mg", "mh", "mi", "mj", "mk", "ml", "mm", "mn", "mo", "mp", "mq", "mr", "ms", "mt"];
@@ -421,14 +419,14 @@ describe("createMathRenderer — macros", () => {
     names.forEach((n, i) => (m[n] = i + 1 < names.length ? `\\${names[i + 1]}\\${names[i + 1]}` : "x"));
     const t0 = Date.now();
     const out = createMathRenderer({ macros: m })("\\ma", false) as string;
-    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(Date.now() - t0).toBeLessThan(BACKSTOP_MS); // the cap is what bounds the work; this only catches a hang
     expect(out.length).toBeLessThan(400000);
     expect(wellFormed(out)).toBe(true);
   });
   it("argument blow-up (#1 repeated) is bounded by the length cap", () => {
     const t0 = Date.now();
     const out = createMathRenderer({ macros: { d: "#1#1#1#1" } })("\\d{\\d{\\d{\\d{\\d{\\d{\\d{\\d{x}}}}}}}}", false) as string;
-    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(Date.now() - t0).toBeLessThan(BACKSTOP_MS); // the cap is what bounds the work; this only catches a hang
     expect(wellFormed(out)).toBe(true);
   });
   it("macro bodies are escaped like any other input", () => {

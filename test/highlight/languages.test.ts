@@ -12,6 +12,7 @@ import sql from "../../src/highlight/langs/sql";
 import typescript from "../../src/highlight/langs/typescript";
 import yaml from "../../src/highlight/langs/yaml";
 import { spans, textOf } from "./helpers";
+import { BACKSTOP_MS, LINEAR_MAX_RATIO, measureScaling } from "../helpers/scaling";
 
 const ALL = [javascript, typescript, json, css, html, bash, python, sql, markdown, yaml];
 const h = createHighlighter(ALL);
@@ -413,21 +414,21 @@ describe("invariants over every language", () => {
       }
     }
   });
-  it("100k of a single hostile character finishes quickly in every language", () => {
+  it("work grows linearly with 100k of a single hostile character, in every language", () => {
     for (const lang of langs) {
       for (const c of ['"', "'", "/", "`", "*", "#", "<", "-", "\\", "$", "{", "[", "(", "\n", " "]) {
-        const t0 = performance.now();
-        h.highlight(c.repeat(100_000), lang);
-        expect(performance.now() - t0, `${lang} ${JSON.stringify(c)}`).toBeLessThan(400);
+        const r = measureScaling((n) => { const code = c.repeat(n); return () => void h.highlight(code, lang); }, 20_000, 4, 2);
+        expect(r.ratio, `${lang} ${JSON.stringify(c)}: ${r.small.toFixed(1)} ms -> ${r.large.toFixed(1)} ms for 4x the input`).toBeLessThan(LINEAR_MAX_RATIO);
+        expect(r.large).toBeLessThan(BACKSTOP_MS);
       }
     }
   });
-  it("100k of alternating hostile pairs finishes quickly in every language", () => {
+  it("work grows linearly with alternating hostile pairs, in every language", () => {
     for (const lang of langs) {
       for (const p of ['"a', "/*", "[[", "<a", "'\n", "- ", "#!", "${"]) {
-        const t0 = performance.now();
-        h.highlight(p.repeat(50_000), lang);
-        expect(performance.now() - t0, `${lang} ${JSON.stringify(p)}`).toBeLessThan(400);
+        const r = measureScaling((n) => { const code = p.repeat(n); return () => void h.highlight(code, lang); }, 10_000, 4, 2);
+        expect(r.ratio, `${lang} ${JSON.stringify(p)}: ${r.small.toFixed(1)} ms -> ${r.large.toFixed(1)} ms for 4x the input`).toBeLessThan(LINEAR_MAX_RATIO);
+        expect(r.large).toBeLessThan(BACKSTOP_MS);
       }
     }
   });

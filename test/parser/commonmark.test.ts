@@ -5,7 +5,8 @@ import { renderMarkdown } from "../../src/render";
 const h = (md: string, opts = {}) =>
   renderMarkdown(md, opts)
     .replace(/ class="[^"]*"/g, "")
-    .replace(/ rel="[^"]*" target="[^"]*"/g, "");
+    .replace(/ rel="[^"]*" target="[^"]*"/g, "")
+    .replace(/<pre tabindex="0" role="region" aria-label="[^"]*">/g, "<pre>");
 
 const CASES: [string, string, string][] = [
   // [name, markdown, expected html]

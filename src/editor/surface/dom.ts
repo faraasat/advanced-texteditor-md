@@ -1,7 +1,7 @@
 /** DOM helpers for the surface: leaves, splitting, merging, element factories. */
 import type { Ctx } from "./ctx";
 import { cls, fill, prepCheckbox, wrapRuns } from "./render";
-import { indexOf, isAtom, isBlock, isEl, isLeaf, isText, lengthOf, leafPoint, setSelection, trailingBr } from "../selection";
+import { indexOf, isAtom, isBlock, isEl, isLeaf, isSkip, isText, lengthOf, leafPoint, setSelection, trailingBr } from "../selection";
 
 export const HEADING = /^H[1-6]$/;
 export const TEXT_LEAF = /^(P|H[1-6])$/;
@@ -144,7 +144,7 @@ export function removeEmptyInline(el: Node): void {
   for (let c = el.firstChild; c; ) {
     const next = c.nextSibling;
     if (isText(c) && c.data === "" && (c.previousSibling || c.nextSibling)) c.remove();
-    else if (isEl(c) && !isAtom(c) && MARK_TAGS.test(c.tagName)) {
+    else if (isEl(c) && !isAtom(c) && !isSkip(c) && MARK_TAGS.test(c.tagName)) {
       removeEmptyInline(c);
       if (!c.firstChild) c.remove();
     }
@@ -164,7 +164,7 @@ export function fixPre(pre: HTMLElement): void {
 
 /** Two inline siblings that can merge: same tag and same attributes. */
 function sameShell(a: Node, b: Node): boolean {
-  if (!isEl(a) || !isEl(b) || isAtom(a) || isAtom(b) || a.tagName !== b.tagName || !MARK_TAGS.test(a.tagName)) return false;
+  if (!isEl(a) || !isEl(b) || isAtom(a) || isAtom(b) || isSkip(a) || isSkip(b) || a.tagName !== b.tagName || !MARK_TAGS.test(a.tagName)) return false;
   if (a.attributes.length !== b.attributes.length) return false;
   for (const at of Array.from(a.attributes)) if (b.getAttribute(at.name) !== at.value) return false;
   return true;
@@ -180,7 +180,7 @@ export function normalizeInline(el: Node): void {
       next.remove();
       continue;
     }
-    if (isEl(c) && !isAtom(c)) normalizeInline(c);
+    if (isEl(c) && !isAtom(c) && !isSkip(c)) normalizeInline(c);
     c = next;
   }
   el.normalize();

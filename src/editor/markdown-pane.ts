@@ -6,6 +6,7 @@
  * `{ value, start, end }` state, so every formatting rule is table-testable.
  * The second half wires them to a textarea.
  */
+import { mdDest } from "./markdown-dest";
 import type { Pane, PaneEvents } from "./pane-types";
 import { Emitter, coalesce, h, schedule } from "./dom";
 import { createKeymap, type Keymap } from "./keymap";
@@ -23,12 +24,6 @@ const lineEnd = (v: string, i: number) => {
 const splice = (v: string, from: number, to: number, text: string) => v.slice(0, from) + text + v.slice(to);
 
 const mk = (value: string, start: number, end = start): MdState => ({ value, start, end });
-
-/** Make a URL safe inside a Markdown link destination. */
-export function mdDest(url: string): string {
-  if (/[\s()<>]/.test(url)) return "<" + url.replace(/</g, "%3C").replace(/>/g, "%3E") + ">";
-  return url;
-}
 
 const escapeLabel = (s: string) => s.replace(/([\[\]\\])/g, "\\$1");
 
@@ -829,6 +824,7 @@ export class MarkdownPane implements Pane {
     if (e.isComposing) return;
     if (this.opts.beforeKeyDown?.(e)) {
       e.preventDefault();
+      e.stopPropagation();
       return;
     }
     const mod = e.ctrlKey || e.metaKey;

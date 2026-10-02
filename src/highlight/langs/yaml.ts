@@ -18,4 +18,7 @@ const yaml: LanguageDef = {
     { token: "", regex: /[^\s,[\]{}]+/ },
   ],
 };
+// Named as well as default, so `require()` returns { default, yaml } like any other module (a lone
+// default export is flattened by CommonJS interop, which no longer matches the d.cts).
+export { yaml };
 export default yaml;

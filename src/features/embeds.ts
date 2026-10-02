@@ -17,29 +17,17 @@
  *    the same site as the pasted URL (same host, or a subdomain of its last
  *    two labels). A hostile query string therefore cannot redirect the frame.
  */
-import type { BlockNode, EmbedProvider, InlineNode } from "../types";
+import type { BlockNode, EmbedProvider } from "../types";
+import { embedSpec, findStandaloneUrl, matchEmbed, type EmbedLabels, type EmbedMatch } from "../render/embed";
 
-/** An EmbedProvider that also declares which hosts its generated `src` may use. */
-export type EmbedProviderWithHosts = EmbedProvider & {
-  /** Exact hostnames (or `*.suffix`) the generated iframe src may point to. */
-  embedHosts?: string[];
-};
+export { embedSpec, findStandaloneUrl, matchEmbed };
+export type { EmbedLabels, EmbedMatch };
 
-export type EmbedMatch = {
-  provider: EmbedProvider;
-  /** The validated https iframe src. */
-  src: string;
-  /** The normalised pasted URL, used for the "Open original" link. */
-  url: string;
-};
-
-export type EmbedLabels = { openOriginal?: string };
-
-const DEFAULT_SANDBOX = "allow-scripts allow-same-origin allow-presentation allow-popups";
-const DEFAULT_ALLOW = "fullscreen; picture-in-picture";
+/** @deprecated `embedHosts` is part of `EmbedProvider` now. Kept so existing imports compile. */
+export type EmbedProviderWithHosts = EmbedProvider;
 
 /** Identity helper that gives a provider literal its type. */
-export function defineEmbed<T extends EmbedProviderWithHosts>(provider: T): T {
+export function defineEmbed<T extends EmbedProvider>(provider: T): T {
   return provider;
 }
 
@@ -141,120 +129,25 @@ export const BUILTIN_EMBEDS: EmbedProvider[] = [
   }),
 ];
 
-/* ───────────────────────────── matching ───────────────────────────── */
-
-function hostOnList(host: string, list: string[]): boolean {
-  return list.some((raw) => {
-    const h = raw.toLowerCase();
-    return h.startsWith("*.") ? host.endsWith(h.slice(1)) && host.length > h.length - 1 : host === h;
-  });
-}
-
-/** Same site: same host, or a subdomain of the pasted host's last two labels. */
-function sameSite(srcHost: string, urlHost: string): boolean {
-  if (srcHost === urlHost) return true;
-  const base = urlHost.split(".").slice(-2).join(".");
-  return srcHost === base || srcHost.endsWith("." + base);
-}
-
-/**
- * Find the first provider that accepts `url` and return the validated iframe
- * src, or null. Never throws.
- */
-export function matchEmbed(url: string, providers: EmbedProvider[]): EmbedMatch | null {
-  if (typeof url !== "string") return null;
-  let u: URL;
-  try {
-    u = new URL(url.trim());
-  } catch {
-    return null;
-  }
-  if (u.protocol !== "https:" || u.username || u.password || u.port) return null;
-  const host = u.hostname.toLowerCase().replace(/\.$/, "");
-  if (!host) return null;
-  const href = `https://${host}${u.pathname}${u.search}${u.hash}`;
-
-  for (const p of providers) {
-    try {
-      const re = p.match.global || p.match.sticky ? new RegExp(p.match.source, p.match.flags.replace(/[gy]/g, "")) : p.match;
-      const m = re.exec(href);
-      if (!m) continue;
-      const src = p.embedUrl(m);
-      if (typeof src !== "string") continue;
-      const s = new URL(src);
-      if (s.protocol !== "https:" || s.username || s.password || !src.startsWith("https://")) continue;
-      const sh = s.hostname.toLowerCase().replace(/\.$/, "");
-      const hosts = (p as EmbedProviderWithHosts).embedHosts;
-      if (hosts ? !hostOnList(sh, hosts) : !sameSite(sh, host)) continue;
-      return { provider: p, src: s.href, url: href };
-    } catch {
-      /* a broken provider never breaks matching */
-    }
-  }
-  return null;
-}
 
 /* ───────────────────────────── element ───────────────────────────── */
 
 /** Build the sandboxed iframe wrapper. Needs a DOM. */
-export function createEmbedElement(match: EmbedMatch, doc?: Document, labels?: EmbedLabels): HTMLElement {
+export function createEmbedElement(match: EmbedMatch, doc?: Document, labels?: EmbedLabels, prefix = "atm"): HTMLElement {
   const d = doc ?? (typeof document !== "undefined" ? document : undefined);
   if (!d) throw new Error("createEmbedElement needs a document");
-  const p = match.provider;
-  const wrap = d.createElement("div");
-  wrap.className = "atm-embed";
-  wrap.setAttribute("data-embed", p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
-  wrap.setAttribute("contenteditable", "false");
-  if (p.height) {
-    wrap.style.height = `${Math.max(1, Math.round(p.height))}px`;
-    wrap.classList.add("atm-embed--fixed");
-  } else {
-    wrap.style.aspectRatio = (p.aspectRatio || "16/9").replace("/", " / ");
-  }
-  const f = d.createElement("iframe");
-  f.className = "atm-embed__frame";
-  f.setAttribute("src", match.src);
-  f.setAttribute("sandbox", p.sandbox ?? DEFAULT_SANDBOX);
-  f.setAttribute("loading", "lazy");
-  f.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
-  f.setAttribute("allow", p.allow ?? DEFAULT_ALLOW);
-  f.setAttribute("title", p.title ?? `${p.name} embed`);
-  f.setAttribute("allowfullscreen", "");
-  wrap.appendChild(f);
-  const a = d.createElement("a");
-  a.className = "atm-embed__open";
-  a.setAttribute("href", match.url);
-  a.setAttribute("target", "_blank");
-  a.setAttribute("rel", "noopener noreferrer nofollow");
-  a.textContent = labels?.openOriginal ?? "Open original";
+  const spec = embedSpec(match, labels, prefix);
+  const make = <K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, string>) => {
+    const e = d.createElement(tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  };
+  const wrap = make("div", spec.wrap);
+  wrap.appendChild(make("iframe", spec.frame));
+  const a = make("a", spec.open);
+  a.textContent = spec.openText;
   wrap.appendChild(a);
   return wrap;
-}
-
-/* ───────────────────────────── standalone URL ───────────────────────────── */
-
-const WS = /^\s*$/;
-
-/**
- * If `block` is a paragraph whose only content is one http(s) link whose text
- * equals its href (or a bare autolink: `www.x.com` text with `http://www.x.com`
- * href), return the href. Used by both embeds and link-preview cards.
- */
-export function findStandaloneUrl(block: BlockNode): string | null {
-  if (block.type !== "paragraph") return null;
-  type Link = Extract<InlineNode, { type: "link" }>;
-  let link: Link | null = null;
-  for (const c of block.children) {
-    if (c.type === "text" && WS.test(c.value)) continue;
-    if (c.type === "link" && !link) link = c;
-    else return null;
-  }
-  if (!link) return null;
-  const href = link.href;
-  if (!/^https?:\/\//i.test(href)) return null;
-  if (link.children.length !== 1 || link.children[0].type !== "text") return null;
-  const text = link.children[0].value;
-  return text === href || href === "http://" + text || href === "https://" + text ? href : null;
 }
 
 /** True when the paragraph is just a URL on its own line. */

@@ -35,10 +35,14 @@ export function isBlock(n: Node | null | undefined): boolean {
 export function isAtom(n: Node | null | undefined): boolean {
   if (!isEl(n)) return false;
   if (n.tagName === "IMG" || n.tagName === "HR") return true;
-  return n.getAttribute("contenteditable") === "false" && !SKIP_TAGS.has(n.tagName);
+  return n.getAttribute("contenteditable") === "false" && !isSkip(n);
 }
 
-export const isSkip = (n: Node | null | undefined): boolean => isEl(n) && SKIP_TAGS.has(n.tagName);
+/**
+ * Never counted, never entered. Besides form controls: a link-preview card is editor UI placed
+ * next to its URL, not content (the stored markdown stays the bare URL line).
+ */
+export const isSkip = (n: Node | null | undefined): boolean => isEl(n) && (SKIP_TAGS.has(n.tagName) || n.hasAttribute("data-atm-preview-card"));
 
 /** A leaf block: holds inline content (or is a block atom such as `<hr>`). */
 export function isLeaf(n: Node | null | undefined): boolean {

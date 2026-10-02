@@ -21,4 +21,7 @@ const css: LanguageDef = {
     { token: "punctuation", regex: /[{}()[\];,:.]/ },
   ],
 };
+// Named as well as default, so `require()` returns { default, css } like any other module (a lone
+// default export is flattened by CommonJS interop, which no longer matches the d.cts).
+export { css };
 export default css;

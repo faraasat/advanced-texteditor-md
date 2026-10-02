@@ -16,5 +16,5 @@
     "noEmit": true
   },
   "include": ["src", "test", "scripts/*.d.ts"],
-  "exclude": ["node_modules", "dist", "example"]
+  "exclude": ["node_modules", "dist", "example", "test/consumer"]
 }

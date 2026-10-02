@@ -22,7 +22,7 @@
  * so editing a document never silently deletes them.
  */
 import type { BlockNode, Doc, InlineNode, RenderOptions } from "../../types";
-import { renderDom, safeUrl } from "../../render/index";
+import { embedOf, renderDom, safeUrl } from "../../render/index";
 
 export const LINK_X = "__atmlink";
 export const IMG_X = "__atmimg";
@@ -113,7 +113,7 @@ type Col = {
 };
 
 /** Visit the Doc in exactly the order `renderDom` emits elements. */
-function collect(doc: Doc): Col {
+function collect(doc: Doc, o: RenderOptions): Col {
   const col: Col = { links: [], images: [], chips: [], maths: [], codes: [], customs: [], refs: [], defs: [] };
   const fns: Extract<BlockNode, { type: "footnoteDef" }>[] = [];
   const findDefs = (bs: BlockNode[]) => {
@@ -186,7 +186,7 @@ function collect(doc: Doc): Col {
       }
     }
   };
-  blocks(doc.children);
+  for (const b of doc.children) if (!embedOf(b, o)) blocks([b]); // an embed block has no link to pair
   for (const f of fns) {
     col.defs.push(f.label);
     blocks(f.children);
@@ -213,7 +213,7 @@ export function cls(ctx: SurfaceRenderCtx, name: string, type?: string): string 
 /** Mark up a rendered fragment for editing. */
 export function decorate(root: ParentNode, doc: Doc, ctx: SurfaceRenderCtx): void {
   const p = ctx.prefix;
-  const col = collect(doc);
+  const col = collect(doc, ctx.render);
   const all = (sel: string) =>
     Array.from(root.querySelectorAll<HTMLElement>(sel)).filter((e) => !e.parentElement?.closest(`.${p}-chip, .${p}-math`));
   all(`a.${p}-link`).forEach((e, i) => {

@@ -14,4 +14,7 @@ const html: LanguageDef = {
     { token: "", regex: /[^<>=&"'\s\w][^<>=&]*|\w+|\s+/ },
   ],
 };
+// Named as well as default, so `require()` returns { default, html } like any other module (a lone
+// default export is flattened by CommonJS interop, which no longer matches the d.cts).
+export { html };
 export default html;

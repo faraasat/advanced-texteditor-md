@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { mount } from "./fakes";
-import { definePlugin, defineInlineSyntax, defineBlockSyntax, highlightMark, callout, kbd, subSup } from "../../src/index";
+import { definePlugin, defineInlineSyntax, defineBlockSyntax } from "../../src/index";
+import { highlightMark, callout, kbd, subSup } from "../../src/plugins";
 import { renderHtml, parse } from "../../src/index";
 
 const cleanups: (() => void)[] = [];

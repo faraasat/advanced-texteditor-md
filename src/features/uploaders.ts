@@ -279,3 +279,7 @@ export function createDataUrlUploader(): UploadHandler {
       reader.readAsDataURL(file);
     });
 }
+
+// The upload policy ships with the uploaders: one subpath for everything about files and URLs.
+export { DEFAULT_DENY_EXTENSIONS, safeFileName, validateFile, urlAllowed, normalizeUrl } from "./upload-policy";
+export type { FileLike, ValidateResult } from "./upload-policy";

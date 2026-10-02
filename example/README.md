@@ -10,7 +10,8 @@ node scripts/build-example.mjs --serve     # builds dist/ if needed, then http:/
 to `package.json`. Any static server rooted at the repository works too (the Playwright config uses
 `http-server`): open `/example/index.html`.
 
-URL parameters for tests and demos: `?layout=bubble&theme=dark&mode=markdown&readonly=1`.
+URL parameters for tests and demos: `?layout=bubble&theme=dark&mode=markdown&readonly=1`, and `?rich=1`, which turns on link
+previews and the built-in embeds with a fake resolver. Set `window.__previewMode` to `ok`, `slow`, `offline` or `xss` to change how it answers.
 
 What the page shows: all six layouts, five themes plus `auto`, the Write / Markdown / Split switch, a
 30-person async mention directory (three people are in both systems and carry two ids and no badge, the

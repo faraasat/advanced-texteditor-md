@@ -64,10 +64,10 @@ function endsInPara(lines: string[], ctx: Ctx): boolean {
   return deepPara(parseBlocks(lines, { ...ctx, pend: [] }));
 }
 
-const REFDEF = new RegExp(
-  String.raw`^ {0,3}\[((?:[^\\\[\]]|\\.){1,999})\]:[ \t]*\n?[ \t]*(<[^<>\n]*>|[^\s<]\S*)`,
-);
-const TITLE = String.raw`(?:[ \t]*\n?[ \t]*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\((?:[^()\\]|\\.)*\)))`;
+// Plain literals, not `new RegExp(String.raw`...`)`: a call at the top level cannot be dropped by a
+// bundler's tree-shaking, a literal can.
+const REFDEF = /^ {0,3}\[((?:[^\\\[\]]|\\.){1,999})\]:[ \t]*\n?[ \t]*(<[^<>\n]*>|[^\s<]\S*)/;
+const TITLE = "(?:[ \\t]*\\n?[ \\t]*(\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'|\\((?:[^()\\\\]|\\\\.)*\\)))";
 
 /** Strip leading `[label]: dest "title"` definitions from a paragraph, registering them. */
 function takeRefDefs(text: string, ctx: Ctx): string {

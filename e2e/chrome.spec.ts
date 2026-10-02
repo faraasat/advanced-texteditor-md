@@ -267,12 +267,9 @@ test.describe("themes", () => {
 });
 
 test.describe("accessibility", () => {
-  test("no axe violations in the editor (classic, light)", async ({ page, isMobile }) => {
+  test("no axe violations in the editor (classic, light)", async ({ page }) => {
     await open(page);
-    // On a phone the sample's wide code blocks scroll. Their `pre` needs tabindex=0, which is the
-    // surface's to add (reported); the chrome itself is checked.
-    const builder = new AxeBuilder({ page }).include("#editor-host");
-    const res = await (isMobile ? builder.exclude(".atm-pre") : builder).analyze();
+    const res = await new AxeBuilder({ page }).include("#editor-host").analyze();
     expect(res.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 
@@ -333,6 +330,8 @@ test.describe("popovers", () => {
     await focusEnd(page);
     await page.keyboard.press("Shift+Alt+ArrowLeft");
     await button(page, "link").click();
+    // The popovers are a lazy chunk: the first one opens when it has arrived.
+    await expect(page.locator("#editor-host [role=dialog]")).toBeVisible();
     await page.keyboard.type("example.com");
     await page.keyboard.press("Enter");
     await expect.poll(() => value(page)).toBe("see [docs](https://example.com)");
@@ -396,6 +395,15 @@ test.describe("slash menu", () => {
 });
 
 test.describe("mentions", () => {
+  test("typing @ right after a loaded 'cc ' (trailing space kept by setValue) opens the menu", async ({ page, isMobile }) => {
+    test.skip(!!isMobile, "keyboard");
+    await open(page);
+    await setValue(page, "cc ");
+    expect(await value(page)).toBe("cc ");
+    await focusEnd(page);
+    await page.keyboard.type("@Grace");
+    await expect(page.locator("[role=option]", { hasText: "Grace Hopper" })).toBeVisible();
+  });
   test("picking a person inserts one chip carrying the refs; 'both' people show no badge", async ({ page, isMobile }) => {
     test.skip(!!isMobile, "keyboard");
     await open(page);

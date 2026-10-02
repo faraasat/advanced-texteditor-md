@@ -10,6 +10,7 @@
  */
 import type { MentionItem, MentionOptions } from "../types";
 import { urlAllowed } from "./upload-policy";
+import { chipHref } from "../parser/chip";
 
 /* ───────────────────────────── wire format ─────────────────────────────
  *
@@ -24,19 +25,13 @@ import { urlAllowed } from "./upload-policy";
  * and other URL schemes are never chips.
  */
 
-const enc = (s: string) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
-
 export type ChipRef = { scheme: string; kind: string; id: string; attrs?: Record<string, string> };
 
+/** The wire href of a chip. One encoder for the parser, the editor and hosts: `chipHref`. */
 export function mentionHref(chip: ChipRef): string {
-  let href = `${chip.scheme}:${chip.kind ? enc(chip.kind) + "/" : ""}${enc(chip.id)}`;
-  const pairs: string[] = [];
-  for (const [k, v] of Object.entries(chip.attrs ?? {})) {
-    if (v === undefined || v === null) continue;
-    pairs.push(`${enc(k)}=${enc(String(v))}`);
-  }
-  if (pairs.length) href += "?" + pairs.join("&");
-  return href;
+  const attrs: Record<string, string> = {};
+  for (const [k, v] of Object.entries(chip.attrs ?? {})) if (v !== undefined && v !== null) attrs[k] = String(v);
+  return chipHref({ type: "chip", scheme: chip.scheme, kind: chip.kind, id: chip.id, label: "", attrs });
 }
 
 const URL_SCHEMES = new Set([
@@ -130,6 +125,8 @@ export type MentionControllerOptions = {
   onPick: (item: MentionItem, optionsIndex: number, range: Range) => void;
   /** Caret rectangle in viewport coordinates. */
   getRect: () => DOMRect;
+  /** Extra classes from the host's slot classes: `menu`, `menuItem`, `menuItemActive`. */
+  classes?: { menu?: string; menuItem?: string; menuItemActive?: string };
 };
 
 export type MentionController = {
@@ -162,9 +159,11 @@ export function createMentionController(config: MentionControllerOptions): Menti
   const optionList = config.options.map((o) => ({ ...o, trigger: o.trigger || "@" }));
     const id = `atm-mention-${++uid}`;
 
-  const hadHaspopup = root.getAttribute("aria-haspopup");
-  root.setAttribute("aria-haspopup", "listbox");
-  root.setAttribute("aria-expanded", "false");
+  // ARIA 1.2: a `textbox` supports aria-activedescendant and the global aria-controls, but NOT
+  // aria-expanded / aria-haspopup (axe: aria-allowed-attr, critical). So only those two are set,
+  // and only while the list is open; the result count is announced through the live region.
+  const cls = config.classes ?? {};
+  const addCls = (el: HTMLElement, c?: string) => c && el.classList.add(...c.split(/\s+/).filter(Boolean));
 
   const live = doc.createElement("div");
   live.className = "atm-mention-live";
@@ -236,7 +235,6 @@ export function createMentionController(config: MentionControllerOptions): Menti
     items = [];
     active = -1;
     current = null;
-    root.setAttribute("aria-expanded", "false");
     root.removeAttribute("aria-activedescendant");
     root.removeAttribute("aria-controls");
     if (wasOpen) live.textContent = "";
@@ -247,6 +245,7 @@ export function createMentionController(config: MentionControllerOptions): Menti
     if (menuEl) return;
     menuEl = doc.createElement("div");
     menuEl.className = "atm-mention-menu";
+    addCls(menuEl, cls.menu);
     menuEl.style.cssText = "position:fixed;z-index:1000;left:0;top:0;overflow:auto";
     listEl = doc.createElement("div");
     listEl.id = `${id}-list`;
@@ -257,7 +256,6 @@ export function createMentionController(config: MentionControllerOptions): Menti
     statusEl.className = "atm-mention-status";
     menuEl.append(listEl, statusEl);
     doc.body.appendChild(menuEl);
-    root.setAttribute("aria-expanded", "true");
     root.setAttribute("aria-controls", listEl.id);
     listen(true);
   }
@@ -329,6 +327,7 @@ export function createMentionController(config: MentionControllerOptions): Menti
     const el = doc.createElement("div");
     el.id = `${id}-opt-${index}`;
     el.className = "atm-mention-option";
+    addCls(el, cls.menuItem);
     el.setAttribute("role", "option");
     el.setAttribute("aria-selected", "false");
     const color = colorOf(item.color);
@@ -433,7 +432,10 @@ export function createMentionController(config: MentionControllerOptions): Menti
 
   function setActive(i: number, scroll = true) {
     active = rows.length ? i : -1;
-    rows.forEach((r, n) => r.el.setAttribute("aria-selected", n === active ? "true" : "false"));
+    rows.forEach((r, n) => {
+      r.el.setAttribute("aria-selected", n === active ? "true" : "false");
+      if (cls.menuItemActive) for (const c of cls.menuItemActive.split(/\s+/).filter(Boolean)) r.el.classList.toggle(c, n === active);
+    });
     if (active >= 0) {
       root.setAttribute("aria-activedescendant", rows[active].el.id);
       if (scroll) rows[active].el.scrollIntoView?.({ block: "nearest" });
@@ -574,9 +576,6 @@ export function createMentionController(config: MentionControllerOptions): Menti
       destroyed = true;
       doc.removeEventListener("selectionchange", onSelectionChange);
       live.remove();
-      if (hadHaspopup === null) root.removeAttribute("aria-haspopup");
-      else root.setAttribute("aria-haspopup", hadHaspopup);
-      root.removeAttribute("aria-expanded");
     },
   };
 }

@@ -1,5 +1,6 @@
 // Demo wiring. Imports the BUILT library; nothing here is needed to use it.
-import { createEditor, definePlugin, highlightMark, callout, kbd, subSup, createHighlighter } from "../dist/index.js";
+import { createEditor, definePlugin, createHighlighter } from "../dist/index.js";
+import { highlightMark, callout, kbd, subSup } from "../dist/plugins.js";
 import javascript from "../dist/highlight/javascript.js";
 import python from "../dist/highlight/python.js";
 import sql from "../dist/highlight/sql.js";
@@ -8,6 +9,39 @@ import json from "../dist/highlight/json.js";
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
+
+/* ───────────────────────────── link previews and embeds (?rich=1) ─────────────────────────────
+ * Off by default so the editor loads none of it. The resolver is a fake: a real one MUST run on a
+ * server (browsers cannot read other sites; the fetcher needs SSRF protection). The mode can be
+ * changed at runtime (window.__previewMode = "slow" | "offline" | "xss" | "ok") for tests. */
+let richOptions = {};
+if (params.get("rich") === "1") {
+  const { BUILTIN_EMBEDS } = await import("../dist/embeds.js");
+  window.__previewMode = "ok";
+  window.__previewCalls = [];
+  const resolve = (url, { signal }) => {
+    window.__previewCalls.push(url);
+    const mode = window.__previewMode;
+    if (mode === "offline") return Promise.reject(new TypeError("Failed to fetch"));
+    return new Promise((res, rej) => {
+      const t = setTimeout(
+        () =>
+          res({
+            url,
+            siteName: "Example",
+            title: mode === "xss" ? '<img src=x onerror="window.__pwned=1"> Title' : "A preview of " + new URL(url).pathname,
+            description: mode === "xss" ? "<script>window.__pwned=1</script>" : "Fake description from the demo resolver.",
+          }),
+        mode === "slow" ? 1500 : 30,
+      );
+      signal.addEventListener("abort", () => {
+        clearTimeout(t);
+        rej(new DOMException("aborted", "AbortError"));
+      });
+    });
+  };
+  richOptions = { linkPreview: { resolve, hoverDelayMs: 100 }, embeds: BUILTIN_EMBEDS };
+}
 
 /* ───────────────────────────── a fake directory of people ───────────────────────────── */
 
@@ -191,6 +225,7 @@ function build() {
     ],
     mentions: { search: searchPeople, trigger: "@", maxResults: 8, groupBy: (it) => (it.kind === "both" ? "In both systems" : it.badge) },
     links: { allowedSchemes: ["http", "https", "mailto", "tel", "blob"] },
+    ...richOptions,
     upload: {
       handler: fakeUpload,
       allowExtensions: list($("allow-ext").value),

@@ -9,12 +9,25 @@ import type { Doc } from "../../types";
 import type { Ctx } from "./ctx";
 import { docToText, parse, stringify } from "../../parser/index";
 import { renderHtml } from "../../render/index";
-import { htmlToMarkdown, looksLikeMarkdown } from "../../features/paste";
+import { looksLikeMarkdown } from "../../features/markdown-sniff";
+import { chunks } from "../lazy-chunks";
 import { domToDoc } from "../dom-to-doc";
 import { closest, leafOf } from "./dom";
 import { caret, deleteRange, insertBlocks, insertNodes, insertTextAt, splitBlock } from "./structure";
 import { getCommand } from "../commands";
 import { isEl, offsetOf, pointAt, setSelection } from "../selection";
+
+/**
+ * Clipboard HTML to Markdown. The converter is a lazy chunk: when it has been downloaded this runs
+ * at once, otherwise `done` runs when it arrives. If it cannot be fetched `done` gets null and the
+ * caller falls back to the plain text.
+ */
+function htmlToMd(ctx: Ctx, html: string, done: (md: string | null) => void): void {
+  const convert = (m: typeof import("../../features/paste")) => done(m.htmlToMarkdown(html, { links: ctx.opts.render.links }, ctx.doc));
+  const cached = chunks.paste.get();
+  if (cached) convert(cached);
+  else chunks.paste.load().then(convert, () => done(null));
+}
 
 const URL_ONLY = /^\s*((?:https?:\/\/|mailto:)[^\s<>]+)\s*$/i;
 
@@ -113,7 +126,14 @@ export function onPaste(ctx: Ctx, ev: ClipboardEvent): void {
   const inCode = leaf?.tagName === "PRE" || !!closest(ctx, r.startContainer, (e) => e.tagName === "CODE");
   ctx.begin();
   if (inCode) {
-    insertPlain(ctx, text || (html ? htmlToMarkdown(html, { links: ctx.opts.render.links }, ctx.doc) : ""));
+    if (text || !html) insertPlain(ctx, text);
+    else {
+      htmlToMd(ctx, html, (md) => {
+        insertPlain(ctx, md ?? "");
+        ctx.commit("paste");
+      });
+      return;
+    }
     ctx.commit("paste");
     return;
   }
@@ -124,9 +144,12 @@ export function onPaste(ctx: Ctx, ev: ClipboardEvent): void {
     return;
   }
   if (html) {
-    const md = htmlToMarkdown(html, { links: ctx.opts.render.links }, ctx.doc);
-    if (md) insertMarkdown(ctx, md);
-    else if (text) insertPlain(ctx, text);
+    htmlToMd(ctx, html, (md) => {
+      if (md) insertMarkdown(ctx, md);
+      else if (text) insertPlain(ctx, text);
+      ctx.commit("paste");
+    });
+    return;
   } else if (text) {
     if (looksLikeMarkdown(text)) insertMarkdown(ctx, text);
     else insertPlain(ctx, text);
@@ -236,13 +259,16 @@ export function onDrop(ctx: Ctx, ev: DragEvent, drag: DragState): void {
     if (dest !== null && dest >= e) dest -= e - s;
   }
   if (dest !== null) setSelection(ctx.root, pointAt(ctx.root, dest));
+  drag.from = null;
   if (md !== null) insertMarkdown(ctx, md);
   else if (html) {
-    const m = htmlToMarkdown(html, { links: ctx.opts.render.links }, ctx.doc);
-    if (m) insertMarkdown(ctx, m);
-    else if (text) insertPlain(ctx, text);
+    htmlToMd(ctx, html, (m) => {
+      if (m) insertMarkdown(ctx, m);
+      else if (text) insertPlain(ctx, text);
+      ctx.commit("drop");
+    });
+    return;
   } else if (looksLikeMarkdown(text)) insertMarkdown(ctx, text);
   else insertPlain(ctx, text);
-  drag.from = null;
   ctx.commit("drop");
 }

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createHighlighter, defineLanguage } from "../../src/highlight";
 import javascript from "../../src/highlight/langs/javascript";
 import type { LanguageDef } from "../../src/types";
+import { LINEAR_MAX_RATIO, measureScaling } from "../helpers/scaling";
 import { spans, textOf } from "./helpers";
 
 const abc: LanguageDef = {
@@ -170,9 +171,9 @@ describe("createHighlighter — safety and limits", () => {
     const h = createHighlighter([{ name: "z", rules: [{ token: "e", regex: /a*/ }] }]);
     expect(h.highlight("bbbb", "z")).toBe("bbbb");
     const big = "b".repeat(100_000);
-    const t0 = Date.now();
     expect(h.highlight(big, "z")).toBe(big);
-    expect(Date.now() - t0).toBeLessThan(500);
+    const r = measureScaling((n) => { const code = "b".repeat(n); return () => void h.highlight(code, "z"); }, 20_000);
+    expect(r.ratio, `${r.small.toFixed(1)} ms -> ${r.large.toFixed(1)} ms`).toBeLessThan(LINEAR_MAX_RATIO);
   });
 
   it("stops highlighting after the work cap and emits the rest as escaped text", () => {
@@ -185,13 +186,16 @@ describe("createHighlighter — safety and limits", () => {
     expect(tail.endsWith("&lt;&amp;&gt;")).toBe(true);
   });
 
-  it("pathological input: 100k unterminated quotes and 100k slashes finish under 200 ms", () => {
+  it("pathological input: 100k unterminated quotes, slashes and comment openers scale linearly and keep the text", () => {
     const h = createHighlighter([javascript]);
-    for (const s of ['"'.repeat(100_000), "/".repeat(100_000), "'".repeat(100_000), "`".repeat(100_000), "/*".repeat(50_000), '"' + "\\".repeat(100_000)]) {
-      const t0 = performance.now();
-      const out = h.highlight(s, "js");
-      expect(performance.now() - t0).toBeLessThan(200);
-      expect(textOf(out)).toBe(s);
+    const make: [string, (n: number) => string][] = [
+      ['"', (n) => '"'.repeat(n)], ["/", (n) => "/".repeat(n)], ["'", (n) => "'".repeat(n)], ["`", (n) => "`".repeat(n)],
+      ["/*", (n) => "/*".repeat(n / 2)], ['"\\', (n) => '"' + "\\".repeat(n)],
+    ];
+    for (const [name, f] of make) {
+      expect(textOf(h.highlight(f(100_000), "js")), name).toBe(f(100_000));
+      const r = measureScaling((n) => { const code = f(n); return () => void h.highlight(code, "js"); }, 20_000);
+      expect(r.ratio, `${name}: ${r.small.toFixed(1)} ms -> ${r.large.toFixed(1)} ms`).toBeLessThan(LINEAR_MAX_RATIO);
     }
   });
 });

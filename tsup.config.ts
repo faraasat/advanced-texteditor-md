@@ -11,6 +11,11 @@ export default defineConfig({
     math: "src/math/index.ts",
     highlight: "src/highlight/index.ts",
     uploaders: "src/features/uploaders.ts",
+    plugins: "src/plugins/index.ts",
+    mentions: "src/features/mentions.ts",
+    paste: "src/features/paste.ts",
+    "link-preview": "src/features/link-preview.ts",
+    embeds: "src/features/embeds.ts",
     "highlight/javascript": "src/highlight/langs/javascript.ts",
     "highlight/typescript": "src/highlight/langs/typescript.ts",
     "highlight/json": "src/highlight/langs/json.ts",
@@ -27,7 +32,11 @@ export default defineConfig({
   clean: true,
   target: "es2020",
   splitting: true,
-  minify: true,
+  // Identifiers and syntax are minified, WHITESPACE IS NOT: esbuild drops every `/* @__PURE__ */`
+  // annotation when it minifies whitespace, and those annotations are what lets a consumer's
+  // bundler remove an unused top-level table (ICONS, the lazy-chunk registry, ...). The consumer
+  // minifies the rest; scripts/size.mjs measures the fully minified size.
+  minify: false,
   sourcemap: false,
   treeshake: true,
   // The editor touches `document` only when an editor is CREATED, never at
@@ -36,5 +45,8 @@ export default defineConfig({
   // The React wrapper package adds the directive.
   esbuildOptions(options) {
     options.legalComments = "none";
+    options.minifyIdentifiers = true;
+    options.minifySyntax = true;
+    options.minifyWhitespace = false;
   },
 });

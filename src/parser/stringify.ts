@@ -165,6 +165,14 @@ function inl(nodes: InlineNode[], x: Ctx, e: E, pt = "", pch = ""): string {
           const raw = sy.nested === false;
           const inner = raw ? nd.children.map((c) => (c.type === "text" ? c.value : "")).join("") : inl(nd.children, x, e);
           out += sy.open + inner + (sy.close ?? sy.open);
+        } else if (sy?.serialize) {
+          const data: Record<string, string> = {};
+          for (const k in nd.data) if (k[0] !== "_") data[k] = nd.data[k];
+          try {
+            out += sy.serialize(inl(nd.children, x, e), Object.keys(data).length ? data : undefined);
+          } catch {
+            out += nd.data?._raw ?? inl(nd.children, x, e);
+          }
         } else if (nd.data?._raw !== undefined) out += nd.data._raw;
         else out += inl(nd.children, x, e);
         break;

@@ -8,17 +8,36 @@ describe("the package imports and its pure parts run with no DOM", () => {
     expect(typeof navigator === "undefined" || true).toBe(true);
   });
 
-  it("the public entry imports and exposes the whole API", async () => {
+  it("the public entry imports and exposes the editor API; heavy optional parts live in subpaths", async () => {
     const lib = await import("../../src/index");
     for (const name of [
-      "createEditor", "parse", "stringify", "renderHtml", "renderDom", "renderMarkdown", "createHighlighter", "createMathRenderer",
-      "texToMathML", "validateFile", "urlAllowed", "createPutUploader", "createFormUploader", "createPresignedUploader",
-      "createDataUrlUploader", "htmlToMarkdown", "definePlugin", "defineInlineSyntax", "defineBlockSyntax", "defineLayout",
-      "defineToolbarItem", "builtinToolbarItems", "highlightMark", "callout", "kbd", "subSup", "DEFAULT_LABELS", "VERSION",
+      "createEditor", "preloadChunks", "parse", "stringify", "renderHtml", "renderDom", "renderMarkdown", "createHighlighter",
+      "definePlugin", "defineInlineSyntax", "defineBlockSyntax", "defineLayout", "defineToolbarItem", "builtinToolbarItems",
+      "DEFAULT_LABELS", "VERSION",
     ]) {
       expect((lib as Record<string, unknown>)[name], name).toBeDefined();
     }
     expect(lib.VERSION).toMatch(/^\d+\.\d+\.\d+/);
+    // Not in the main entry: they would be in everyone's first download.
+    for (const name of ["createMathRenderer", "validateFile", "createPutUploader", "htmlToMarkdown", "createMentionController", "highlightMark"]) {
+      expect((lib as Record<string, unknown>)[name], name).toBeUndefined();
+    }
+  });
+
+  it("every subpath entry imports on the server and exposes its API", async () => {
+    const math = await import("../../src/math");
+    const up = await import("../../src/features/uploaders");
+    const men = await import("../../src/features/mentions");
+    const paste = await import("../../src/features/paste");
+    const plugins = await import("../../src/plugins");
+    const lp = await import("../../src/features/link-preview");
+    const em = await import("../../src/features/embeds");
+    expect([math.createMathRenderer, math.texToMathML]).toBeDefined();
+    for (const f of [up.createPutUploader, up.createFormUploader, up.createPresignedUploader, up.createDataUrlUploader, up.validateFile, up.urlAllowed]) expect(typeof f).toBe("function");
+    for (const f of [men.createMentionController, men.mentionHref, men.parseMentionHref, men.detectTrigger, paste.htmlToMarkdown, paste.looksLikeMarkdown]) expect(typeof f).toBe("function");
+    for (const n of ["highlightMark", "callout", "kbd", "subSup", "definePlugin"]) expect((plugins as Record<string, unknown>)[n], n).toBeDefined();
+    expect(typeof lp.createLinkPreviewController).toBe("function");
+    expect(Array.isArray(em.BUILTIN_EMBEDS)).toBe(true);
   });
 
   it("markdown <-> html works on the server through the same entry", async () => {

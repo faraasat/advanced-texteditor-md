@@ -23,4 +23,7 @@ const bash: LanguageDef = {
     { token: "punctuation", regex: /[(){}[\]]/ },
   ],
 };
+// Named as well as default, so `require()` returns { default, bash } like any other module (a lone
+// default export is flattened by CommonJS interop, which no longer matches the d.cts).
+export { bash };
 export default bash;

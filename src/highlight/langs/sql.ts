@@ -24,4 +24,7 @@ const sql: LanguageDef = {
     { token: "punctuation", regex: /[(),;.[\]]/ },
   ],
 };
+// Named as well as default, so `require()` returns { default, sql } like any other module (a lone
+// default export is flattened by CommonJS interop, which no longer matches the d.cts).
+export { sql };
 export default sql;

@@ -198,6 +198,34 @@ a.atm-preview:focus-visible { outline: 2px solid var(--_accent); outline-offset:
 .atm-embed__open:focus-visible { opacity: 1; }
 @media (hover: none) { .atm-embed__open { opacity: 1; position: static; display: inline-block; margin: 0.35rem; } }
 
+/* ───────── embed toolbar (editor only: "Convert to link", "Open") ───────── */
+.atm-embed__toolbar {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.atm-embed__action {
+  padding: 0.15rem 0.5rem;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--_fg);
+  background: var(--_bg);
+  border: 1px solid var(--_border);
+  border-radius: 999px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.atm-embed__action:hover { border-color: var(--_accent); }
+.atm-embed:hover .atm-embed__toolbar,
+.atm-embed:focus-within .atm-embed__toolbar { opacity: 1; }
+@media (hover: none) { .atm-embed__toolbar { opacity: 1; } }
+
 /* ───────── responsive ───────── */
 @media (max-width: 480px) {
   .atm-preview--has-image { flex-direction: column; }
@@ -206,12 +234,12 @@ a.atm-preview:focus-visible { outline: 2px solid var(--_accent); outline-offset:
 
 /* ───────── motion & contrast ───────── */
 @media (prefers-reduced-motion: reduce) {
-  .atm-preview, .atm-embed__open { transition: none; }
+  .atm-preview, .atm-embed__open, .atm-embed__toolbar { transition: none; }
   .atm-popover { animation: none; }
   .atm-preview__line { animation: none; background: var(--_sk); }
 }
 @media (forced-colors: active) {
-  .atm-preview, .atm-popover, .atm-embed, .atm-embed__open { border: 1px solid CanvasText; background: Canvas; color: CanvasText; forced-color-adjust: none; }
+  .atm-preview, .atm-popover, .atm-embed, .atm-embed__open, .atm-embed__action { border: 1px solid CanvasText; background: Canvas; color: CanvasText; forced-color-adjust: none; }
   a.atm-preview:hover, a.atm-preview:focus-visible { border-color: Highlight; box-shadow: none; outline: 2px solid Highlight; }
   .atm-preview__line, .atm-preview__media { background: GrayText; }
   .atm-preview__site, .atm-preview__description, .atm-preview__extra { color: CanvasText; }
