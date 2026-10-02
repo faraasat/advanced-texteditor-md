@@ -605,7 +605,8 @@ Gzip, after minification, measured 2026-10-02 (`npm run size`; the enforced figu
 | `render` | 13.1 kB | 14 kB |
 | `math` | 5.0 kB | 5 kB |
 | each `highlight/<lang>` | under 2 kB | 2 kB |
-| feature subpaths (`/alerts`, `/code-blocks`, `/tables`, `/diagrams`, `/chips`, `/blocks`, `/writing`, `/speech`, `/i18n`) | 2.8–13 kB each | 15 kB |
+| feature subpaths (`/alerts`, `/code-blocks`, `/tables`, `/diagrams`, `/chips`, `/blocks`, `/writing`, `/speech`, `/snippets`, `/links`, `/frontmatter`, `/source`, `/i18n`) | 2.8–15 kB each | 15 kB |
+| `/comments` (carries the parser it needs to read marks) | about 21 kB | 28 kB |
 | `/diff`, `/export` (they include the parser and renderer an editor page already loads) | about 25 kB | 28 kB |
 | each `i18n/<lang>` | 1.1–1.5 kB | 1.5 kB |
 

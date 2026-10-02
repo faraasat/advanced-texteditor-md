@@ -78,7 +78,7 @@ src/
 Subpath bundles (tree-shaking): `.` (editor) · `./parser` · `./render` · `./math` ·
 `./highlight` + `./highlight/<lang>` · `./uploaders` · `./plugins` · `./mentions` · `./paste` ·
 `./link-preview` · `./embeds` · `./lightbox` · `./style.css` · `./style.min.css` · `./plugins.css` · `./tailwind.css`.
-Feature subpaths (2026-10-02, `src/extensions/<name>/`, never imported by the editor entry; a test enforces it): `./alerts` · `./code-blocks` · `./tables` · `./diagrams` · `./diff` · `./export` · `./chips` · `./blocks` · `./writing` · `./i18n` + `./i18n/<lang>`, plus `./highlight/diff`. Their CSS is `src/styles/features/*.css`, inlined into `style.css`.
+Feature subpaths (2026-10-02, `src/extensions/<name>/`, never imported by the editor entry; a test enforces it): `./alerts` · `./code-blocks` · `./tables` · `./diagrams` · `./diff` · `./export` · `./chips` · `./blocks` · `./writing` · `./snippets` · `./links` · `./comments` · `./frontmatter` · `./source` · `./i18n` + `./i18n/<lang>`, plus `./highlight/diff`. Their CSS is `src/styles/features/*.css`, inlined into `style.css`.
 
 Lazy chunks (`src/editor/lazy-chunks.ts`, loaded with `import()` on first use): popovers, slash, mentions,
 uploads, markdown-pane, math, paste, rich-links, image-tools, table-tools, block-handles, zoom, bubble, toolbar-menu, and the
