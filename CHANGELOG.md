@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **`softBreak: "br"`** (`ParseOptions`, so `renderHtml`, `renderDom` and `createEditor` all take it): a single newline inside a paragraph renders as `<br>`
+  (the editor's Write view too, and it is read back as the same single newline). Default `"space"`; the parsed document and the stored Markdown do not change.
+- **Chip colour and badge per person.** An item's own `color` / `badge` now stay with that person (`ChipDefinition.styles`, keyed `kind:id`, in memory per editor).
+  `mentions: { persistStyle: true }` writes them into the chip link as `_color` / `_badge` so they survive a reload; off by default, so the wire format is unchanged.
+  The renderer reads `attrs._color` / `attrs._badge`.
+- Playwright checks for the toolbar in 480, 730 and 768 px containers (classic and compact).
+
+### Fixed
+- Body-level UI (mention menu, link-preview popover, lightbox, footnote tip, chip cards and pickers, view dialogs) now carries the editor's `data-atm-theme`,
+  `data-atm-density` and `dir`, and follows `setTheme` (dark editor on a light page and the reverse).
+- Toolbar: never wraps (`flex-wrap: nowrap`), and after the overflow pass the row is checked against its real layout; whatever still does not fit goes to More
+  (no lone button on a second row, no Σ under the mode switch).
+- `getValue()` always returns the current content: a document over 20 kB no longer reports a stale value for 120 to 300 ms after typing.
+- `insertMarkdown` / `insertText` work when the editor has no focus or selection (they insert at the end).
+- Markdown-mode `insertChip` escapes the label, so `Jo [a](b)` cannot break out of the link.
+
+### Changed
+- `insertText` is documented as literal and `insertMarkdown` as parsing.
+- To stay inside the 63 kB eager budget: dropped the Safari < 14 `matchMedia` listener fallback (the `auto` theme keeps the theme it started with there) and the
+  unused internal `Surface.getDoc`.
+
 ## 0.2.0 - 2026-10-02
 
 ### Added

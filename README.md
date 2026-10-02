@@ -160,6 +160,7 @@ createEditor(el, {
   readOnly: false, disabled: false, autofocus: false,
   maxLength: 5000, minHeight: 160, maxHeight: 480,
   name: "body",                 // adds a hidden <input> so it works in a plain <form>
+  softBreak: "space",           // "space" (CommonMark) | "br": a single newline in a paragraph shows as a line break
 });
 ```
 
@@ -339,7 +340,11 @@ createEditor(el, {
 A `MentionItem` is `{ id, label, kind?, description?, avatarUrl?, badge?, color?, refs? }`. A chip is stored as
 `[@Jane Doe](mention:person/<id>?other=123)`. A person known to two systems is ONE chip whose `refs` carry both ids, so
 one mention fans out to both. `color` is a palette slot 1 to 8 or any CSS colour. Chip colour and badge are per
-`(scheme, kind)`, not per person: declare `chips` up front, or let the editor learn them from the first item of each kind.
+`(scheme, kind)` by default: declare `chips` up front, or let the editor learn them from the first item of each kind. An item's own
+`color` and `badge` also stick to THAT person: the editor remembers them (in memory, per editor and per `kind:id`, in
+`ChipDefinition.styles`) and applies them whenever the chip is drawn in this editor, without changing the Markdown. To make them survive a
+reload and reach other readers, set `mentions: { persistStyle: true }`: the pick then writes `?_color=3&_badge=Hub` into the chip's link
+(a chip without those parameters renders the same as before).
 Several mention entries (`@` for people, `#` for tags) can be given as an array. `getMentions()` and `onMentionsChange`
 list the mentioned chips. Pass `classNames: { menu, menuItem, menuItemActive }` to style the menu.
 
@@ -490,7 +495,11 @@ reasons, embed actions) can be overridden with the same object.
 (commands include `details`, `submit` and the table commands `tableAddRow`, `tableAddColumn`, `tableDeleteRow`, `tableDeleteColumn`, `tableAlignLeft`, `tableAlignCenter`, `tableAlignRight` and `tableDeleteTable`),
 `registerCommand`, `can`, `undo`, `redo`, `insertMarkdown`, `insertText`, `insertChip`, `getSelectionText`, `getSelectionMarkdown`,
 `replaceSelectionMarkdown`, `transact(fn)` (many edits, one undo step and one `change`), `getPane`, `emit` / `on` for plugin events,
-`uploadFiles`, `destroy`. `setValue` keeps the string verbatim (a trailing space stays, so typing `@` after `cc ` opens the menu).
+`uploadFiles`, `destroy`. `setValue` keeps the string verbatim (a trailing space stays, so typing `@` after `cc ` opens the menu), and `getValue()`
+returns it unchanged until the user edits. `getValue()` always flushes: it returns the current content at once, even in a document over 20 kB.
+`insertText(text)` is LITERAL (Markdown characters stay text; the typing input rules do not run) and `insertMarkdown(md)` PARSES. Both insert at
+the caret, or at the end of the document when the editor has no focus or selection. Body-level menus, popovers and dialogs carry the editor's
+`data-atm-theme`, `data-atm-density` and `dir`, and follow `setTheme`.
 
 ## Server rendering (render-only)
 
@@ -514,7 +523,7 @@ Gzip, after minification, measured 2026-10-02 (`npm run size`; the enforced figu
 
 | Entry | Eager | Budget |
 |---|---|---|
-| `index` (editor) | 62.8 kB | 63 kB (target 48 kB) |
+| `index` (editor) | 62.97 kB | 63 kB (target 48 kB) |
 | `parser` | 12.1 kB | 14 kB |
 | `render` | 13.1 kB | 14 kB |
 | `math` | 5.0 kB | 5 kB |
