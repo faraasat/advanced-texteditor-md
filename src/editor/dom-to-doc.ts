@@ -127,7 +127,7 @@ function inlineOf(nodes: ArrayLike<Node>, x: X): InlineNode[] {
     if (DROP.has(t)) return;
     if (has(n, x, "upload") || n.hasAttribute("data-atm-preview-card")) return;
     if (t === "BR") {
-      if (n !== tail) out.push({ type: "break" });
+      if (n !== tail) out.push(n.hasAttribute("data-atm-soft") ? { type: "text", value: "\n" } : { type: "break" });
       return;
     }
     if (has(n, x, "chip")) return void out.push(chipOf(n, x));

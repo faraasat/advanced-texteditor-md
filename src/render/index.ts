@@ -125,7 +125,7 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
   const inline = (n: InlineNode): VN[] => {
     switch (n.type) {
       case "text":
-        return [n.value];
+        return o.softBreak === "br" && n.value.includes("\n") ? n.value.split("\n").flatMap((t, i) => (i ? [el("br", { "data-atm-soft": "" }), t] : [t])) : [n.value];
       case "emphasis":
         return [el("em", { class: k("em", "emphasis") }, inl(n.children))];
       case "strong":

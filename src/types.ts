@@ -186,6 +186,12 @@ export type ParseOptions = {
    * Default true. A host block syntax named "details" replaces the built-in one.
    */
   details?: boolean;
+  /**
+   * What a single newline inside a paragraph becomes when rendered: "space" (CommonMark, default)
+   * or "br" (a `<br>`). The parsed Doc and the stored Markdown are identical either way; only the
+   * display changes. Read by the renderer and the editor's WYSIWYG surface, ignored by `parse`.
+   */
+  softBreak?: "space" | "br";
 };
 
 export type RenderOptions = ParseOptions & {
