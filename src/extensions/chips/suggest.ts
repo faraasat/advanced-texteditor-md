@@ -7,6 +7,7 @@
  *
  * Every row is built with createElement/textContent; `renderItem` may return the host's own node.
  */
+import { mirrorTheme } from "../../features/theme-mirror";
 import type { MentionItem, MentionOptions } from "../../types";
 import { urlAllowed } from "../../features/upload-policy";
 import { detectTrigger } from "../../features/mentions";
@@ -335,6 +336,7 @@ export function createTextareaTypeahead(cfg: TextareaTypeaheadConfig): TextareaT
     const o = opts[current.opt];
     if (o.hideWhenEmpty && !items.length) return hide();
     if (!open) {
+      mirrorTheme(ta, list.menu);
       d.body.append(list.menu);
       open = true;
       ta.setAttribute("aria-controls", list.list.id);

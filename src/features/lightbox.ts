@@ -13,6 +13,7 @@
  * output. Server-safe at import: the DOM is used only when `attachLightbox` runs.
  */
 import { h, trapTab } from "../editor/dom";
+import { mirrorTheme } from "./theme-mirror";
 
 function svgIcon(doc: Document, paths: string[]): SVGElement {
   const ns = "http://www.w3.org/2000/svg";
@@ -144,8 +145,7 @@ export function attachLightbox(root: HTMLElement, opts: LightboxOptions = {}): L
       btn("next", L.lightboxNext, () => go(index + 1)),
       btn("close", L.lightboxClose, close),
     );
-    const themed = root.closest("[data-atm-theme]");
-    if (themed) dialog.setAttribute("data-atm-theme", themed.getAttribute("data-atm-theme")!);
+    mirrorTheme(root, dialog);
     dialog.querySelector(`.${p}-lightbox-backdrop`)!.addEventListener("click", close);
     dialog.addEventListener("keydown", onKey);
     doc.body.appendChild(dialog);

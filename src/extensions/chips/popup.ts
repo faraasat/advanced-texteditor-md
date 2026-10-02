@@ -4,14 +4,13 @@
  * the WYSIWYG surface and nothing can become content.
  */
 
+import { mirrorTheme } from "../../features/theme-mirror";
+
 let seq = 0;
 export const nextId = (p: string): string => `atm-${p}-${++seq}`;
 
-/** Copy the theme attribute of the closest themed ancestor, as the link-preview popover does. */
-export function copyTheme(from: Element | null, to: HTMLElement): void {
-  const theme = from?.closest?.("[data-atm-theme]")?.getAttribute("data-atm-theme");
-  if (theme) to.setAttribute("data-atm-theme", theme);
-}
+/** Copy the theme, density and direction of `from`, and keep them in sync (features/theme-mirror). */
+export const copyTheme = mirrorTheme;
 
 type RectLike = { left: number; top: number; bottom: number; right?: number };
 

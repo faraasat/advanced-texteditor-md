@@ -13,6 +13,7 @@
 import type { BlockNode, Doc, EditorInstance, InlineNode, Plugin } from "../../types";
 import { h, perEditor, surfaceOf, textareaOf, caretRect } from "../_shared";
 import { cssId, edit, field, fmt, leafBlock, openPanel, surfaceCtx, uid, type Panel } from "./util";
+import { mirrorTheme } from "../../features/theme-mirror";
 
 export type FootnotesLabels = {
   insert: string;
@@ -160,6 +161,7 @@ function tooltip(a: HTMLAnchorElement, li: HTMLElement, doc: Document): void {
     const t = text();
     if (!t) return;
     tip = h(doc, "div", { role: "tooltip", id, class: "atm-fn-tip" }, t);
+    mirrorTheme(a, tip);
     doc.body.appendChild(tip);
     const r = a.getBoundingClientRect();
     const win = doc.defaultView;

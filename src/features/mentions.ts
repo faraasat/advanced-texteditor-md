@@ -11,6 +11,7 @@
 import type { MentionItem, MentionOptions } from "../types";
 import { urlAllowed } from "./upload-policy";
 import { chipHref } from "../parser/chip";
+import { mirrorTheme } from "./theme-mirror";
 
 /* ───────────────────────────── wire format ─────────────────────────────
  *
@@ -268,6 +269,7 @@ export function createMentionController(config: MentionControllerOptions): Menti
     statusEl = doc.createElement("div");
     statusEl.className = "atm-mention-status";
     menuEl.append(listEl, statusEl);
+    mirrorTheme(root, menuEl);
     doc.body.appendChild(menuEl);
     root.setAttribute("aria-controls", listEl.id);
     listen(true);

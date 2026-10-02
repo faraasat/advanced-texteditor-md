@@ -8,6 +8,7 @@
 import { parse } from "../parser/parse";
 import type { BlockNode, BlockSyntax, Doc, EditorInstance, RenderOptions } from "../types";
 import { h } from "./_shared";
+import { mirrorTheme } from "../features/theme-mirror";
 
 /**
  * `::: notes` ... `:::`: speaker notes. Registered so the parser makes a `custom` block named
@@ -178,10 +179,7 @@ export function openModal(ed: EditorInstance, o: ModalOptions): Modal {
   const body = doc.body;
   const returnTo = doc.activeElement as HTMLElement | null;
   const wrap = h(doc, "div", { class: "atm-view-modal", role: "dialog", "aria-modal": "true", "aria-label": o.label });
-  const theme = ed.element.closest("[data-atm-theme]")?.getAttribute("data-atm-theme");
-  if (theme) wrap.setAttribute("data-atm-theme", theme);
-  const dir = ed.element.closest("[dir]")?.getAttribute("dir");
-  if (dir) wrap.setAttribute("dir", dir);
+  mirrorTheme(ed.element, wrap);
 
   const frozen: Element[] = [];
   for (const c of Array.from(body.children)) {

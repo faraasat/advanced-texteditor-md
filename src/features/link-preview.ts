@@ -28,6 +28,7 @@
  */
 import type { LinkPolicy, LinkPreview, LinkPreviewOptions } from "../types";
 import { urlAllowed } from "./upload-policy";
+import { mirrorTheme } from "./theme-mirror";
 
 export type LinkPreviewLabels = { loading?: string };
 
@@ -528,8 +529,7 @@ export function createLinkPreviewController(init: LinkPreviewControllerInit): Li
       popId = `atm-popover-${++popoverSeq}`;
       pop.id = popId;
       pop.setAttribute("role", "tooltip");
-      const theme = a.closest("[data-atm-theme]")?.getAttribute("data-atm-theme");
-      if (theme) pop.setAttribute("data-atm-theme", theme);
+      mirrorTheme(a, pop);
       pop.append(renderCard(preview));
       pop.addEventListener("mouseover", () => clearTimeout(closeTimer));
       pop.addEventListener("mouseout", (e) => {
