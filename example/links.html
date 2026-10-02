@@ -119,14 +119,15 @@
         readOnly: q.get("readonly") === "1",
         theme: q.get("theme") ?? "light",
         chips: wiki.chips,
-        plugins: [wiki.plugin, manager],
+        plugins: [wiki.plugin, manager, L.createLinkAffordances({ delayMs: 150 })],
         links: { allowedSchemes: ["http", "https", "mailto"] },
         toolbar: { groups: ["history", "text", "blocks", "insert", "plugins"] },
         minHeight: 220,
         onChange: (md) => { out.textContent = md; renderView(md); backlinks(); },
       });
+      const anchors = L.createHeadingAnchors();
       const view = document.getElementById("view");
-      const renderView = (md) => view.replaceChildren(lib.renderDom(md, { chips: wiki.chips, postRender: [wiki.postRender] }));
+      const renderView = (md) => view.replaceChildren(lib.renderDom(md, { chips: wiki.chips, postRender: [wiki.postRender, anchors.postRender] }));
       const docs = [
         { id: "Weekly sync", markdown: "Agenda: [Project Alpha](wiki:alpha) status." },
         { id: "Handbook", markdown: "Start at [Style guide](wiki:style). Project: [Alpha](wiki:alpha)." },

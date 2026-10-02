@@ -5,6 +5,8 @@
  *                       through the host's `resolve`; `onOpen` on click or Enter
  *  - createLinkManager  a dialog listing every link with its state; edit, remove, go to, and
  *                       upgrade http to https in one undo step ("Manage links..." in the palette)
+ *  - createLinkAffordances   Ctrl/Cmd+click opens a link in the editor; an address tooltip on hover and focus
+ *  - createHeadingAnchors, enhanceHeadingAnchors   copy-link buttons on the headings of read-only views
  *  - findLinks, findWikiIds, findBacklinks   pure, server-safe, linear; take Markdown or a Doc
  *  - createResolver     the batched, cached, abortable page lookup behind `resolve`
  *  - applyEdits, editLink, removeLink, upgradeEdits   pure Markdown edits the manager uses
@@ -13,6 +15,8 @@
  * The library never fetches: pages come from your `search` and `resolve`, addresses from your `check`.
  * Server-safe at import.
  */
+export { createLinkAffordances, createHeadingAnchors, enhanceHeadingAnchors, headingSlug } from "./affordances";
+export type { LinkAffordancesOptions, LinkAffordancesLabels, HeadingAnchorsOptions, HeadingAnchorsLabels } from "./affordances";
 export { createWikiLinks, DEFAULT_WIKI_LABELS } from "./wiki";
 export type { WikiLinks, WikiLinksOptions, WikiLabels } from "./wiki";
 export { createLinkManager, DEFAULT_LINK_LABELS } from "./manager";
