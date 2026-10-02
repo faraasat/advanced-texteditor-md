@@ -41,7 +41,7 @@ describe("heading anchors", () => {
     const onCopy = vi.fn();
     const host = await view("## Setup\n", { onCopy, url: (id: string) => `https://x.test/doc#${id}` });
     host.querySelector<HTMLElement>(".atm-h-anchor")!.click();
-    await wait(10);
+    for (let i = 0; i < 60 && !host.querySelector("[role=status]")!.textContent; i++) await wait(25); // the copy code is a lazy chunk
     expect(writeText).toHaveBeenCalledWith("https://x.test/doc#setup");
     expect(host.querySelector("[role=status]")!.textContent).toBe("Link copied");
     expect(onCopy).toHaveBeenCalledWith("setup", "https://x.test/doc#setup");
