@@ -325,7 +325,7 @@ function matchDecl(s, i, syn, dead) {
 function blockOpen(t, ctx) {
   for (const syn of ctx.bl) {
     const f = fenceOf(syn);
-    if (!t.startsWith(f)) continue;
+    if (syn.match || !t.startsWith(f)) continue;
     const m = new RegExp(`^${escRe(f)}[ \\t]*${escRe(syn.name)}(?=\\s|$)(.*)$`).exec(t);
     if (m) return { syn, data: syn === DETAILS ? detailsData(m[1]) : parseData(m[1]) };
   }
@@ -521,6 +521,19 @@ function parseBlocks(lines, ctx, ranges, flag) {
       continue;
     }
     const t = l.slice(ind);
+    for (const sy of ctx.bl) {
+      let r;
+      try {
+        r = sy.match?.(lines, i, { blocks: (ls) => parseBlocks(ls, ctx), top: ctx.d < 2 });
+      } catch {
+      }
+      if (r && r.end > i) {
+        push(r.node, s, r.end);
+        i = r.end;
+        break;
+      }
+    }
+    if (i > s) continue;
     const fm = FENCE.exec(t);
     if (fm && !(fm[1][0] === "`" && fm[2].includes("`"))) {
       const ch = fm[1][0];
@@ -1557,8 +1570,9 @@ function toVN(doc, o) {
       "data-trigger": c.trigger,
       "data-refs": c.attrs && Object.keys(c.attrs).length ? JSON.stringify(c.attrs) : void 0
     };
-    const col = kd?.color;
-    if (typeof col === "number" && col >= 1 && col <= 8) a.style = `--${p}-chip-color:var(--${p}-chip-${Math.trunc(col)})`;
+    const st = def?.styles?.[c.kind + ":" + c.id] ?? { color: c.attrs?._color, badge: c.attrs?._badge };
+    const col = st.color ?? kd?.color;
+    if (+col >= 1 && +col <= 8) a.style = `--${p}-chip-color:var(--${p}-chip-${Math.trunc(+col)})`;
     else if (typeof col === "string" && safeColor(col)) a.style = `--${p}-chip-color:${col}`;
     const kids = [];
     let custom2;
@@ -1569,7 +1583,8 @@ function toVN(doc, o) {
     if (custom2 !== void 0) kids.push(typeof custom2 === "string" ? { raw: custom2 } : { el: custom2 });
     else {
       kids.push((c.trigger ?? "") + c.label);
-      if (kd?.label) kids.push(el("span", { class: k("chip-badge") }, [kd.label]));
+      const bd = st.badge ?? kd?.label;
+      if (bd) kids.push(el("span", { class: k("chip-badge") }, [bd]));
     }
     return el("span", a, kids);
   };
@@ -1577,7 +1592,7 @@ function toVN(doc, o) {
   const inline2 = (n) => {
     switch (n.type) {
       case "text":
-        return [n.value];
+        return o.softBreak === "br" && n.value.includes("\n") ? n.value.split("\n").flatMap((t, i) => i ? [el("br", { "data-atm-soft": "" }), t] : [t]) : [n.value];
       case "emphasis":
         return [el("em", { class: k("em", "emphasis") }, inl2(n.children))];
       case "strong":
@@ -3073,6 +3088,30 @@ var init_slash = __esm({
   }
 });
 
+// src/features/theme-mirror.ts
+function mirrorTheme(from, el2) {
+  if (!from) return;
+  const sync = () => {
+    for (const a of ATTRS) {
+      const v = from.closest(`[${a}]`)?.getAttribute(a);
+      if (v == null) el2.removeAttribute(a);
+      else el2.setAttribute(a, v);
+    }
+  };
+  sync();
+  const Obs = from.ownerDocument.defaultView?.MutationObserver;
+  if (!Obs) return;
+  const mo2 = new Obs(() => el2.isConnected ? sync() : mo2.disconnect());
+  for (let n = from; n; n = n.parentElement) mo2.observe(n, { attributes: true, attributeFilter: ATTRS });
+}
+var ATTRS;
+var init_theme_mirror = __esm({
+  "src/features/theme-mirror.ts"() {
+    "use strict";
+    ATTRS = ["data-atm-theme", "data-atm-density", "dir"];
+  }
+});
+
 // src/features/mentions.ts
 function detectTrigger(textBeforeCaret, triggers, allowSpaces) {
   let best = null;
@@ -3194,6 +3233,7 @@ function createMentionController(config) {
     statusEl = doc.createElement("div");
     statusEl.className = "atm-mention-status";
     menuEl.append(listEl, statusEl);
+    mirrorTheme(root, menuEl);
     doc.body.appendChild(menuEl);
     root.setAttribute("aria-controls", listEl.id);
     listen(true);
@@ -3222,17 +3262,17 @@ function createMentionController(config) {
         loading = true;
         render();
         res.then(
-          (r) => settle(mySeq, ac, r),
-          () => settle(mySeq, ac, null)
+          (r) => settle2(mySeq, ac, r),
+          () => settle2(mySeq, ac, null)
         );
       } else {
-        settle(mySeq, ac, res);
+        settle2(mySeq, ac, res);
       }
     };
     if (immediate || !(opt.debounceMs ?? 100)) go();
     else timer = setTimeout(go, opt.debounceMs ?? 100);
   }
-  function settle(mySeq, ac, result) {
+  function settle2(mySeq, ac, result) {
     if (destroyed || mySeq !== seq || ac.signal.aborted || !current2) return;
     loading = false;
     const max = optsOf().maxResults ?? 8;
@@ -3498,6 +3538,7 @@ var init_mentions = __esm({
   "src/features/mentions.ts"() {
     "use strict";
     init_upload_policy();
+    init_theme_mirror();
     MAX_QUERY = 60;
     BOUNDARY_RE = /[\s(\[{<"'`,.;:!?\-—–‘“¿¡]/;
     uid2 = 0;
@@ -3517,8 +3558,9 @@ function learn(g, o, items) {
   for (const it of items ?? []) {
     if (it.color === void 0 && !it.badge) continue;
     const kind = it.kind ?? "";
-    if (g.hostKinds.has(`${scheme}\0${kind}`)) continue;
     const def = g.chipDefs[scheme] ??= { scheme };
+    (def.styles ??= {})[`${kind}:${it.id}`] = { color: it.color, badge: it.badge };
+    if (g.hostKinds.has(`${scheme}\0${kind}`)) continue;
     def.kinds ??= {};
     if (!def.kinds[kind]) def.kinds[kind] = { color: it.color, label: it.badge };
   }
@@ -3546,6 +3588,10 @@ function attachMentions(g) {
       learn(g, o, [item]);
       const chip = { scheme: o.scheme ?? "mention", kind: item.kind ?? "", id: item.id, label: item.label, trigger: o.trigger ?? "@" };
       if (item.refs && Object.keys(item.refs).length) chip.attrs = { ...item.refs };
+      if (o.persistStyle) {
+        if (item.color !== void 0) (chip.attrs ??= {})._color = String(item.color);
+        if (item.badge) (chip.attrs ??= {})._badge = item.badge;
+      }
       s.replaceRangeWithChip(range, chip);
     }
   });
@@ -6252,8 +6298,7 @@ function createLinkPreviewController(init) {
       popId = `atm-popover-${++popoverSeq}`;
       pop.id = popId;
       pop.setAttribute("role", "tooltip");
-      const theme = a.closest("[data-atm-theme]")?.getAttribute("data-atm-theme");
-      if (theme) pop.setAttribute("data-atm-theme", theme);
+      mirrorTheme(a, pop);
       pop.append(renderCard(preview));
       pop.addEventListener("mouseover", () => clearTimeout(closeTimer));
       pop.addEventListener("mouseout", (e) => {
@@ -6363,6 +6408,7 @@ var init_link_preview = __esm({
   "src/features/link-preview.ts"() {
     "use strict";
     init_upload_policy();
+    init_theme_mirror();
     NEGATIVE_MS = 6e4;
     NEGATIVE_MAX = 500;
     GRACE_MS = 150;
@@ -8015,8 +8061,7 @@ function attachLightbox(root, opts = {}) {
       btn("next", L2.lightboxNext, () => go(index + 1)),
       btn("close", L2.lightboxClose, close)
     );
-    const themed = root.closest("[data-atm-theme]");
-    if (themed) dialog2.setAttribute("data-atm-theme", themed.getAttribute("data-atm-theme"));
+    mirrorTheme(root, dialog2);
     dialog2.querySelector(`.${p}-lightbox-backdrop`).addEventListener("click", close);
     dialog2.addEventListener("keydown", onKey);
     doc.body.appendChild(dialog2);
@@ -8099,6 +8144,7 @@ var init_lightbox = __esm({
   "src/features/lightbox.ts"() {
     "use strict";
     init_dom();
+    init_theme_mirror();
     LIGHTBOX_LABELS = {
       lightbox: "Image viewer",
       lightboxPrev: "Previous image",
@@ -10745,6 +10791,7 @@ function lineStarts(s, x) {
       return l;
     }
     if (c >= "0" && c <= "9") return l.replace(/^(\d{1,9})([.)])(?=[ \t]|$)/, "$1\\$2");
+    if (c === ":" && (l[1] === " " || l[1] === "	")) return "\\" + l;
     for (const f of fences) if (l.startsWith(f) && (l.trim() === f || blockOpen(l, x))) return "\\" + l;
     return l;
   }).join("\n");
@@ -10834,6 +10881,10 @@ function blockStr(b, x, alt2, ai) {
     }
     case "custom": {
       const sy = x.bl.find((s) => s.name === b.name);
+      try {
+        if (sy?.serialize) return sy.serialize(b, { blocks: (n) => blocks(n, x, true) });
+      } catch {
+      }
       const f = sy ? fenceFor(sy) : ":::";
       const inner = blocks(b.children, x, true);
       const sum = (b.data?.summary ?? "").replace(/\s+/g, " ").trim();
@@ -10850,7 +10901,8 @@ function blocks(nodes, x, ai, sep = "\n\n") {
   for (const b of nodes) {
     const same = b.type === "list" && prev?.type === "list" && prev.ordered === b.ordered;
     alt2 = same ? 1 - alt2 : 0;
-    const s = blockStr(b, x, alt2, ai && prev?.type !== "list" && !(prev?.type === "codeBlock" && prev.fence === "indent"));
+    const a = ai && prev?.type !== "list" && !(prev?.type === "codeBlock" && prev.fence === "indent");
+    const s = blockStr(b, x, alt2, a);
     if (!s) continue;
     out += (prev ? sep : "") + s;
     prev = b;
@@ -10864,8 +10916,10 @@ function stringifyOnce(doc, o = {}) {
 // src/parser/index.ts
 init_util();
 function stringify(doc, opts = {}) {
-  let s = stringifyOnce(doc, opts);
-  if (opts.stable === false) return s;
+  const s = stringifyOnce(doc, opts);
+  return opts.stable === false ? s : settle(s, opts);
+}
+function settle(s, opts) {
   const po = { ...opts, positions: false };
   for (let i = 0; i < 4; i++) {
     const t = stringifyOnce(parse(s, po), opts);
@@ -10992,9 +11046,9 @@ function trailingBr(nodes) {
   }
   return null;
 }
-function walk(root, v) {
-  let pos = 0;
-  let first = true;
+function walk(root, v, from) {
+  let pos = from ? from.pos : 0;
+  let first = from ? from.first : true;
   let stop;
   let content = false;
   const inline2 = (n, tail2) => {
@@ -11060,6 +11114,10 @@ function walk(root, v) {
     if (flush()) return true;
     return (stop = v({ t: "end", n: el2, pos })) !== void 0;
   };
+  if (from) {
+    const c = from.kid;
+    return (isLeaf(c) ? leaf(c, root, Array.from(c.childNodes)) : container(c)) ? stop : pos;
+  }
   if (isLeaf(root) && root.nodeType === 1 && !isAtom(root)) {
     const tail2 = trailingBr(Array.from(root.childNodes));
     for (let c = root.firstChild; c; c = c.nextSibling) if (inline2(c, tail2)) return stop;
@@ -11068,6 +11126,59 @@ function walk(root, v) {
   }
   if (container(root)) return stop;
   return pos;
+}
+var TRACKED = /* @__PURE__ */ new WeakMap();
+function trackBlocks(root) {
+  const maps = [];
+  const drop = (rs) => {
+    for (const r of rs) {
+      let n = r.target;
+      if (n === root) r.addedNodes.forEach((a) => maps.forEach((m) => m.delete(a)));
+      else {
+        while (n && n.parentNode !== root) n = n.parentNode;
+        if (n) for (const m of maps) m.delete(n);
+      }
+    }
+  };
+  const mo2 = new MutationObserver(drop);
+  mo2.observe(root, { subtree: true, childList: true, characterData: true, attributes: true });
+  const t = {
+    map() {
+      const m = /* @__PURE__ */ new WeakMap();
+      maps.push(m);
+      return m;
+    },
+    sync: () => drop(mo2.takeRecords()),
+    stop() {
+      mo2.disconnect();
+      TRACKED.delete(root);
+    }
+  };
+  TRACKED.set(root, { t, lens: t.map() });
+  return t;
+}
+function fast(root, v, until) {
+  const c = TRACKED.get(root);
+  if (!c) return;
+  c.t.sync();
+  let pos = 0;
+  let first = true;
+  for (let k = root.firstChild; k; k = k.nextSibling) {
+    if (!isBlock(k)) return;
+    let e = c.lens.get(k);
+    if (!e) {
+      let leafy = false;
+      const d = walk(root, (x) => void (x.t === "leaf" && (leafy = true)), { kid: k, pos: 0, first: false });
+      c.lens.set(k, e = [d, leafy]);
+    }
+    const end = pos + e[0] - (e[1] && first ? 1 : 0);
+    if (until(pos, end, k)) {
+      const r = walk(root, v, { kid: k, pos, first });
+      return typeof r === "number" ? void 0 : r;
+    }
+    pos = end;
+    if (e[1]) first = false;
+  }
 }
 function atomAncestor(root, n) {
   let found = null;
@@ -11109,15 +11220,15 @@ function target(root, node, off) {
 function offsetOf(root, node, off) {
   if (!root.contains(node)) return 0;
   const t = target(root, node, off);
-  const r = walk(root, (e) => {
+  const v = (e) => {
     if (t.kind === "text" && e.t === "text" && e.n === t.n) return e.pos + t.off;
     if (t.kind === "before" && e.t === "before" && e.n === t.n) return e.pos;
     if (t.kind === "end" && e.t === "end" && e.n === t.n) return e.pos;
     if (t.kind === "end" && e.t === "leafend" && e.el === t.n) return e.pos;
     if (e.t === "ghost" && (e.n === t.n || e.n.contains(t.n))) return e.pos;
     return void 0;
-  });
-  return r;
+  };
+  return fast(root, v, (_p, _e, k) => k.contains(t.n)) ?? walk(root, v);
 }
 var indexOf = (n) => {
   let i = 0;
@@ -11126,7 +11237,7 @@ var indexOf = (n) => {
 };
 function pointAt(root, n) {
   let lastLeaf = null;
-  const r = walk(root, (e) => {
+  const v = (e) => {
     if (e.t === "text" && e.n.data.length && n >= e.pos && n <= e.pos + e.n.data.length) return { node: e.n, offset: n - e.pos };
     if (e.t === "atom" && n === e.pos) {
       if (isBlock(e.n) && e.n.parentNode) return { node: e.n.parentNode, offset: indexOf(e.n) };
@@ -11140,7 +11251,11 @@ function pointAt(root, n) {
       if (n === e.pos) return endOfLeaf(e.el, e.parent, e.last);
     }
     return void 0;
-  });
+  };
+  const f = fast(root, v, (_p, end) => n <= end);
+  if (f) return f;
+  lastLeaf = null;
+  const r = walk(root, v);
   if (typeof r === "number") {
     if (lastLeaf) {
       const l = lastLeaf;
@@ -11180,18 +11295,22 @@ function itemsOf(root) {
 function lengthOf(root) {
   return walk(root, () => void 0);
 }
-function topIndex(root, n) {
+function topIndex(root, n, near) {
   const kids = Array.from(root.childNodes).filter((c) => isBlock(c));
   let best = [0, n];
-  for (let i = 0; i < kids.length; i++) {
+  let i = 0;
+  while (near && near.parentNode !== root) near = near.parentNode;
+  const k = near ? kids.indexOf(near) : -1;
+  if (k > 0 && offsetOf(root, kids[k], 0) <= n) i = k;
+  for (; i < kids.length; i++) {
     const s = offsetOf(root, kids[i], 0);
     if (s <= n) best = [i, n - s];
     else break;
   }
   return best;
 }
-function toPath(root, n) {
-  return topIndex(root, n);
+function toPath(root, n, near) {
+  return topIndex(root, n, near);
 }
 function fromPath(root, p) {
   const kids = Array.from(root.childNodes).filter((c) => isBlock(c));
@@ -11239,7 +11358,8 @@ function setSelection(root, a, f = a) {
 }
 function savePath(root) {
   const s = saveSelection(root);
-  return s ? { anchor: toPath(root, s.anchor), focus: toPath(root, s.focus) } : null;
+  const sel = root.ownerDocument.getSelection();
+  return s ? { anchor: toPath(root, s.anchor, sel?.anchorNode), focus: toPath(root, s.focus, sel?.focusNode) } : null;
 }
 function restorePath(root, p) {
   restoreSelection(root, { anchor: fromPath(root, p.anchor), focus: fromPath(root, p.focus) });
@@ -11657,7 +11777,7 @@ function inlineOf(nodes, x) {
     if (DROP.has(t)) return;
     if (has(n, x, "upload") || n.hasAttribute("data-atm-preview-card")) return;
     if (t === "BR") {
-      if (n !== tail2) out.push({ type: "break" });
+      if (n !== tail2) out.push(n.hasAttribute("data-atm-soft") ? { type: "text", value: "\n" } : { type: "break" });
       return;
     }
     if (has(n, x, "chip")) return void out.push(chipOf(n, x));
@@ -14452,12 +14572,12 @@ function createSurface(options) {
   }
   root.style.whiteSpace = "pre-wrap";
   root.style.overflowWrap = "break-word";
+  const tracker = trackBlocks(root);
   let readOnly = false;
   let composing = false;
   let shiftEnter = false;
   let destroyed = false;
   let lastMd = "";
-  let cachedDoc = null;
   let dirty = false;
   let syncQueued = false;
   let syncTimer = null;
@@ -14505,7 +14625,6 @@ function createSurface(options) {
     root.textContent = "";
     root.appendChild(frag);
     ensureRoot(ctx);
-    cachedDoc = doc;
     updateEmpty();
     callPostRender(doc);
   }
@@ -14539,10 +14658,13 @@ function createSurface(options) {
     if (!root.contains(lastRange.startContainer) || !root.contains(lastRange.endContainer)) return null;
     return lastRange;
   }
-  function ensureLive() {
-    if (liveRange()) return;
+  function place() {
     const r = savedRange();
     if (r) setSelection(root, { node: r.startContainer, offset: r.startOffset }, { node: r.endContainer, offset: r.endOffset });
+    else setSelection(root, pointAt(root, Number.MAX_SAFE_INTEGER));
+  }
+  function ensureLive() {
+    if (!liveRange()) place();
   }
   function queueSync(kind) {
     dirty = true;
@@ -14567,11 +14689,11 @@ function createSurface(options) {
     if (composing || destroyed) return false;
     const s = saveSelection(root);
     if (normalizeTree(ctx, scope === void 0 ? currentTop() : scope) && s) restoreSelection(root, s);
+    tracker.sync();
     const doc = domToDoc(root, dtd);
     const md = stringify(doc, parseOpts);
     dirty = false;
     if (md === lastMd) {
-      cachedDoc = doc;
       updateEmpty();
       return false;
     }
@@ -14583,7 +14705,6 @@ function createSurface(options) {
       return false;
     }
     lastMd = md;
-    cachedDoc = doc;
     updateEmpty();
     if (batchDepth > 0) {
       batchChanged = true;
@@ -14607,7 +14728,6 @@ function createSurface(options) {
       root.textContent = "";
       for (const c of Array.from(entry.state.dom.childNodes)) root.appendChild(c.cloneNode(true));
       for (const b of Array.from(root.querySelectorAll(`input.${p}-task-box`))) prepCheckbox(b, rctx);
-      cachedDoc = null;
     } else renderAll(entry.state.markdown);
     lastMd = entry.state.markdown;
     dirty = false;
@@ -15443,18 +15563,9 @@ function createSurface(options) {
       restoreTrailingSpace(lastMd);
       if (s) restoreSelection(root, s);
     },
-    getDoc() {
-      flush();
-      return cachedDoc ?? parse(lastMd, parseOpts);
-    },
     focus() {
       root.focus({ preventScroll: false });
-      const r = savedRange();
-      if (r) setSelection(root, { node: r.startContainer, offset: r.startOffset }, { node: r.endContainer, offset: r.endOffset });
-      else if (!liveRange()) {
-        const end = pointAt(root, Number.MAX_SAFE_INTEGER);
-        setSelection(root, end);
-      }
+      if (savedRange() || !liveRange()) place();
     },
     blur() {
       root.blur();
@@ -15602,6 +15713,7 @@ function createSurface(options) {
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      tracker.stop();
       if (hlTimer) clearTimeout(hlTimer);
       if (syncTimer) clearTimeout(syncTimer);
       root.removeEventListener("beforeinput", onBeforeInput);
