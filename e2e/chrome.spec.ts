@@ -13,6 +13,8 @@ import AxeBuilder from "@axe-core/playwright";
 const URL = "/example/index.html";
 /** Keys that move the caret follow the machine running the browser. */
 const nav = process.platform === "darwin" ? "Meta" : "Control";
+// Select the previous word: Option+Shift+Left on macOS, Ctrl+Shift+Left on Linux and Windows.
+const wordLeft = process.platform === "darwin" ? "Shift+Alt+ArrowLeft" : "Shift+Control+ArrowLeft";
 /**
  * App shortcuts ("Mod-k"): which key is Mod depends on what the PAGE decided at load, and a device
  * profile can change navigator after that. The toolbar tooltips were built with the same detection
@@ -83,7 +85,7 @@ test.describe("toolbar", () => {
     await open(page);
     await setValue(page, "make this bold");
     await focusEnd(page);
-    await page.keyboard.press("Shift+Alt+ArrowLeft"); // select the last word
+    await page.keyboard.press(wordLeft); // select the last word
     await button(page, "bold").click();
     await expect.poll(() => value(page)).toBe("make this **bold**");
     await expect(button(page, "bold")).toHaveAttribute("aria-pressed", "true");
@@ -182,7 +184,7 @@ test.describe("layouts", () => {
     const bar = page.locator("#editor-host .atm-toolbar");
     await expect(bar).toBeHidden();
     await focusEnd(page);
-    await page.keyboard.press("Shift+Alt+ArrowLeft");
+    await page.keyboard.press(wordLeft);
     await expect(bar).toBeVisible();
     const b = await bar.boundingBox();
     const sel = await page.evaluate(() => {
@@ -331,7 +333,7 @@ test.describe("popovers", () => {
     await open(page);
     await setValue(page, "link text");
     await focusEnd(page);
-    await page.keyboard.press("Shift+Alt+ArrowLeft");
+    await page.keyboard.press(wordLeft);
     await page.keyboard.press(`${await appMod(page)}+k`);
     const dlg = page.locator("#editor-host [role=dialog]");
     await expect(dlg).toBeVisible();
@@ -349,7 +351,7 @@ test.describe("popovers", () => {
     await open(page);
     await setValue(page, "see docs");
     await focusEnd(page);
-    await page.keyboard.press("Shift+Alt+ArrowLeft");
+    await page.keyboard.press(wordLeft);
     await press(page, "link"); // on a phone it is in the More menu
     // The popovers are a lazy chunk: the first one opens when it has arrived.
     await expect(page.locator("#editor-host [role=dialog]")).toBeVisible();

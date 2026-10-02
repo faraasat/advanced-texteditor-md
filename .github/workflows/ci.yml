@@ -21,7 +21,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20, 22, 24]
+        # jsdom 30 (the unit-test DOM) supports Node ^22.22.2 || ^24.15.0 || >=26. The published
+        # package itself has no such requirement; this matrix is the DEVELOPMENT toolchain.
+        node-version: [22, 24]
     steps:
       - uses: actions/checkout@v5
 

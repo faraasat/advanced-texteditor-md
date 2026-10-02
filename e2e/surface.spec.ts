@@ -209,7 +209,7 @@ test.describe("surface", () => {
     // default ("Press Tab to highlight each item" off, also WebKit's default) skips buttons, so there
     // the next stop is the text field after the button. Overriding that order would override a
     // user setting, so the library leaves it alone.
-    await expect(page.locator(browserName === "webkit" ? "#outside-field" : "#outside")).toBeFocused();
+    await expect(page.locator(browserName === "webkit" && process.platform === "darwin" ? "#outside-field" : "#outside")).toBeFocused();
     await expect.poll(() => value(page)).toBe("plain");
   });
 
