@@ -65,7 +65,7 @@ test.describe("the page", () => {
 
 test.describe("toolbar", () => {
   test("is an ARIA toolbar with a roving tab stop and arrow-key navigation", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard navigation is a desktop concern");
+    test.skip(!!isMobile, "hardware keyboard: arrow-key navigation of the toolbar");
     await open(page);
     await expect(toolbar(page)).toHaveAttribute("aria-label", "Formatting");
     const stops = await toolbar(page).locator("button[tabindex='0']").count();
@@ -79,8 +79,7 @@ test.describe("toolbar", () => {
     await expect(button(page, "bold")).toBeFocused();
   });
 
-  test("Bold button formats the selection without stealing it", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "selection by keyboard");
+  test("Bold button formats the selection without stealing it", async ({ page }) => {
     await open(page);
     await setValue(page, "make this bold");
     await focusEnd(page);
@@ -92,7 +91,7 @@ test.describe("toolbar", () => {
   });
 
   test("the heading menu is a keyboard-operable menu", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+    test.skip(!!isMobile, "on a phone the heading menu lives in the More menu, and this test is its hardware-keyboard operation");
     await open(page);
     await setValue(page, "title");
     await focusEnd(page);
@@ -104,10 +103,9 @@ test.describe("toolbar", () => {
     await expect(page.locator("[role=menu]")).toHaveCount(0);
   });
 
-  test("emoji button focuses the editor and shows the platform shortcut", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "on a phone the button lives in the More menu (see the overflow test)");
+  test("emoji button focuses the editor and shows the platform shortcut", async ({ page }) => {
     await open(page);
-    await button(page, "emoji").click();
+    await press(page, "emoji"); // on a phone it is in the More menu
     await expect(page.locator("#editor-host .atm-toast")).toContainText(/Ctrl|Win|⌘|system/);
     await expect(page.locator("#editor-host .atm-toast")).toHaveAttribute("role", "status");
   });
@@ -124,8 +122,7 @@ test.describe("toolbar", () => {
 });
 
 test.describe("modes", () => {
-  test("Write / Markdown / Split are tabs; switching keeps the text and the focus", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+  test("Write / Markdown / Split are tabs; switching keeps the text and the focus", async ({ page }) => {
     await open(page);
     await setValue(page, "Hello **world**");
     await focusEnd(page);
@@ -179,8 +176,7 @@ test.describe("layouts", () => {
     expect(await value(page)).toBe("keep me");
   });
 
-  test("bubble: the floating toolbar follows a selection, never covers its start, and Escape hides it", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard selection");
+  test("bubble: the floating toolbar follows a selection, never covers its start, and Escape hides it", async ({ page }) => {
     await open(page, "?layout=bubble");
     await setValue(page, "select some words in this sentence");
     const bar = page.locator("#editor-host .atm-toolbar");
@@ -205,7 +201,7 @@ test.describe("layouts", () => {
   });
 
   test("bottom-bar: Mod-Enter fires atm:submit and onSubmit, never a form submit", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+    test.skip(!!isMobile, "hardware keyboard shortcut (Mod-Enter)");
     await open(page, "?layout=bottom-bar");
     await page.evaluate(() => {
       const w = window as unknown as { __submits: string[]; __formSubmits: number; __submitted?: string[] };
@@ -288,19 +284,31 @@ test.describe("accessibility", () => {
   });
 
   test("no axe violations with the mention menu, slash menu and link popover open", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
     await open(page);
     await setValue(page, "Hi");
     await focusEnd(page);
     await page.keyboard.type(" @Gra");
     await expect(page.locator("[role=listbox] [role=option]").first()).toBeVisible();
     let res = await new AxeBuilder({ page }).analyze();
-    expect(res.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+    expect(res.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);
     await page.keyboard.press("Escape");
     await page.keyboard.type(" /");
-    await expect(page.locator("[role=listbox][aria-label]").first()).toBeVisible();
+    const slash = page.locator("#editor-host .atm-slash-menu");
+    await expect(slash).toBeVisible();
     res = await new AxeBuilder({ page }).analyze();
-    expect(res.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+    let found = res.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`);
+    if (isMobile) {
+      // On a touch screen the slash listbox scrolls natively (style.css, .atm-slash-menu), and axe
+      // wants every scroll container to be in the tab order. This one is the popup of an ARIA
+      // combobox: focus stays in the editor and the options are reached through
+      // aria-activedescendant, so a tab stop on it would be wrong. Assert that pattern instead.
+      const id = await slash.getAttribute("id");
+      found = found.filter((f) => f !== `scrollable-region-focusable: #${id}`);
+      await expect(editable(page)).toBeFocused();
+      await expect(editable(page)).toHaveAttribute("aria-controls", id!);
+      await expect(editable(page)).toHaveAttribute("aria-activedescendant", /./);
+    }
+    expect(found).toEqual([]);
   });
 
   test("reduced motion turns transitions off", async ({ page }) => {
@@ -319,7 +327,7 @@ test.describe("accessibility", () => {
 
 test.describe("popovers", () => {
   test("Mod-k opens the link popover; an unsafe address is refused; Escape returns focus", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+    test.skip(!!isMobile, "hardware keyboard shortcut (Mod-k)");
     await open(page);
     await setValue(page, "link text");
     await focusEnd(page);
@@ -337,13 +345,12 @@ test.describe("popovers", () => {
     await expect(editable(page)).toBeFocused();
   });
 
-  test("a valid address links the selection", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+  test("a valid address links the selection", async ({ page }) => {
     await open(page);
     await setValue(page, "see docs");
     await focusEnd(page);
     await page.keyboard.press("Shift+Alt+ArrowLeft");
-    await button(page, "link").click();
+    await press(page, "link"); // on a phone it is in the More menu
     // The popovers are a lazy chunk: the first one opens when it has arrived.
     await expect(page.locator("#editor-host [role=dialog]")).toBeVisible();
     await page.keyboard.type("example.com");
@@ -361,7 +368,7 @@ test.describe("popovers", () => {
   });
 
   test("Tab stays inside the popover", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+    test.skip(!!isMobile, "hardware keyboard: Tab focus trap");
     await open(page);
     await setValue(page, "plain text");
     await editable(page).click();
@@ -373,8 +380,7 @@ test.describe("popovers", () => {
 });
 
 test.describe("slash menu", () => {
-  test("/ opens an ARIA listbox that filters, inserts, and does not fire in code", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+  test("/ opens an ARIA listbox that filters, inserts, and does not fire in code", async ({ page }) => {
     await open(page);
     await setValue(page, "");
     await editable(page).click();
@@ -397,7 +403,7 @@ test.describe("slash menu", () => {
   });
 
   test("Escape closes it and leaves the text", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+    test.skip(!!isMobile, "hardware keyboard: the Escape key");
     await open(page);
     await setValue(page, "");
     await editable(page).click();
@@ -409,8 +415,7 @@ test.describe("slash menu", () => {
 });
 
 test.describe("mentions", () => {
-  test("typing @ right after a loaded 'cc ' (trailing space kept by setValue) opens the menu", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+  test("typing @ right after a loaded 'cc ' (trailing space kept by setValue) opens the menu", async ({ page }) => {
     await open(page);
     await setValue(page, "cc ");
     expect(await value(page)).toBe("cc ");
@@ -418,8 +423,7 @@ test.describe("mentions", () => {
     await page.keyboard.type("@Grace");
     await expect(page.locator("[role=option]", { hasText: "Grace Hopper" })).toBeVisible();
   });
-  test("picking a person inserts one chip carrying the refs; 'both' people show no badge", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+  test("picking a person inserts one chip carrying the refs; 'both' people show no badge", async ({ page }) => {
     await open(page);
     await setValue(page, "cc");
     await focusEnd(page);
@@ -432,8 +436,7 @@ test.describe("mentions", () => {
     await expect(page.locator("#mentions-json")).toContainText("p03");
   });
 
-  test("team members carry a badge and a palette colour on the chip", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+  test("team members carry a badge and a palette colour on the chip", async ({ page }) => {
     await open(page);
     await setValue(page, "cc");
     await focusEnd(page);
@@ -447,9 +450,7 @@ test.describe("mentions", () => {
     await expect(chip).toContainText("Team A");
   });
 
-  test("Backspace removes the whole chip", async ({ page, isMobile, browserName }) => {
-    test.fixme(browserName === "webkit", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
-    test.skip(!!isMobile, "keyboard");
+  test("Backspace removes the whole chip", async ({ page }) => {
     await open(page);
     await setValue(page, "x [@Ada Lovelace](mention:team-a/p01?teamA=a01)");
     await focusEnd(page);
@@ -514,8 +515,7 @@ test.describe("uploads", () => {
 });
 
 test.describe("read-only and set value", () => {
-  test("read-only disables the toolbar and blocks typing", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+  test("read-only disables the toolbar and blocks typing", async ({ page }) => {
     await open(page);
     await setValue(page, "fixed");
     await page.locator("#readonly").check();

@@ -11360,8 +11360,12 @@ var chunks = {
 function htmlToMd(ctx, html, done) {
   const convert2 = (m) => done(m.htmlToMarkdown(html, { links: ctx.opts.render.links }, ctx.doc));
   const cached = chunks.paste.get();
-  if (cached) convert2(cached);
-  else chunks.paste.load().then(convert2, () => done(null));
+  if (cached) return convert2(cached);
+  const at = ctx.save();
+  chunks.paste.load().then(
+    (m) => (ctx.restore(at), convert2(m)),
+    () => (ctx.restore(at), done(null))
+  );
 }
 var URL_ONLY = /^\s*((?:https?:\/\/|mailto:)[^\s<>]+)\s*$/i;
 function filesOf(dt) {
@@ -11621,6 +11625,7 @@ function createSurface(options) {
   root.style.overflowWrap = "break-word";
   let readOnly = false;
   let composing = false;
+  let shiftEnter = false;
   let destroyed = false;
   let lastMd = "";
   let cachedDoc = null;
@@ -12042,7 +12047,8 @@ function createSurface(options) {
       return;
     }
     if (composing || ev.isComposing) return;
-    const t = ev.inputType;
+    const t = ev.inputType === "insertParagraph" && shiftEnter ? "insertLineBreak" : ev.inputType;
+    shiftEnter = false;
     if (!selBefore) selBefore = savePath(root);
     if (mathEdit && (t === "insertParagraph" || t === "insertLineBreak")) {
       ev.preventDefault();
@@ -12248,6 +12254,7 @@ function createSurface(options) {
     return null;
   }
   function onKeyDown(ev) {
+    shiftEnter = ev.key === "Enter" && ev.shiftKey;
     if (options.beforeKeyDown?.(ev)) {
       ev.preventDefault();
       ev.stopPropagation();
@@ -12309,6 +12316,15 @@ function createSurface(options) {
         ctx.commit("command");
         return;
       }
+      return;
+    }
+    if (ev.key === "Backspace" && plain && !ev.shiftKey) {
+      const r = liveRange();
+      const leaf = r && r.collapsed ? leafOf(root, r.startContainer) : null;
+      if (!leaf || leafOffset(leaf, r.startContainer, r.startOffset)) return;
+      const all = leaves(root);
+      const i = all.indexOf(leaf);
+      if (i === 0 || i > 0 && isAtom(all[i - 1])) act(ev, () => backspace(ctx), "delete-block");
       return;
     }
     if (ev.key === "Enter" && plain && !ev.shiftKey) {
@@ -12406,6 +12422,17 @@ function createSurface(options) {
     if (destroyed) return;
     const r = liveRange();
     if (!r) return;
+    if (r.collapsed && !mathEdit) {
+      let atom = null;
+      for (let n = r.startContainer; n && n !== root; n = n.parentNode) if (isAtom(n) && !isBlock(n)) atom = n;
+      if (atom) {
+        const pre = d.createRange();
+        pre.setStart(atom, 0);
+        pre.setEnd(r.startContainer, r.startOffset);
+        setSelection(root, { node: atom.parentNode, offset: indexOf(atom) + (pre.toString() ? 1 : 0) });
+        return;
+      }
+    }
     lastRange = r.cloneRange();
     if (mathEdit && !mathEdit.el.contains(r.startContainer)) commitMath(true);
     if (pending.add.size || pending.remove.size || pending.exit) {

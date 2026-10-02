@@ -97,3 +97,64 @@ for (const theme of THEMES) {
     });
   }
 }
+
+/**
+ * Link-preview cards and the hover popover in every theme. The card sits inside the editor; the
+ * popover is appended to <body> and carries the editor's data-atm-theme. Both are measured by axe
+ * (colour contrast included), and the card must actually wear its theme: a dark theme draws a dark
+ * card and a light theme a light one (a card left on the default palette would pass axe and still
+ * be wrong).
+ */
+const DARK = new Set(["dark", "slate", "contrast", "auto"]);
+const luminance = (rgb: string) => {
+  const [r, g, b] = (rgb.match(/[\d.]+/g) ?? ["0", "0", "0"]).slice(0, 3).map(Number);
+  const lin = (c: number) => ((c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+};
+
+for (const theme of THEMES) {
+  test.describe(`a11y matrix · link previews · ${theme}`, () => {
+    test.use({ colorScheme: theme === "auto" ? "dark" : "light" });
+
+    test("the card and the hover popover are axe-clean and wear the theme", async ({ page }) => {
+      const errors: string[] = [];
+      page.on("pageerror", (e) => errors.push(e.message));
+      await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort()); // the demo resolver is fake; nothing leaves the machine
+      await page.goto(`/example/index.html?rich=1&layout=classic&theme=${theme}`);
+      await page.waitForFunction(() => !!(window as unknown as { __editor?: unknown }).__editor);
+      await setValue(page, "https://example.com/articles/one\n\nRead [the post](https://example.com/p/3) today.");
+      const card = page.locator("#editor-host .atm-surface [data-atm-preview-card]").first();
+      await expect(card).toContainText("A preview of /articles/one");
+      expect(await axe(page)).toEqual([]);
+
+      // Open the hover card the way a keyboard user does: the caret enters the link.
+      await page.evaluate(() => {
+        const root = document.querySelector<HTMLElement>("#editor-host .atm-surface")!;
+        root.focus();
+        const a = Array.from(root.querySelectorAll("a")).find((x) => x.textContent === "the post")!;
+        document.getSelection()!.collapse(a.firstChild!, 2);
+      });
+      const pop = page.locator(".atm-popover[role=tooltip]");
+      await expect(pop).toContainText("A preview of /p/3");
+      await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
+      const r = await new AxeBuilder({ page }).include(".atm-popover").analyze();
+      expect(r.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);
+
+      for (const [what, el] of [["card", card], ["popover card", pop.locator("[data-atm-preview-card]")]] as const) {
+        const [bg, layer] = await el.evaluate((e) => {
+          // The theme layer's colour, resolved the same way the browser resolves the card's.
+          const probe = document.createElement("span");
+          probe.style.backgroundColor = getComputedStyle(e).getPropertyValue("--atm-th-preview-bg").trim();
+          e.appendChild(probe);
+          const want = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          return [getComputedStyle(e).backgroundColor, want];
+        });
+        expect(bg, `${what} uses ${theme}'s card palette`).toBe(layer);
+        if (DARK.has(theme)) expect(luminance(bg), `${what} background ${bg} is dark in ${theme}`).toBeLessThan(0.1);
+        else expect(luminance(bg), `${what} background ${bg} is light in ${theme}`).toBeGreaterThan(0.6);
+      }
+      expect(errors).toEqual([]);
+    });
+  });
+}

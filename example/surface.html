@@ -34,6 +34,8 @@
       <h1>WYSIWYG surface</h1>
       <div id="host"></div>
       <button id="outside" type="button">Outside button</button>
+      <!-- A text field after the button: Safari's default Tab order skips buttons, so in WebKit this is the next stop. -->
+      <input id="outside-field" type="text" aria-label="Outside field" />
       <h2>Markdown</h2>
       <pre id="md" aria-live="off"></pre>
     </main>

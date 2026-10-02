@@ -92,8 +92,39 @@ These read the same tokens as the rest of the editor; no new variables are neede
 | `.atm-lightbox`, `.atm-lightbox-backdrop`, `.atm-lightbox-img`, `.atm-lightbox-caption`, `.atm-lightbox-count`, `.atm-lightbox-prev`, `.atm-lightbox-next`, `.atm-lightbox-close` | the image viewer; it is appended to `<body>` and carries the editor's `data-atm-theme` |
 
 Link-preview cards are `.atm-preview[data-atm-preview-card]`. The bare `.atm-preview` class is also the read-only preview pane,
-so style a card through the attribute selector (or the `--atm-preview-*` variables), never the bare class. Cards have a light
-and a dark palette; for `sepia`, `slate` or `contrast` set the `--atm-preview-*` variables to match.
+so style a card through the attribute selector (or the `--atm-preview-*` variables), never the bare class.
+
+## Link-preview cards, the hover popover and embeds
+
+Every built-in theme (`light`, `dark`, `sepia`, `slate`, `contrast`, and `auto` on a dark OS) has its own card palette, and the
+hover popover wears the theme of the editor it came from (it is appended to `<body>` and copies `data-atm-theme`). The palette is
+defined once, in `themes.css`, as a private theme layer; `link-preview.css` only reads it. A card colour is resolved in this order:
+
+1. the public variable, if you set it anywhere above the card (page, ancestor, editor element): it wins in every theme;
+2. the theme layer `--atm-th-preview-*` of the nearest themed ancestor;
+3. a plain light default (only when `link-preview.css` is used without `themes.css`).
+
+| Public variable | Theme layer | Used for |
+|---|---|---|
+| `--atm-preview-bg` | `--atm-th-preview-bg` | card and popover background, "Open original" and embed toolbar buttons |
+| `--atm-preview-fg` | `--atm-th-preview-fg` | title and button text |
+| `--atm-preview-muted` | `--atm-th-preview-muted` | site name, description, extra fields |
+| `--atm-preview-accent` | `--atm-th-preview-accent` | hover and focus border, focus ring, the fallback link |
+| `--atm-preview-border` | `--atm-th-preview-border` | card and embed border |
+| `--atm-preview-skeleton`, `--atm-preview-skeleton-hi` | `--atm-th-preview-skeleton`, `--atm-th-preview-skeleton-hi` | loading shimmer, image placeholder |
+| `--atm-embed-bg` | `--atm-th-preview-embed-bg` | behind an embed's iframe |
+| `--atm-preview-shadow` | `--atm-th-preview-shadow` | the popover's shadow |
+| `--atm-preview-radius`, `--atm-popover-z` | | corner radius, popover stacking |
+
+Every built-in card palette passes WCAG AA: title text at least 7:1 on the card, muted text and the accent at least 4.5:1, and the
+button text at least 4.5:1 on the embed background. A unit test computes it from `themes.css`, and an axe check renders a card and
+the hover popover in all six themes in Chromium, mobile Chromium, Firefox and WebKit. To add a theme, add the nine
+`--atm-th-preview-*` values to its `[data-atm-theme="mine"]` block; to restyle one theme's cards only, set the public variables
+under that theme's selector:
+
+```css
+[data-atm-theme="sepia"] { --atm-preview-bg: #fffaf0; --atm-preview-accent: #7c2d12; }
+```
 
 ## Add your own classes
 

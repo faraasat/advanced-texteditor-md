@@ -30,7 +30,7 @@ import { backspace, caret, del, deleteRange, enter, indent, insertNodes, insertT
 import { enterRule, inlineRule, spaceRule } from "./surface/rules";
 import { insertMarkdown as insertMd, insertPlain, onCopy, onDrop, onPaste, selectionDoc, type DragState } from "./surface/clipboard";
 import {
-  getRange, indexOf, isAtom, isEl, isText, itemAt, leafOffset, lengthOf, offsetOf, pointAt, restorePath, restoreSelection,
+  getRange, indexOf, isAtom, isBlock, isEl, isText, itemAt, leafOffset, lengthOf, offsetOf, pointAt, restorePath, restoreSelection,
   saveSelection, savePath, setSelection, type SelPath,
 } from "./selection";
 
@@ -76,6 +76,8 @@ export function createSurface(options: SurfaceOptions): Surface {
 
   let readOnly = false;
   let composing = false;
+  /** The key that will cause the next beforeinput was Shift+Enter (WebKit reports it as insertParagraph). */
+  let shiftEnter = false;
   let destroyed = false;
   let lastMd = "";
   let cachedDoc: Doc | null = null;
@@ -558,7 +560,8 @@ export function createSurface(options: SurfaceOptions): Surface {
       return;
     }
     if (composing || ev.isComposing) return;
-    const t = ev.inputType;
+    const t = ev.inputType === "insertParagraph" && shiftEnter ? "insertLineBreak" : ev.inputType;
+    shiftEnter = false;
     if (!selBefore) selBefore = savePath(root);
     if (mathEdit && (t === "insertParagraph" || t === "insertLineBreak")) {
       ev.preventDefault();
@@ -779,6 +782,7 @@ export function createSurface(options: SurfaceOptions): Surface {
   }
 
   function onKeyDown(ev: KeyboardEvent): void {
+    shiftEnter = ev.key === "Enter" && ev.shiftKey;
     // Contract (pane-types.ts): a consumed key is cancelled HERE, so no caller has to remember to.
     if (options.beforeKeyDown?.(ev)) {
       ev.preventDefault();
@@ -842,6 +846,18 @@ export function createSurface(options: SurfaceOptions): Surface {
         return;
       }
       return; // Tab leaves the editor.
+    }
+    if (ev.key === "Backspace" && plain && !ev.shiftKey) {
+      // WebKit fires no beforeinput for Backspace when nothing editable precedes the caret (the
+      // document start, or right after a non-editable block such as an embed), so a first heading,
+      // list item or quote could not be lifted and an embed could not be removed.
+      const r = liveRange();
+      const leaf = r && r.collapsed ? leafOf(root, r.startContainer) : null;
+      if (!leaf || leafOffset(leaf, r!.startContainer, r!.startOffset)) return;
+      const all = leaves(root);
+      const i = all.indexOf(leaf);
+      if (i === 0 || (i > 0 && isAtom(all[i - 1]))) act(ev, () => backspace(ctx), "delete-block");
+      return;
     }
     if (ev.key === "Enter" && plain && !ev.shiftKey) {
       const atom = selectedAtom();
@@ -943,6 +959,19 @@ export function createSurface(options: SurfaceOptions): Surface {
     if (destroyed) return;
     const r = liveRange();
     if (!r) return;
+    if (r.collapsed && !mathEdit) {
+      // Gecko puts a click past an inline atom (a chip ending a line) INSIDE it, where typing is
+      // refused. Move the caret to the atom's nearer edge; the move fires selectionchange again.
+      let atom: Node | null = null;
+      for (let n: Node | null = r.startContainer; n && n !== root; n = n.parentNode) if (isAtom(n) && !isBlock(n)) atom = n;
+      if (atom) {
+        const pre = d.createRange();
+        pre.setStart(atom, 0);
+        pre.setEnd(r.startContainer, r.startOffset);
+        setSelection(root, { node: atom.parentNode!, offset: indexOf(atom) + (pre.toString() ? 1 : 0) });
+        return;
+      }
+    }
     lastRange = r.cloneRange();
     if (mathEdit && !mathEdit.el.contains(r.startContainer)) commitMath(true);
     if (pending.add.size || pending.remove.size || pending.exit) {

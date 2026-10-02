@@ -89,7 +89,7 @@ describe("highlight.css: the single source of every theme's syntax colours", () 
     });
   }
   it("themes.css carries no syntax colours (no duplicate of highlight.css)", () => {
-    expect(css("themes.css")).not.toMatch(/--atm-(tok|th)-[\w-]+\s*:/);
+    expect(css("themes.css")).not.toMatch(/--atm-(tok|th)-(?!preview-)[\w-]+\s*:/);
   });
   it("a dark OS without a theme gets the dark layer, identical to the dark theme's", () => {
     for (const k of TOKENS) expect(hl["auto-dark"][`--atm-th-${k}`]).toBe(hl.dark[`--atm-th-${k}`]);
@@ -114,6 +114,33 @@ describe("themes.css: tokens for the plugins", () => {
       }
     });
   }
+});
+
+describe("link-preview cards and the hover popover: one palette per theme, in themes.css", () => {
+  const t = blocks(css("themes.css"));
+  const lp = css("link-preview.css").replace(/\/\*[\s\S]*?\*\//g, ""); // rules only, not the header comment
+  const COLOURS = ["bg", "border", "fg", "muted", "accent", "skeleton", "skeleton-hi", "embed-bg"];
+  for (const n of ["light", "dark", "sepia", "slate", "contrast"]) {
+    it(`${n}: every card colour is defined, and card text passes AA`, () => {
+      for (const k of COLOURS) expect(t[n][`--atm-th-preview-${k}`], `${n} ${k}`).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(t[n]["--atm-th-preview-shadow"], `${n} shadow`).toBeTruthy();
+      const v = (k: string) => hex(t[n][`--atm-th-preview-${k}`]);
+      expect(ratio(v("fg"), v("bg")), `${n} title`).toBeGreaterThanOrEqual(7);
+      expect(ratio(v("muted"), v("bg")), `${n} site and description`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(v("accent"), v("bg")), `${n} fallback link and focus ring`).toBeGreaterThanOrEqual(4.5);
+      // "Open original" and the embed toolbar: fg text on the card background, over the embed's own background
+      expect(ratio(v("fg"), v("embed-bg")), `${n} embed text`).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+  it("a dark OS without a theme gets the dark card palette, identical to the dark theme's", () => {
+    for (const k of [...COLOURS, "shadow"]) expect(t["auto-dark"][`--atm-th-preview-${k}`], k).toBe(t.dark[`--atm-th-preview-${k}`]);
+  });
+  it("link-preview.css holds no palette of its own: it reads the public variable, then the theme layer", () => {
+    expect(lp).not.toMatch(/data-atm-theme/);
+    expect(lp).not.toMatch(/prefers-color-scheme/);
+    for (const k of [...COLOURS, "shadow"]) expect(lp, k).toContain(`var(--atm-${k === "embed-bg" ? "embed-bg" : `preview-${k}`}, var(--atm-th-preview-${k},`);
+    expect(lp).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+  });
 });
 
 describe("style.css", () => {

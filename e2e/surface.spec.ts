@@ -34,6 +34,13 @@ async function open(page: Page, md = "", extra = "") {
   return ed;
 }
 
+/**
+ * The line-start key. On macOS, Gecko and WebKit follow the platform binding, where Home scrolls
+ * the document and leaves the caret where it is (TextEdit and Safari text fields do the same);
+ * Cmd+Left is how a Mac user reaches the start of a line. Chromium moves the caret for either.
+ */
+const lineStart = process.platform === "darwin" ? "Meta+ArrowLeft" : "Home";
+
 const value = (page: Page) => page.evaluate(() => (window as unknown as { surface: { getValue(): string } }).surface.getValue());
 
 /** Put the caret at the end of the editor content. */
@@ -145,8 +152,7 @@ test.describe("surface", () => {
     await expect.poll(() => value(page)).toBe("**ab**\n\n**Xcd** e");
   });
 
-  test("typing after a chip at the end of a block", async ({ page, browserName }) => {
-    test.fixme(browserName === "firefox", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
+  test("typing after a chip at the end of a block", async ({ page }) => {
     await open(page, "see [@Jane](mention:person/u1)");
     await page.locator(".atm-surface p").click({ position: { x: 300, y: 5 } });
     await page.keyboard.press("End");
@@ -179,8 +185,7 @@ test.describe("surface", () => {
     await expect.poll(() => value(page)).toBe("hello world");
   });
 
-  test("Enter / Backspace / Tab in lists", async ({ page, browserName }) => {
-    test.fixme(browserName === "firefox" || browserName === "webkit", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
+  test("Enter / Backspace / Tab in lists", async ({ page }) => {
     await open(page, "- a\n- b");
     await caretAfter(page, "b");
     await page.keyboard.press("Tab");
@@ -190,7 +195,7 @@ test.describe("surface", () => {
     await expect.poll(() => value(page)).toBe("- a\n  - b\n  - c");
     await page.keyboard.press("Shift+Tab");
     await expect.poll(() => value(page)).toBe("- a\n  - b\n- c");
-    await page.keyboard.press("Home");
+    await page.keyboard.press(lineStart);
     await page.keyboard.press("Backspace");
     await expect.poll(() => value(page)).toBe("- a\n  - b\n\nc");
     await page.keyboard.press("Backspace");
@@ -198,14 +203,17 @@ test.describe("surface", () => {
   });
 
   test("Tab leaves the editor when not in a list or table", async ({ page, browserName }) => {
-    test.fixme(browserName === "webkit", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
     await open(page, "plain");
     await page.keyboard.press("Tab");
-    await expect(page.locator("#outside")).toBeFocused();
+    // The editor does not keep Tab: focus moves to the next stop in the ENGINE's order. Safari's
+    // default ("Press Tab to highlight each item" off, also WebKit's default) skips buttons, so there
+    // the next stop is the text field after the button. Overriding that order would override a
+    // user setting, so the library leaves it alone.
+    await expect(page.locator(browserName === "webkit" ? "#outside-field" : "#outside")).toBeFocused();
+    await expect.poll(() => value(page)).toBe("plain");
   });
 
-  test("Shift+Enter inserts a hard break, Enter on heading end makes a paragraph", async ({ page, browserName }) => {
-    test.fixme(browserName === "webkit", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
+  test("Shift+Enter inserts a hard break, Enter on heading end makes a paragraph", async ({ page }) => {
     await open(page, "# Head");
     await toEnd(page);
     await page.keyboard.press("Enter");
@@ -235,34 +243,37 @@ test.describe("surface", () => {
     await expect(page.locator(".atm-chip")).toHaveCount(0);
   });
 
-  test("chip click and copy as markdown", async ({ page, context, browserName }) => {
-    test.fixme(browserName === "firefox", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
+  test("chip click and copy as markdown", async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => {});
     await open(page, "a [@Jane](mention:person/u1) b");
     await page.locator(".atm-chip").click();
     expect(await page.evaluate(() => (window as unknown as { chipClicks: string[] }).chipClicks)).toEqual(["u1"]);
     const md = await page.evaluate(() => {
-      const dt = new DataTransfer();
       const r = document.createRange();
       r.selectNode(document.querySelector(".atm-chip")!);
       document.getSelection()!.removeAllRanges();
       document.getSelection()!.addRange(r);
-      document.querySelector(".atm-surface")!.dispatchEvent(new ClipboardEvent("copy", { clipboardData: dt, bubbles: true, cancelable: true }));
-      return dt.getData("text/plain");
+      // Read what the handler wrote from the EVENT's DataTransfer: Gecko's ClipboardEvent
+      // constructor copies `clipboardData` into a new object, so the one passed in stays empty.
+      const ev = new ClipboardEvent("copy", { clipboardData: new DataTransfer(), bubbles: true, cancelable: true });
+      document.querySelector(".atm-surface")!.dispatchEvent(ev);
+      return ev.clipboardData!.getData("text/plain");
     });
     expect(md).toBe("[@Jane](mention:person/u1)");
   });
 
-  test("paste HTML, markdown and files", async ({ page, browserName }) => {
-    test.fixme(browserName === "firefox", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
+  test("paste HTML, markdown and files", async ({ page }) => {
     await open(page);
     const paste = (data: Record<string, string>, file?: string) =>
       page.evaluate(
         ([d, f]) => {
-          const dt = new DataTransfer();
+          // Fill the EVENT's DataTransfer: Gecko's ClipboardEvent constructor copies `clipboardData`
+          // without its data, so data set on the object passed in never reaches the handler.
+          const ev = new ClipboardEvent("paste", { clipboardData: new DataTransfer(), bubbles: true, cancelable: true });
+          const dt = ev.clipboardData!;
           for (const [k, v] of Object.entries(d as Record<string, string>)) dt.setData(k, v);
           if (f) dt.items.add(new File(["x"], f as string, { type: "image/png" }));
-          document.querySelector(".atm-surface")!.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+          document.querySelector(".atm-surface")!.dispatchEvent(ev);
         },
         [data, file] as const,
       );
@@ -369,16 +380,19 @@ test.describe("surface", () => {
     expect(await page.evaluate(() => document.getSelection()!.toString())).toBe("two");
   });
 
-  test("Backspace at start of a heading / quote lifts it; selection delete across blocks", async ({ page, browserName }) => {
-    test.fixme(browserName === "firefox" || browserName === "webkit", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
+  test("Backspace at start of a heading / quote lifts it; selection delete across blocks", async ({ page }) => {
     await open(page, "## h\n\n> q\n\nabc\n\ndef");
     await caretAfter(page, "q");
-    await page.keyboard.press("Home");
+    await page.keyboard.press(lineStart);
     await page.keyboard.press("Backspace");
     await expect.poll(() => value(page)).toBe("## h\n\nq\n\nabc\n\ndef");
     await selectText(page, "bc", "de");
     await page.keyboard.press("Backspace");
     await expect.poll(() => value(page)).toBe("## h\n\nq\n\naf");
+    await caretAfter(page, "h");
+    await page.keyboard.press(lineStart);
+    await page.keyboard.press("Backspace");
+    await expect.poll(() => value(page)).toBe("h\n\nq\n\naf");
   });
 
   test("IME composition commits once", async ({ page, browserName }) => {

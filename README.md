@@ -403,8 +403,8 @@ picker pass `emoji: { open: (editor) => ... }`, or `emoji: false` to remove the 
 
 Current Chrome, Edge, Firefox and Safari (ES2020, `Selection`, `ResizeObserver`). The test suite runs jsdom unit tests and
 Playwright specs in Chromium (desktop and mobile emulation), Firefox and WebKit (`npx playwright install firefox webkit` once,
-then `npx playwright test --project=firefox` or `--project=webkit`). A few list, chip and Backspace specs are marked `fixme` in
-Gecko or WebKit, where contenteditable behaves differently; see docs/DECISIONS.md. Real iOS or Android devices are not run. On
+then `npx playwright test --project=firefox` or `--project=webkit`). Every editing spec runs in all three engines; the engine
+differences the editor smooths over are listed in docs/DECISIONS.md ("Cross-engine editing"). Real iOS or Android devices are not run. On
 Android keyboards most keys arrive as composition, which is handled but only emulated in tests.
 
 ## Demo

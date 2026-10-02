@@ -188,6 +188,18 @@ describe("in the editor", () => {
   });
 });
 
+describe("WebKit: focus on a toolbar button drops the document selection", () => {
+  it("a swatch still colours the selection the editor last had", async () => {
+    m = mount({ plugins: [createTextStylePlugin()], value: "one word two" });
+    selectText(m.surface, "word");
+    document.dispatchEvent(new Event("selectionchange")); // the surface remembers it
+    document.getSelection()!.removeAllRanges(); // what WebKit does when a button outside takes focus
+    expect(m.ed.exec("textStyle", { kind: "c", name: "orange" })).toBe(true);
+    await tick();
+    expect(m.ed.getValue()).toBe("one [word]{.c-orange} two");
+  });
+});
+
 describe("nested content (serialize receives Markdown)", () => {
   const p = createTextStylePlugin();
   const o = { syntax: p.syntax };

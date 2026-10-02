@@ -34,6 +34,12 @@
 - New lazy chunks: `image-tools`, `table-tools`, `block-handles`, `zoom`, `bubble` (the bubble layout's floating toolbar) and
   `toolbar-menu` (the toolbar's dropdowns), each with a 12 kB budget. The caret mapping between the rich-text and Markdown panes moved
   into the `markdown-pane` chunk. The eager `index` is 61.5 kB gzip (budget 62).
+- **Link-preview cards and the hover popover follow every theme.** Each theme in `themes.css` sets a private layer,
+  `--atm-th-preview-*` (bg, border, fg, muted, accent, skeleton, skeleton-hi, embed-bg, shadow), for light, dark, `sepia`,
+  `slate`, `contrast` and the dark-OS fallback; `link-preview.css` holds no palette of its own and reads the public
+  `--atm-preview-*` / `--atm-embed-bg` first, then that layer. Before, `sepia`, `slate` and `contrast` showed a light (or
+  dark-OS) card. A unit test checks AA contrast of every card colour; `e2e/a11y-matrix.spec.ts` runs axe on a card and the
+  hover popover in all six themes in all four browser projects and checks that each card wears its theme's palette.
 - Rendered task-list checkboxes have an accessible name (`aria-label`, default "Task").
 - `trapTab` (dialogs, popovers, forms, the lightbox) moves focus itself on every Tab, so Safari's button-skipping Tab order cannot
   leave a dialog.
@@ -45,6 +51,16 @@
   in the `slate` and `contrast` themes the split preview drew light-theme text on a dark background. Card rules are now scoped to
   `[data-atm-preview-card]`.
 - After "Turn into" from the block menu the caret is left at the end of the converted block, not at the top of the editor.
+- **Firefox and WebKit editing gaps** (the specs that were `test.fixme`; all pass now in the `firefox` and `webkit` projects):
+  - Gecko put a click past a chip at the end of a line INSIDE the `contenteditable=false` chip, where typing was refused. The
+    surface moves a collapsed caret out of an inline atom to its nearer edge on `selectionchange`.
+  - WebKit reports Shift+Enter as `insertParagraph`; it now inserts a hard line break, as in Chromium and Gecko.
+  - WebKit fires no `beforeinput` for Backspace when nothing editable precedes the caret, so a first heading, list item or quote
+    could not be lifted and an embed (or rule) before a paragraph could not be removed. The keydown handles that case.
+  - Text colour: WebKit drops the document selection when a toolbar button takes keyboard focus, so a swatch chosen by keyboard
+    coloured nothing. `textStyle` focuses the editor first, which restores the last selection.
+- HTML pasted before the paste chunk had loaded was inserted where the caret was when the chunk ARRIVED (a drop or click in
+  between moved it); it now lands where it was pasted.
 
 ## 0.1.0
 

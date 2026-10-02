@@ -1,11 +1,13 @@
 /*
  * Link preview cards, hover popover, loading skeleton and embeds.
  *
- * Every colour and size is a --atm-* variable with a fallback inside var(), so a
- * variable you define on the page, the editor or any ancestor wins in light and
- * dark. Dark applies under [data-atm-theme="dark"] and, when nothing says
- * "light", to a dark OS. The popover is appended to <body>, so the library copies
- * data-atm-theme onto it.
+ * Colours come from ONE place: each theme in themes.css sets the private layer
+ * --atm-th-preview-* (light, dark, sepia, slate, contrast, and the dark-OS fallback
+ * for a page with no theme). This file holds no palette of its own. Every value
+ * reads the public variable first, so one you define on the page, the editor or
+ * any ancestor wins in every theme; the theme layer second; a light default last
+ * (for this sheet used without themes.css). The popover is appended to <body>, so
+ * the library copies data-atm-theme onto it and the theme block applies to it.
  *
  * Variables: --atm-preview-bg --atm-preview-border --atm-preview-fg
  * --atm-preview-muted --atm-preview-accent --atm-preview-shadow
@@ -13,50 +15,21 @@
  * --atm-embed-bg --atm-popover-z
  *
  * A card is `.atm-preview[data-atm-preview-card]`, never the bare class: the editor's read-only
- * preview pane is also `.atm-preview`, and the card colours (light-only outside the dark theme)
- * must not reach it.
+ * preview pane is also `.atm-preview`, and the card colours must not reach it.
  */
 
 .atm-preview[data-atm-preview-card],
 .atm-popover,
 .atm-embed {
-  --_bg: var(--atm-preview-bg, #ffffff);
-  --_border: var(--atm-preview-border, #d0d7de);
-  --_fg: var(--atm-preview-fg, #1f2328);
-  --_muted: var(--atm-preview-muted, #59636e);
-  --_accent: var(--atm-preview-accent, #0969da);
-  --_shadow: var(--atm-preview-shadow, 0 8px 24px rgba(31, 35, 40, 0.16));
-  --_sk: var(--atm-preview-skeleton, #eaeef2);
-  --_sk-hi: var(--atm-preview-skeleton-hi, #f6f8fa);
-  --_embed-bg: var(--atm-embed-bg, #f6f8fa);
-}
-[data-atm-theme="dark"] .atm-preview[data-atm-preview-card],
-[data-atm-theme="dark"] .atm-popover,
-[data-atm-theme="dark"] .atm-embed {
-  --_bg: var(--atm-preview-bg, #161b22);
-  --_border: var(--atm-preview-border, #30363d);
-  --_fg: var(--atm-preview-fg, #e6edf3);
-  --_muted: var(--atm-preview-muted, #8d96a0);
-  --_accent: var(--atm-preview-accent, #4493f8);
-  --_shadow: var(--atm-preview-shadow, 0 8px 24px rgba(1, 4, 9, 0.6));
-  --_sk: var(--atm-preview-skeleton, #21262d);
-  --_sk-hi: var(--atm-preview-skeleton-hi, #30363d);
-  --_embed-bg: var(--atm-embed-bg, #0d1117);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-atm-theme="light"]) .atm-preview[data-atm-preview-card]:not([data-atm-theme="light"] *),
-  :root:not([data-atm-theme="light"]) .atm-popover:not([data-atm-theme="light"]),
-  :root:not([data-atm-theme="light"]) .atm-embed:not([data-atm-theme="light"] *) {
-    --_bg: var(--atm-preview-bg, #161b22);
-    --_border: var(--atm-preview-border, #30363d);
-    --_fg: var(--atm-preview-fg, #e6edf3);
-    --_muted: var(--atm-preview-muted, #8d96a0);
-    --_accent: var(--atm-preview-accent, #4493f8);
-    --_shadow: var(--atm-preview-shadow, 0 8px 24px rgba(1, 4, 9, 0.6));
-    --_sk: var(--atm-preview-skeleton, #21262d);
-    --_sk-hi: var(--atm-preview-skeleton-hi, #30363d);
-    --_embed-bg: var(--atm-embed-bg, #0d1117);
-  }
+  --_bg: var(--atm-preview-bg, var(--atm-th-preview-bg, white));
+  --_border: var(--atm-preview-border, var(--atm-th-preview-border, silver));
+  --_fg: var(--atm-preview-fg, var(--atm-th-preview-fg, black));
+  --_muted: var(--atm-preview-muted, var(--atm-th-preview-muted, dimgray));
+  --_accent: var(--atm-preview-accent, var(--atm-th-preview-accent, blue));
+  --_shadow: var(--atm-preview-shadow, var(--atm-th-preview-shadow, 0 8px 24px rgb(0 0 0 / 0.16)));
+  --_sk: var(--atm-preview-skeleton, var(--atm-th-preview-skeleton, gainsboro));
+  --_sk-hi: var(--atm-preview-skeleton-hi, var(--atm-th-preview-skeleton-hi, whitesmoke));
+  --_embed-bg: var(--atm-embed-bg, var(--atm-th-preview-embed-bg, whitesmoke));
 }
 
 /* ───────── card ───────── */

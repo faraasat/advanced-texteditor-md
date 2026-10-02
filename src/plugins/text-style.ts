@@ -268,7 +268,11 @@ function applyInSurface(ed: EditorInstance, names: Names, kind: "c" | "bg" | "al
   const surface = surfaceOf(ed);
   const doc = ed.element.ownerDocument;
   const sel = doc.getSelection();
-  if (!surface || !sel || !sel.rangeCount) return false;
+  if (!surface || !sel) return false;
+  // WebKit drops the document selection when a button outside the editor takes keyboard focus
+  // (the swatch popover); focusing the editor puts back the selection it last had.
+  if (!sel.rangeCount || !surface.contains(sel.getRangeAt(0).commonAncestorContainer)) ed.focus();
+  if (!sel.rangeCount) return false;
   const r = sel.getRangeAt(0);
   if (!surface.contains(r.commonAncestorContainer)) return false;
   const base = r.commonAncestorContainer.nodeType === 1 ? (r.commonAncestorContainer as Element) : r.commonAncestorContainer.parentElement;

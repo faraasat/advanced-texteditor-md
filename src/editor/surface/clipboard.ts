@@ -25,8 +25,13 @@ import { isEl, offsetOf, pointAt, setSelection } from "../selection";
 function htmlToMd(ctx: Ctx, html: string, done: (md: string | null) => void): void {
   const convert = (m: typeof import("../../features/paste")) => done(m.htmlToMarkdown(html, { links: ctx.opts.render.links }, ctx.doc));
   const cached = chunks.paste.get();
-  if (cached) convert(cached);
-  else chunks.paste.load().then(convert, () => done(null));
+  if (cached) return convert(cached);
+  // The caret may move while the chunk downloads (a drop, a click): insert where the paste happened.
+  const at = ctx.save();
+  chunks.paste.load().then(
+    (m) => (ctx.restore(at), convert(m)),
+    () => (ctx.restore(at), done(null)),
+  );
 }
 
 const URL_ONLY = /^\s*((?:https?:\/\/|mailto:)[^\s<>]+)\s*$/i;

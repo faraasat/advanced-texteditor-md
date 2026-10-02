@@ -27,8 +27,6 @@ const axeAll = (page: Page) => new AxeBuilder({ page }).analyze();
 const loaded = (page: Page, sel: string) => page.waitForFunction((s) => [...document.querySelectorAll(s)].some((e) => (e as HTMLImageElement).complete !== false), sel);
 
 test.describe("images", () => {
-  test.beforeEach(({ isMobile }) => test.skip(!!isMobile, "pointer and keyboard"));
-
   test("click selects with a frame and a toolbar; alignment and caption are Markdown; axe clean", async ({ page }) => {
     const { errors } = await open(page);
     await setValue(page, `Intro\n\n![Chart](${IMG})\n\nOutro`);
@@ -94,7 +92,8 @@ test.describe("images", () => {
     await expect.poll(() => value(page)).toBe(`![Chart|32](${IMG})`);
   });
 
-  test("keyboard: Shift+arrows resize the selected image, Alt+F10 opens its toolbar, the slider steps", async ({ page }) => {
+  test("keyboard: Shift+arrows resize the selected image, Alt+F10 opens its toolbar, the slider steps", async ({ page, isMobile }) => {
+    test.skip(!!isMobile, "hardware keyboard shortcuts (Shift+arrows, Alt+F10)");
     await open(page);
     await setValue(page, `![Chart|200](${IMG})`);
     await loaded(page, "#editor-host .atm-surface img");
@@ -150,8 +149,6 @@ test.describe("images", () => {
 });
 
 test.describe("collapsible sections", () => {
-  test.beforeEach(({ isMobile }) => test.skip(!!isMobile, "keyboard"));
-
   test("slash item inserts an open section; summary and body are edited; Enter and the marker toggle; open state is not stored", async ({ page }) => {
     await open(page);
     await setValue(page, "");
@@ -176,7 +173,8 @@ test.describe("collapsible sections", () => {
     expect((await axe(page)).violations).toEqual([]);
   });
 
-  test("read-only: native toggle with the keyboard", async ({ page }) => {
+  test("read-only: native toggle with the keyboard", async ({ page, isMobile }) => {
+    test.skip(!!isMobile, "hardware keyboard: focusing and toggling a summary");
     await open(page, "?readonly=1");
     await setValue(page, "::: details More\nHidden text\n:::");
     const sum = ed(page).locator("summary");
@@ -188,7 +186,7 @@ test.describe("collapsible sections", () => {
 });
 
 test.describe("block handles", () => {
-  test.beforeEach(({ isMobile }) => test.skip(!!isMobile, "pointer and keyboard; handles hide on a coarse pointer"));
+  test.beforeEach(({ isMobile }) => test.skip(!!isMobile, "block handles are hidden on a coarse pointer (touch), by design"));
 
   test("hover shows a handle in the gutter; dragging it below another block moves it (one undo step)", async ({ page }) => {
     await open(page);
@@ -248,8 +246,6 @@ test.describe("block handles", () => {
 });
 
 test.describe("table toolbar", () => {
-  test.beforeEach(({ isMobile }) => test.skip(!!isMobile, "keyboard"));
-
   test("appears in a cell; buttons and Alt+F10 work; axe clean", async ({ page }) => {
     await open(page);
     await setValue(page, "| a | b |\n| --- | --- |\n| 1 | 2 |");

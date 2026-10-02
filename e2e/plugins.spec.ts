@@ -11,7 +11,6 @@ import AxeBuilder from "@axe-core/playwright";
  *   npx playwright test e2e/plugins.spec.ts --project=desktop
  */
 
-test.skip(({ isMobile }) => isMobile, "these flows are keyboard driven");
 
 const ROOT = process.cwd(); // playwright runs from the repository root (playwright.config.ts lives there)
 const URL = "/example/plugins.html";
@@ -286,7 +285,8 @@ test.describe("table of contents", () => {
     expect(errors).toEqual([]);
   });
 
-  test("keyboard: tab to a link, arrows move between links, Enter jumps and places the caret", async ({ page }) => {
+  test("keyboard: tab to a link, arrows move between links, Enter jumps and places the caret", async ({ page, isMobile }) => {
+    test.skip(!!isMobile, "hardware keyboard: Tab and arrow navigation of the outline");
     await open(page, q({ p: "toc", value: md + "\n" + "filler\n\n".repeat(60) + "## Last\n" }));
     const links = page.locator("#editor-host .atm-custom-toc a");
     await expect(links).toHaveCount(5);
@@ -317,7 +317,8 @@ test.describe("table of contents", () => {
 /* ───────────────────────────── text colour ───────────────────────────── */
 
 test.describe("text colour", () => {
-  test("toolbar swatch applies a colour that is stored as [text]{.c-red} and round-trips", async ({ page }) => {
+  test("toolbar swatch applies a colour that is stored as [text]{.c-red} and round-trips", async ({ page, isMobile }) => {
+    test.skip(!!isMobile, "on a phone the colour button sits in the More menu, where a plugin's custom toolbar item does nothing yet (DECISIONS.md, \"The mobile project's skips\")");
     const { errors } = await open(page, q({ p: "style", value: "Paint this word.\n" }));
     await select(page, "word");
     await page.locator('#editor-host button[aria-label="Text colour and highlight"]').click();
@@ -356,8 +357,8 @@ test.describe("text colour", () => {
     expect(await page.locator("#editor-host .atm-surface").evaluate((e) => e.textContent)).toContain("[a]{.c-magenta}");
   });
 
-  test("the swatch popover is keyboard operable and labelled", async ({ page, browserName }) => {
-    test.fixme(browserName === "webkit", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
+  test("the swatch popover is keyboard operable and labelled", async ({ page, isMobile }) => {
+    test.skip(!!isMobile, "on a phone the colour button sits in the More menu, where a plugin's custom toolbar item does nothing yet (DECISIONS.md, \"The mobile project's skips\")");
     await open(page, q({ p: "style", value: "word\n" }));
     await select(page, "word");
     const btn = page.locator('#editor-host button[aria-label="Text colour and highlight"]');

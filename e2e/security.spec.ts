@@ -35,10 +35,13 @@ async function push(page: Page, kind: "text/plain" | "text/html", v: string) {
       r.collapse(false);
       getSelection()!.removeAllRanges();
       getSelection()!.addRange(r);
-      const dt = new DataTransfer();
+      // Fill the EVENT's DataTransfer: Gecko's ClipboardEvent constructor copies `clipboardData`
+      // without its data, so a DataTransfer filled beforehand would paste nothing in Firefox.
+      const ev = new ClipboardEvent("paste", { clipboardData: new DataTransfer(), bubbles: true, cancelable: true });
+      const dt = ev.clipboardData!;
       dt.setData(kind, v);
       if (kind === "text/html") dt.setData("text/plain", "fallback");
-      el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+      el.dispatchEvent(ev);
       const dt2 = new DataTransfer();
       dt2.setData(kind, v);
       const b = el.getBoundingClientRect();
@@ -53,6 +56,15 @@ test.describe("XSS corpus in a real browser", () => {
     await open(page);
     await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<img src=x onerror="window.__xss=1">'));
     await expect.poll(() => page.evaluate(() => (window as unknown as { __xss?: unknown }).__xss)).toBe(1);
+  });
+
+  test("control: the paste and drop harness really inserts in this engine", async ({ page }) => {
+    await open(page);
+    await push(page, "text/plain", "pastedmark");
+    const v = () => page.evaluate(() => (window as unknown as { __editor: { getValue(): string } }).__editor.getValue());
+    await expect.poll(async () => (await v()).split("pastedmark").length - 1).toBe(2); // once by paste, once by drop
+    await push(page, "text/html", "<p><b>htmlmark</b></p>");
+    await expect.poll(async () => (await v()).split("**htmlmark**").length - 1).toBe(2);
   });
 
   test("Markdown vectors: setValue, paste, drop — nothing runs", async ({ page }) => {

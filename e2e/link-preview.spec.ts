@@ -38,8 +38,7 @@ test.describe("link previews", () => {
     await expect(page.locator("#output-md")).not.toContainText("A preview of");
   });
 
-  test("typing elsewhere does not write the card into the markdown", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+  test("typing elsewhere does not write the card into the markdown", async ({ page }) => {
     await open(page);
     await setValue(page, `Intro\n\n${ARTICLE}`);
     await expect(cards(page)).toHaveCount(1);
@@ -82,8 +81,7 @@ test.describe("link previews", () => {
     expect(await page.evaluate(() => (window as unknown as { __previewCalls: string[] }).__previewCalls)).toEqual([]);
   });
 
-  test("hover card by keyboard: the caret entering a link opens it, it is described-by the link, Escape closes it", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+  test("hover card by keyboard: the caret entering a link opens it, it is described-by the link, Escape closes it", async ({ page }) => {
     await open(page);
     await setValue(page, "[the post](https://example.com/p/2) today.");
     await editable(page).locator("p").click();
@@ -100,7 +98,7 @@ test.describe("link previews", () => {
   });
 
   test("hover card in a read-only view: Tab focuses the link and opens it", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+    test.skip(!!isMobile, "hardware keyboard: Tab to a link in a read-only view");
     await open(page, "ok", "&readonly=1");
     await setValue(page, "Read [the post](https://example.com/p/9) today.");
     await page.locator("#editor-host a", { hasText: "the post" }).focus();
@@ -110,7 +108,7 @@ test.describe("link previews", () => {
   });
 
   test("hover card: the mouse opens it after a delay", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "mouse");
+    test.skip(!!isMobile, "mouse hover; a touch screen ((hover: none)) ignores emulated mouse events by design");
     await open(page);
     await setValue(page, "Read [the post](https://example.com/p/3) today.");
     await editable(page).locator("a", { hasText: "the post" }).hover();
@@ -145,8 +143,7 @@ test.describe("embeds", () => {
     expect(await value(page)).toBe(md);
   });
 
-  test("the hover toolbar converts the embed back to a link (toggle off), and it stays off", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "mouse");
+  test("the hover toolbar converts the embed back to a link (toggle off), and it stays off", async ({ page }) => {
     await open(page);
     await setValue(page, YT);
     const embed = editable(page).locator(".atm-embed");
@@ -162,7 +159,7 @@ test.describe("embeds", () => {
   });
 
   test("the toolbar is reachable by keyboard", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "keyboard");
+    test.skip(!!isMobile, "hardware keyboard: focusing the embed toolbar");
     await open(page);
     await setValue(page, YT);
     const convert = editable(page).locator(".atm-embed").getByRole("button", { name: "Convert to link" });
@@ -179,9 +176,7 @@ test.describe("embeds", () => {
     await expect(editable(page).locator(".atm-embed, iframe")).toHaveCount(0);
   });
 
-  test("embed blocks are atomic: Backspace after one removes it and the markdown follows", async ({ page, isMobile, browserName }) => {
-    test.fixme(browserName === "webkit", "Known engine gap in contenteditable handling; see DECISIONS.md, cross-engine e2e (2026-10-02)");
-    test.skip(!!isMobile, "keyboard");
+  test("embed blocks are atomic: Backspace after one removes it and the markdown follows", async ({ page }) => {
     await open(page);
     await setValue(page, `${YT}\n\nafter`);
     await editable(page).locator("p", { hasText: "after" }).click();
@@ -192,7 +187,7 @@ test.describe("embeds", () => {
   });
 
   test("the split preview pane shows the same cards and embeds", async ({ page, isMobile }) => {
-    test.skip(!!isMobile, "split needs width");
+    test.skip(!!isMobile, "split mode needs a wide viewport");
     await open(page);
     await setValue(page, `${YT}\n\n${ARTICLE}`);
     await page.locator("#editor-host [role=tab]", { hasText: "Split" }).click();
