@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-10-02
 
 ### Added
 - **Definition lists** (`advanced-texteditor-md/deflists`): `Term` + `: Definition` as a plugin block syntax on `BlockSyntax.match` / `serialize`
