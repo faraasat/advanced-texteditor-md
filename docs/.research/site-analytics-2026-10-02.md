@@ -1,7 +1,7 @@
 # Demo-site analytics: what the current docs and sources say (checked 2026-10-02)
 
-Scope: the GitHub Pages demo site only (`site/`). The library, its `dist/` and its tests contain no analytics and make no
-network request; `site/src/analytics.js` is the only place the IDs appear.
+Scope: the GitHub Pages demo site only (`site/`, a Next.js static export). The library, its `dist/` and its tests contain no analytics and make no
+network request; `site/src/lib/config.ts` is the only place the IDs appear, and `site/src/lib/analytics.ts` the only code that sends anything.
 
 ## Aptabase (cookieless)
 

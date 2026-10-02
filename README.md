@@ -63,6 +63,7 @@ Try it first in the **[live playground](https://faraasat.github.io/advanced-text
 | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/mentions-menu.png" alt="The mention menu, grouped by badge" /><br><sub>Mentions: grouped, badged, coloured</sub> | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/slash-menu.png" alt="The slash menu" /><br><sub>The slash menu</sub> |
 | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/image-tools.png" alt="A selected image with its resize handles and toolbar" /><br><sub>Image tools: resize, align, caption, alt text</sub> | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/layout-bubble.png" alt="Bubble layout" /><br><sub>The bubble layout</sub> |
 | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/dark-mode.png" alt="The demo site in dark mode" /><br><sub>The demo site, dark mode</sub> | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/mobile-editor.png" alt="The editor on a phone" width="260" /><br><sub>On a phone (390 px)</sub> |
+| <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/landing-light.png" alt="The demo site in light mode" /><br><sub>The demo site, light mode (it follows your system and has a toggle)</sub> | <img src="https://raw.githubusercontent.com/faraasat/advanced-texteditor-md/main/github-imgs/features.png" alt="The live feature demos" /><br><sub>Thirteen live feature demos, each with its code</sub> |
 
 <!-- /site:skip -->
 
@@ -466,16 +467,27 @@ project, each with its reason (hardware-keyboard shortcuts, block handles that a
 
 ## Demo
 
-The **[live site](https://faraasat.github.io/advanced-texteditor-md/)** has a playground with every layout and theme, twelve small live
-demos (mentions, uploads, math, highlighting, embeds, plugins, your own syntax, drafts, find and replace, images, block handles,
-collapsible sections), and the docs below rendered with this library's own `renderHtml`. It is a static, framework-free site built from
-`site/` with esbuild:
+The **[live site](https://faraasat.github.io/advanced-texteditor-md/)** is one scrolling page with a playground (every layout, theme and
+mode, and the Markdown and HTML it stores, live), a grid of what is built in, thirteen small live demos each with its code (mentions,
+uploads, math, highlighting, embeds, plugins, your own syntax, drafts, find and replace, images, block handles, collapsible sections,
+themes and tokens), install blocks for npm, pnpm, yarn and bun, a shortcut cheat sheet, the comparison, the browser matrix, the roadmap and
+an FAQ. The docs below are rendered at build time by this library's own `renderHtml`. It has a dark and a light theme and works down to 360 px.
+
+It is a static [Next.js](https://nextjs.org) App Router export in `site/` (system fonts, no external requests apart from the opt-in analytics
+described under Privacy) that depends on this package as `"advanced-texteditor-md": "file:.."`, so it always shows the commit you are on.
+The editors are mounted from client components with an effect, after the first paint.
 
 ```bash
-npm run build && npm run site:build && npm run site:serve    # http://127.0.0.1:4320/advanced-texteditor-md/
+npm run build                 # the site imports dist/, so build the library first
+npm run site:install          # once: npm ci inside site/
+npm run site:build            # next build, as a static export under /advanced-texteditor-md/ (SITE_BASE=/ for a domain root)
+npm run site:serve            # http://127.0.0.1:4320/advanced-texteditor-md/ (nothing is served outside the base path, like Pages)
+npm run test:site             # Playwright against the build: behaviour, no 404s under the base path, axe in light and dark
+npm run site:screenshots      # regenerates github-imgs/ from the build (each PNG stays under 200 kB)
 ```
 
-The older single-page demo used by the end-to-end tests is `example/index.html`:
+For development, `cd site && npm run dev` serves it at `/` with hot reload. The older single-page demo used by the end-to-end tests is
+`example/index.html`:
 
 ```bash
 node scripts/build-example.mjs --serve

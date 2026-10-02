@@ -27,19 +27,27 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site/package-lock.json
 
-      # The site imports the library from dist/, so it always reflects this
-      # commit rather than the last npm release.
+      # The site depends on this package as "file:..", so build the library first: it always reflects this commit
+      # rather than the last npm release.
       - name: Install & build package
         run: |
           npm ci
           npm run build
 
-      # Project pages are served from /<repo>/, so every URL carries that base.
-      - name: Build site
+      - name: Install site dependencies
+        run: npm ci
+        working-directory: site
+
+      # Project pages are served from /<repo>/, so the Next.js basePath is /advanced-texteditor-md.
+      - name: Build site (static export)
+        working-directory: site
         env:
-          SITE_BASE: /advanced-texteditor-md/
-        run: npm run site:build
+          NEXT_PUBLIC_BASE_PATH: /advanced-texteditor-md
+        run: npx next build
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

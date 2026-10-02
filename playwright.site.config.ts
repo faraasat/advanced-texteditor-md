@@ -1,9 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Smoke tests for the built demo and docs site (site/out), served under its GitHub Pages base path
- * (/advanced-texteditor-md/) so a broken asset URL fails here and not after a deploy.
- *   npm run build && npm run site:build && npm run test:site
+ * Smoke, behaviour and accessibility tests for the built demo and docs site (site/out, a Next.js static export),
+ * served under its GitHub Pages base path (/advanced-texteditor-md/) so a broken asset URL fails here and not after a deploy.
+ *   npm run build && npm run site:install && npm run site:build && npm run test:site
  */
 const PORT = 4320;
 export default defineConfig({
@@ -13,6 +13,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
+  timeout: 60_000,
   use: { baseURL: `http://127.0.0.1:${PORT}`, trace: "on-first-retry" },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },

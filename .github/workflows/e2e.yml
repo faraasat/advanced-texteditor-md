@@ -26,6 +26,9 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site/package-lock.json
 
       - name: Install & build package
         run: |
@@ -40,8 +43,11 @@ jobs:
         run: npm run test:e2e
 
       - name: Build the demo site
-        run: npm run site:build
+        run: |
+          npm run site:install
+          npm run site:build
 
+      # Behaviour, no 404 under the base path, consent and Do Not Track, and axe in light and dark (Chromium desktop + mobile).
       - name: Test the demo site under its project-pages base path
         run: npm run test:site
 

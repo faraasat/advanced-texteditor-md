@@ -1,6 +1,6 @@
 // Takes the README screenshots from the BUILT demo site with Playwright, into github-imgs/.
 //
-//   npm run build && npm run site:build && npm run site:screenshots
+//   npm run build && npm run site:install && npm run site:build && npm run site:screenshots
 //
 // Every PNG must stay under 200 kB (they live in the repository and the npm README). No image tools are used: the
 // clip and the viewport width are what keep them small, and a shot that is too big is retried a little narrower.
@@ -58,6 +58,7 @@ async function shoot(name, { widths = [1120, 1000, 900, 800], height = 760, mobi
     const page = await ctx.newPage();
     await page.goto(URL_);
     await page.locator("#editor-host .atm-surface").waitFor();
+    await page.locator(".pg__stage .skel").waitFor({ state: "hidden" });
     await page.addStyleTag({ content: "*{caret-color:transparent!important}" });
     const clip = await run(page);
     const file = join(outDir, name + ".png");
@@ -86,9 +87,11 @@ const box = async (page, selector, pad = 0, extra = []) => {
 
 /** Scrolls the playground into view and returns a clip of the editor, with room for menus that hang below it. */
 async function playground(page, { layout, theme, mode, below = 0 } = {}) {
-  if (layout) await page.selectOption("#layout", layout);
-  if (theme) await page.selectOption("#theme", theme);
-  if (mode) await page.selectOption("#mode", mode);
+  const pick = (legend, option) => page.getByRole("group", { name: legend, exact: true }).getByRole("radio", { name: option, exact: true }).check({ force: true });
+  if (layout) await pick("Layout", layout);
+  if (theme) await pick("Editor theme", theme);
+  if (mode) await pick("Mode", mode);
+  await page.locator("#editor-host .atm-surface, #editor-host .atm-preview").first().waitFor();
   await page.locator("#playground").scrollIntoViewIfNeeded();
   await page.evaluate(() => document.getElementById("editor-host").scrollIntoView({ block: "start" }));
   await page.evaluate(() => window.scrollBy(0, -70));
@@ -161,13 +164,14 @@ await shoot("image-tools", {
   },
 });
 
+// 900 px and up keeps the desktop navigation; the clip is short because the banner's gradients are expensive in a PNG.
 await shoot("dark-mode", {
   scheme: "dark",
-  widths: [1100, 1000, 900, 800],
-  height: 720,
+  widths: [1040, 1000, 940, 900],
+  height: 450,
   run: async (p) => {
     await p.evaluate(() => window.scrollTo(0, 0));
-    return { x: 0, y: 0, width: p.viewportSize().width, height: 720 };
+    return { x: 0, y: 0, width: p.viewportSize().width, height: 450 };
   },
 });
 
@@ -196,11 +200,22 @@ await shoot("features", {
   widths: [1100, 1000, 900, 800],
   height: 900,
   run: async (p) => {
-    await p.evaluate(() => window.__mountAllDemos?.());
-    await p.locator("#features").scrollIntoViewIfNeeded();
     await p.evaluate(() => document.getElementById("features").scrollIntoView({ block: "start" }));
+    await p.evaluate(() => window.scrollBy(0, -64));
+    await p.locator("#feature-mentions .atm-surface").waitFor();
+    await p.locator("#feature-uploads .atm-surface").waitFor();
     await p.waitForTimeout(900);
     return { x: 0, y: 0, width: p.viewportSize().width, height: 900 };
+  },
+});
+
+await shoot("landing-light", {
+  scheme: "light",
+  widths: [1040, 1000, 940, 900],
+  height: 450,
+  run: async (p) => {
+    await p.evaluate(() => window.scrollTo(0, 0));
+    return { x: 0, y: 0, width: p.viewportSize().width, height: 450 };
   },
 });
 

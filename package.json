@@ -220,10 +220,11 @@
     "release": "standard-version",
     "prepublishOnly": "npm run typecheck && vitest run && npm run build && npm run size && npm run check:package",
     "check:package": "node scripts/check-package.mjs",
-    "site:build": "node scripts/build-site.mjs",
+    "site:build": "node scripts/site-build.mjs",
     "site:serve": "node scripts/serve-site.mjs",
     "site:screenshots": "node scripts/site-screenshots.mjs",
-    "test:site": "playwright test -c playwright.site.config.ts"
+    "test:site": "playwright test -c playwright.site.config.ts",
+    "site:install": "npm --prefix site ci"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

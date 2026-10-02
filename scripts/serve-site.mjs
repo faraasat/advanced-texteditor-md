@@ -5,6 +5,7 @@
 //   node scripts/serve-site.mjs --port 5000 --base /advanced-texteditor-md/
 import { createServer } from "node:http";
 import { existsSync, readFileSync, statSync } from "node:fs";
+import { gzipSync } from "node:zlib";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,9 +28,18 @@ if (!existsSync(join(root, "index.html"))) {
   process.exit(1);
 }
 
-const send = (res, code, file) => {
-  res.writeHead(code, { "content-type": TYPES[extname(file)] ?? "application/octet-stream", "cache-control": "no-store" });
-  res.end(readFileSync(file));
+// Pages compresses text responses, so this does too: sizes and Lighthouse numbers measured here are the ones a visitor sees.
+const COMPRESSIBLE = /\.(html|js|css|svg|json|txt|map)$/;
+const send = (req, res, code, file) => {
+  const headers = { "content-type": TYPES[extname(file)] ?? "application/octet-stream", "cache-control": "no-store" };
+  let body = readFileSync(file);
+  if (COMPRESSIBLE.test(file) && /\bgzip\b/.test(String(req.headers["accept-encoding"] ?? ""))) {
+    body = gzipSync(body);
+    headers["content-encoding"] = "gzip";
+    headers.vary = "Accept-Encoding";
+  }
+  res.writeHead(code, headers);
+  res.end(body);
 };
 
 createServer((req, res) => {
@@ -52,8 +62,8 @@ createServer((req, res) => {
     }
     file = join(file, "index.html");
   }
-  if (file.startsWith(root) && existsSync(file) && statSync(file).isFile()) return send(res, 200, file);
+  if (file.startsWith(root) && existsSync(file) && statSync(file).isFile()) return send(req, res, 200, file);
   const nf = join(root, "404.html");
-  if (existsSync(nf)) return send(res, 404, nf);
+  if (existsSync(nf)) return send(req, res, 404, nf);
   res.writeHead(404).end("not found");
 }).listen(port, "127.0.0.1", () => console.log(`http://127.0.0.1:${port}${base}`));

@@ -57,9 +57,10 @@ three.
 
 ## The demo site
 
-`site/` is a static site with no framework, built by `scripts/build-site.mjs` with esbuild. The playground and every feature demo
-import the library from `dist/`, and the docs pages are the README and `docs/*.md` rendered with the library's own `renderHtml`.
-When you add an option, add it to a demo if it can be shown in a few lines.
+`site/` is a Next.js App Router app, exported as static files (`npm run build && npm run site:install && npm run site:build`). It depends on
+this package as `file:..`, so the playground and every feature demo run the library from `dist/`, and the docs pages are the README and
+`docs/*.md` rendered with the library's own `renderHtml`. `npm run test:site` tests the build under its GitHub Pages base path, including axe.
+When you add an option, add it to a demo (`site/src/demos/demos.tsx` and `site/src/lib/features.ts`) if it can be shown in a few lines.
 
 ## Releases
 
