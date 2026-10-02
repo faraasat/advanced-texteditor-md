@@ -1380,3 +1380,75 @@ The renderer's tag allow-list has no `dl`, so `renderHtml` emits `div.atm-custom
 
 - A paragraph line that starts with `: ` (typed text, `\: x` in source, or text after a hard break) is read as a definition after a reparse when term-like lines come before it. The parser's escaper (`lineStarts`) does not know about it, and this module cannot extend it without a core change; `stringify` converges on the list reading after one more pass. Avoid starting a line with `: `.
 - Terms are one line each (hard breaks fold to a space). Definitions do not take attributes. No `Tab` nesting.
+
+
+<!-- feature:speech -->
+## Dictation and read aloud (`advanced-texteditor-md/speech`)
+
+Speak to type, and have the selection or the document read aloud, with the browser's Web Speech API. Nothing is bundled; **no audio or text goes anywhere except through the browser's own speech service** (Chrome and Safari send dictation audio to one; Firefox has no recognition at all). Neither plugin starts by itself: each command runs only from a user gesture (a click, a key, a palette entry). The entry is about 4 kB gzipped.
+
+```ts
+import { createDictationPlugin, createReadAloudPlugin } from "advanced-texteditor-md/speech";
+
+createEditor(el, {
+  plugins: [createDictationPlugin({ lang: "en-US", punctuationCommands: true }), createReadAloudPlugin({ rate: 1 })],
+});
+```
+
+**Markdown stored:** nothing new. Interim text, the highlight, the status strip and the buttons are drawn outside the editable surface; dictated final text is ordinary text, so every Markdown viewer shows exactly what was typed. `getValue()` is the same with or without the plugins, except for the words that were dictated.
+
+**Feature detection.** `window.SpeechRecognition` (or `webkitSpeechRecognition`) and `window.speechSynthesis` plus `SpeechSynthesisUtterance` are looked up when a command runs and when the toolbar is built, never at import (the module is safe on the server). When one is missing its toolbar item is disabled (`aria-disabled`), its label becomes "Dictation (not supported in this browser)" (same for "Read aloud"; this is also the palette entry's text), and running the command anyway shows that sentence in the alert region and calls `onError({ code: "unsupported" })`. Nothing throws.
+
+### Dictation: `createDictationPlugin(options)`
+
+| Option | Default | |
+| --- | --- | --- |
+| `lang` | the surface / textarea `lang`, else the closest `[lang]`, else `<html lang>`, else `navigator.language` | Recognition language (BCP 47). |
+| `continuous` | `true` | Keep listening across pauses; the plugin starts the next session when the browser ends one by itself. `false`: one phrase per start. |
+| `punctuationCommands` | `false` | Understand spoken "new line", "new paragraph", "period", "comma", "question mark", ... Only for languages with a table (`en`, `es`, `fr`, `de`); other languages insert the words as spoken. |
+| `onDevice` | `false` | Set `processLocally` where the browser has it (recognition on the device only; an unavailable language pack then ends in `language-not-supported`). |
+| `onError` | | `({ code, message })` for every error, with the browser's code (`not-allowed`, `service-not-allowed`, `no-speech`, `audio-capture`, `network`, `language-not-supported`, or `unsupported`, `restart`, `other`). |
+| `labels` | English | `name`, `unsupported`, `readOnly`, `listening`, `stopped`, `stop`, `dismiss` and `errors` (text per code; `{lang}` is replaced). |
+
+Commands: `dictation` (toggle; toolbar item `dictation`, type `toggle`, `aria-pressed`), `dictationStart`, `dictationStop`. Shortcut: **Mod-Shift-.** Escape stops (and is consumed only while listening). Dictation also stops on blur (after a 0.5 s grace for the palette handing focus back), on a mode switch and on destroy. Event `plugin:speech-dictation:state` with `{ listening }`.
+
+How results are applied:
+
+- Interim results replace each other as `div.atm-speech-ghost` (`aria-hidden`), a child of `editor.element` placed at the caret with the block's font; right-to-left blocks are indented from the right. It is not content: the caret, the undo history and `getValue()` never see it.
+- Each final result is inserted with `editor.insertText` (text, never parsed: `**x**` and `<b>` stay literal) as one undo step. A space is added unless the caret follows whitespace or an opening bracket, or the text starts with closing punctuation; no spaces are added for scripts written without them (Chinese, Japanese, Thai, ...). The first letter is capitalised, with the language's case rules, at the start of a block and after `.`, `!`, `?`. Control and bidi override characters are dropped.
+- Spoken commands (when enabled) turn "comma" into `,`, "period" into `.`, and so on, attached to the previous word. "New line" and "new paragraph" insert a line break: in the Write view both start a new paragraph (`insertText` cannot make a hard break); in the Markdown pane "new paragraph" inserts a blank line.
+
+Status and errors: the strip at the bottom of the editor shows "Listening…" / "Stopped" in a polite live region (`role="status"`) with a Stop button. An error is a separate `role="alert"` (`aria-live="assertive"`) message with a Dismiss button; it never takes focus and does not trap it. Permission denied tells the user to allow the microphone for the site in the address bar or site settings.
+
+### Read aloud: `createReadAloudPlugin(options)`
+
+| Option | Default | |
+| --- | --- | --- |
+| `lang` | each block's `lang`, else the editor's, else the page's | Language of the speech. |
+| `voice` | best match for the language | A voice `name` or `voiceURI`, or `(voices, lang) => voice`. Voices are read at speak time, so a list that loads late (`voiceschanged`) is used. |
+| `rate` | `1` | 0.1 to 10. |
+| `pitch` | `1` | 0 to 2. |
+| `maxChunk` | `200` | Longest piece handed to the engine, in UTF-16 units; long blocks split at sentence ends (some engines cut off long utterances). |
+| `highlightApi` | `"auto"` | `false` always uses the overlay boxes. |
+| `labels` | English | `name`, `unsupported`, `unsupportedMessage`, `reading`, `paused`, `finished`, `stopped`, `nothing`, `pause`, `resume`, `stop`, `dismiss`, `failed`. |
+
+Commands: `readAloud` (toggle; toolbar item `readAloud`), `readAloudPause` (pause / resume), `readAloudStop`. Shortcut: **Mod-Shift-,** Escape stops. Event `plugin:speech-read-aloud:state` with `{ reading }`.
+
+What is read: the selection if there is one; otherwise the document from the caret (from the top when the caret is at the end or not in the text). The text is the plain text of the blocks (the same text model as the lint hook): no Markdown syntax, code blocks and inline code left out, chips, images and formulas left out, one piece per block or per sentence group. One utterance is spoken at a time. In the Markdown pane the Markdown source is stripped of its syntax and spoken, but a textarea cannot show a highlight.
+
+Highlight: a faint highlight on the block being spoken, and a stronger one on the word from each `boundary` event. Names are per editor (`atm-speech-<n>-block`, `atm-speech-<n>-word`) with a `::highlight()` style element per editor; colours come from `--atm-speech-block-bg`, `--atm-speech-word-bg` / `--atm-speech-word-fg`, then the theme's `--atm-surface` and `--atm-mark-bg` / `--atm-mark-fg`; `forced-colors` uses `Highlight`. Without the Custom Highlight API the same two highlights are boxes in `div.atm-speech-overlay` outside the surface. Several engines send no `boundary` events, or only `sentence` ones: the block highlight (and scrolling) still works. The spoken text scrolls into view when it is outside the viewport, without animation when the user prefers reduced motion.
+
+Pause / Resume (a toggle button with `aria-pressed`) and Stop are buttons in the strip and commands. Editing the document or switching mode stops reading. Destroying the editor cancels speech.
+
+### What other renderers show
+
+Nothing: neither plugin writes syntax. Dictated words are plain text.
+
+### Limits
+
+- The toolbar disables every item of a read-only editor, so the read-aloud button is greyed there; the `readAloud` command and its shortcut still work.
+- Dictation stops when the page loses focus, by design. Chrome ends silent sessions after a few seconds (`no-speech`); that is reported, not restarted.
+- Android Chrome may repeat words in `continuous` mode (a browser behaviour); use `continuous: false` there if it bothers.
+- Voices differ per device and some engines never send `boundary` events or ignore `pause()`; the block highlight is the fallback.
+- Spoken commands exist for English, Spanish, French and German only; the tables are in `SPOKEN_COMMANDS`.
+- The pure helpers (`fitSpoken`, `parseSpoken`, `readResults`, `buildChunks`, `wordSpan`, `markdownBlocks`, `pickVoice`) are exported for hosts that build their own UI.

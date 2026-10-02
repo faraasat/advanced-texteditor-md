@@ -289,6 +289,16 @@
         "default": "./dist/writing.cjs"
       }
     },
+    "./speech": {
+      "import": {
+        "types": "./dist/speech.d.ts",
+        "default": "./dist/speech.js"
+      },
+      "require": {
+        "types": "./dist/speech.d.cts",
+        "default": "./dist/speech.cjs"
+      }
+    },
     "./i18n": {
       "import": {
         "types": "./dist/i18n.d.ts",
@@ -441,6 +451,9 @@
       ],
       "writing": [
         "./dist/writing.d.ts"
+      ],
+      "speech": [
+        "./dist/speech.d.ts"
       ],
       "i18n": [
         "./dist/i18n.d.ts"

@@ -1,0 +1,155 @@
+/* Dictation and read aloud (advanced-texteditor-md/speech). */
+
+/* Interim dictation: an overlay at the caret, never content. */
+.atm-speech-ghost {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  white-space: pre;
+  overflow: hidden;
+  color: var(--atm-speech-ghost, var(--atm-muted, #59636e));
+  background: var(--atm-speech-ghost-bg, var(--atm-bg, #fff));
+  font-style: italic;
+  user-select: none;
+}
+
+/* The status strip: one panel per plugin, at the editor's bottom edge. */
+.atm-speech-dock {
+  position: absolute;
+  inset-inline: 0.5rem;
+  inset-block-end: 0.5rem;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  pointer-events: none;
+}
+.atm-speech-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  max-inline-size: min(100%, 34rem);
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-speech-bg, var(--atm-surface, #f6f8fa));
+  color: var(--atm-fg, #1f2328);
+  font-size: 0.875rem;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+  pointer-events: auto;
+}
+.atm-speech-panel[hidden] {
+  display: none;
+}
+.atm-speech-status:not(:empty)::before {
+  content: "";
+  display: inline-block;
+  inline-size: 0.55em;
+  block-size: 0.55em;
+  margin-inline-end: 0.4em;
+  border-radius: 50%;
+  background: var(--atm-speech-dot, var(--atm-accent, #2563eb));
+}
+.atm-speech-panel[data-kind="dictation"] .atm-speech-status:not(:empty)::before {
+  animation: atm-speech-pulse 1.2s ease-in-out infinite;
+}
+.atm-speech-panel[data-has-error="true"] .atm-speech-status::before {
+  display: none;
+}
+.atm-speech-error {
+  flex: 1 1 14rem;
+  color: var(--atm-speech-error, #b42318);
+}
+.atm-speech-error:empty {
+  display: none;
+}
+.atm-speech-buttons {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+.atm-speech-buttons:empty {
+  display: none;
+}
+.atm-speech-btn {
+  min-block-size: 1.9rem;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-bg, #fff);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.atm-speech-btn:hover {
+  border-color: var(--atm-accent, #2563eb);
+}
+.atm-speech-btn:focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: 1px;
+}
+.atm-speech-btn[aria-pressed="true"] {
+  background: var(--atm-accent, #2563eb);
+  color: var(--atm-accent-fg, #fff);
+}
+.atm-speech-dismiss {
+  min-inline-size: 1.9rem;
+  padding-inline: 0;
+}
+
+@keyframes atm-speech-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atm-speech-panel[data-kind="dictation"] .atm-speech-status:not(:empty)::before {
+    animation: none;
+  }
+}
+
+/* The read-aloud highlight when the CSS Custom Highlight API is missing: boxes behind nothing, so they are translucent. */
+.atm-speech-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.atm-speech-mark {
+  position: absolute;
+  border-radius: 2px;
+}
+.atm-speech-block {
+  background: var(--atm-speech-block-bg, var(--atm-surface, #e8eef6));
+  opacity: 0.7;
+}
+.atm-speech-word {
+  background: var(--atm-speech-word-bg, var(--atm-mark-bg, #fff2a8));
+  opacity: 0.75;
+}
+
+@media (forced-colors: active) {
+  .atm-speech-panel {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+  .atm-speech-btn[aria-pressed="true"] {
+    background: Highlight;
+    color: HighlightText;
+  }
+  .atm-speech-word {
+    background: Highlight;
+    opacity: 0.6;
+  }
+  .atm-speech-ghost {
+    color: GrayText;
+  }
+}
+@media print {
+  .atm-speech-dock,
+  .atm-speech-ghost,
+  .atm-speech-overlay {
+    display: none;
+  }
+}

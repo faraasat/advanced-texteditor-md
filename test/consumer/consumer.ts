@@ -89,16 +89,17 @@ import { createChipCardsPlugin, createTagTrigger, createMarkdownMentionsPlugin }
 import { createContentBlocksPlugins, createShortcodes } from "advanced-texteditor-md/blocks";
 import { createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists } from "advanced-texteditor-md/deflists";
 import { createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, type TasksSummary } from "advanced-texteditor-md/tasks";
+import { createDictationPlugin, createReadAloudPlugin, fitSpoken } from "advanced-texteditor-md/speech";
 import { createSuggestPlugin, readingStats } from "advanced-texteditor-md/writing";
 import { loadLabels, createBidiPlugin } from "advanced-texteditor-md/i18n";
 import de from "advanced-texteditor-md/i18n/de";
 const featurePlugins: Plugin[] = [
   createAlertsPlugin(), createCodeBlocksPlugin(), createTablesPlugin(), createDiagramsPlugin({ renderers: {} }), createExportPlugin(),
-  createMarkdownMentionsPlugin(), createSuggestPlugin({ onSuggest: async () => null }), createBidiPlugin(),
+  createMarkdownMentionsPlugin(), createSuggestPlugin({ onSuggest: async () => null }), createDictationPlugin({ lang: "en-US", onError: (e) => e.code }), createReadAloudPlugin({ rate: 1, voice: (voices) => voices[0] }), createBidiPlugin(),
 ];
 export const features = [
   featurePlugins, alertSyntax, parseCodeInfo, diffLang, csvToTable, renderDiagrams, createDiffView, diffWords, createHistoryStore, exportHtml,
-  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists, createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, readingStats, loadLabels, de.bold,
+  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists, createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, readingStats, fitSpoken, loadLabels, de.bold,
 ];
 export const deflistsTyped: Plugin = createDefinitionListsPlugin({ labels: { term: "Term" }, classPrefix: "atm" });
 export const deflistsParsed = parse("Term\n: Definition", { syntax: { block: DEFINITION_LIST_SYNTAX } });

@@ -117,6 +117,7 @@ else is a subpath so you only pay for what you import.
 | `/deflists` | definition lists (`Term` and `: Definition`) as a plugin block syntax: `DEFINITION_LIST_SYNTAX`, `createDefinitionListsPlugin` (Enter / Backspace flow, `/definition`), `upgradeDefinitionLists` (real `<dl>` in views) |
 | `/tasks` | `createTasks`: due-date chips on task items with overdue / today marks drawn at render time, assignees as mentions, a `::: progress` block (bar and "3 of 5 tasks done (60%)"), "move completed to bottom", an All / Open / Done / Overdue filter for views; `taskItems`, `tasksSummary` over a parsed Doc |
 | `/writing` | host-driven writing aids: ghost-text suggestions, selection actions, spellcheck and language, a word goal and `readingStats`, lint squiggles with fixes |
+| `/speech` | `createDictationPlugin` (speak to type, interim words as ghost text) and `createReadAloudPlugin` (read the selection or the page, the spoken word highlighted), on the browser's Web Speech API; feature-detected, never on by default |
 | `/i18n`, `/i18n/<lang>` | `loadLabels`, `resolveLocale`, `isRtl`, `createBidiPlugin`; label bundles for en, es, fr, de, pt, it, nl, ru, ja, zh, ar, hi, tr (each at most 1.5 kB gzip) |
 | `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
 
@@ -299,6 +300,26 @@ tasksSummary(parse(md, { chipSchemes: ["date"] })); // { total, done, open, over
 ```
 
 A due date is the date chip `[2026-10-05](date:2026-10-05)` at the end of a task item; an assignee is a mention chip. Commands: `setDueDate` (an ISO date, or nothing to open the picker), `clearDueDate`, `assignTask`, `moveCompleted`, `moveCompletedAll`, `insertProgress` (`"section"` for a section block), `updateProgress`, `filterTasks`. Overdue, due today and due soon are drawn at render time and never stored. See [docs/PLUGINS.md](docs/PLUGINS.md#tasks-advanced-texteditor-mdtasks).
+
+### Dictation and read aloud
+
+```ts
+import { createDictationPlugin, createReadAloudPlugin } from "advanced-texteditor-md/speech";
+
+createEditor(el, {
+  plugins: [
+    createDictationPlugin({ lang: "en-US", punctuationCommands: true }), // Mod-Shift-. or the microphone
+    createReadAloudPlugin({ rate: 1 }), //                                  Mod-Shift-, or the speaker
+  ],
+});
+```
+
+Dictation uses the browser's `SpeechRecognition`: interim words are drawn as ghost text at the caret (outside the content),
+final words are inserted as plain text with a space where needed and a capital at the start of a sentence. Read aloud uses
+`speechSynthesis`: it reads the selection, or the document from the caret, as plain text (no Markdown syntax), highlighting
+the spoken word with the CSS Custom Highlight API (boxes in an overlay where it is missing). Neither starts by itself; where the
+browser lacks the API the toolbar item is disabled and its label says so. Chrome and Safari send dictation audio to a speech
+service, Firefox has no recognition. See [docs/PLUGINS.md](./docs/PLUGINS.md#dictation-and-read-aloud-advanced-texteditor-mdspeech).
 
 ### Mentions, badges, colours, merged identities
 
@@ -497,7 +518,7 @@ Gzip, after minification, measured 2026-10-02 (`npm run size`; the enforced figu
 | `render` | 13.1 kB | 14 kB |
 | `math` | 5.0 kB | 5 kB |
 | each `highlight/<lang>` | under 2 kB | 2 kB |
-| feature subpaths (`/alerts`, `/code-blocks`, `/tables`, `/diagrams`, `/chips`, `/blocks`, `/writing`, `/i18n`) | 2.8–13 kB each | 15 kB |
+| feature subpaths (`/alerts`, `/code-blocks`, `/tables`, `/diagrams`, `/chips`, `/blocks`, `/writing`, `/speech`, `/i18n`) | 2.8–13 kB each | 15 kB |
 | `/diff`, `/export` (they include the parser and renderer an editor page already loads) | about 25 kB | 28 kB |
 | each `i18n/<lang>` | 1.1–1.5 kB | 1.5 kB |
 

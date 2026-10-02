@@ -29,6 +29,7 @@ export default defineConfig({
     deflists: "src/extensions/deflists/index.ts",
     tasks: "src/extensions/tasks/index.ts",
     writing: "src/extensions/writing/index.ts",
+    speech: "src/extensions/speech/index.ts",
     i18n: "src/extensions/i18n/index.ts",
     "i18n/en": "src/extensions/i18n/en.ts",
     "i18n/es": "src/extensions/i18n/es.ts",

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md dictation and read aloud</title>
+    <meta name="description" content="Speak to type with ghost-text interim results, and have the selection or the document read aloud with the spoken word highlighted. Feature-detected, never on by default." />
+    <!-- The built library. Run `npm run build` first (see example/README.md). -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; }
+      @media (prefers-color-scheme: dark) { :root { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; } }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 64ch; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      pre.out { margin: 0; max-height: 240px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      kbd { font: 600 0.85em ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--page-border); border-bottom-width: 2px; border-radius: 4px; }
+    </style>
+  </head>
+    <body>
+    <main>
+      <h1>Dictation and read aloud</h1>
+      <p class="lead">
+        Press <kbd>Mod</kbd> <kbd>Shift</kbd> <kbd>.</kbd> (or the microphone) to dictate; interim words appear as grey ghost
+        text at the caret and the final words are typed in. <kbd>Mod</kbd> <kbd>Shift</kbd> <kbd>,</kbd> (or the speaker) reads the
+        selection, or the page from the caret, highlighting each word. <kbd>Esc</kbd> stops either. Both depend on the browser:
+        <span id="support" role="status"></span> URL parameters: <code>value</code>, <code>mode</code>, <code>lang</code>,
+        <code>commands=1</code> (spoken "new line", "period"), <code>rtl=1</code>, <code>hl=0</code> (overlay highlight).
+      </p>
+      <div id="editor-host" data-testid="editor-host"></div>
+      <section class="card" aria-labelledby="md-h">
+        <h2 id="md-h">Markdown (what is stored)</h2>
+        <pre class="out" id="output-md" tabindex="0"></pre>
+      </section>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import * as S from "../dist/speech.js";
+
+      const q = new URLSearchParams(location.search);
+      const out = document.getElementById("output-md");
+      const rec = !!S.recognitionCtor();
+      const syn = !!S.synthesis();
+      document.getElementById("support").textContent =
+        `Speech recognition: ${rec ? "available" : "not available"}. Speech synthesis: ${syn ? "available" : "not available"}.`;
+      if (q.get("rtl") === "1") document.documentElement.dir = "rtl";
+
+      const plugins = [
+        S.createDictationPlugin({ lang: q.get("lang") ?? undefined, punctuationCommands: q.get("commands") === "1" }),
+        S.createReadAloudPlugin({ lang: q.get("lang") ?? undefined, highlightApi: q.get("hl") === "0" ? false : "auto" }),
+      ];
+      const initial =
+        q.get("value") ??
+        "# Meeting notes\n\nThe quick brown fox jumps over the lazy dog. Dictation adds new words at the caret.\n\nA second paragraph is read after the first one, and each spoken word is highlighted.\n";
+      const show = (md) => (out.textContent = md);
+      const editor = lib.createEditor(document.getElementById("editor-host"), {
+        value: initial,
+        mode: q.get("mode") ?? "wysiwyg",
+        theme: q.get("theme") ?? "light",
+        plugins,
+        toolbar: { items: ["bold", "italic", "strike", "code", "|", "heading", "|", "bulletList", "orderedList", "|", "link", "|", "dictation", "readAloud"] },
+        minHeight: 240,
+        onChange: show,
+      });
+      show(editor.getValue());
+      window.__editor = editor;
+      window.__events = [];
+      for (const e of [S.DICTATION_EVENT, S.READ_ALOUD_EVENT]) editor.on(e, (p) => window.__events.push([e, p]));
+    </script>
+  </body>
+</html>
