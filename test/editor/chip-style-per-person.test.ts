@@ -34,12 +34,12 @@ async function pick(persistStyle?: boolean, host = false) {
   x.surface.editable.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
   return x;
 }
-const style = (x: Awaited<ReturnType<typeof pick>>, id: string) => (x.surface.options.render as RenderOptions).chipStyle?.({ type: "chip", scheme: "mention", kind: "person", id, label: id });
+const style = (x: Awaited<ReturnType<typeof pick>>, id: string) => ((x.surface.options.render as RenderOptions).chips as Record<string, { styles?: Record<string, unknown> }>).mention.styles?.[`person:${id}`];
 
 describe("chip colour and badge per person", () => {
-  it("the renderer reads chipStyle and attrs._color/_badge", () => {
+  it("the renderer reads ChipDefinition.styles and attrs._color/_badge", () => {
     const md = "[@Ann](mention:person/a)";
-    expect(renderHtml(md, { chipStyle: () => ({ color: 3, badge: "Hub" }) })).toMatch(/chip-color:var\(--atm-chip-3\).*chip-badge">Hub/);
+    expect(renderHtml(md, { chips: [{ scheme: "mention", styles: { "person:a": { color: 3, badge: "Hub" } } }] })).toMatch(/chip-color:var\(--atm-chip-3\).*chip-badge">Hub/);
     expect(renderHtml("[@Ann](mention:person/a?_color=%23aa00cc&_badge=CRM)")).toMatch(/--atm-chip-color:#aa00cc.*chip-badge">CRM/);
   });
   it("a searched person is remembered per scheme:kind:id, even where the host styles the kind", async () => {

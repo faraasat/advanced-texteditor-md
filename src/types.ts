@@ -219,11 +219,6 @@ export type RenderOptions = ParseOptions & {
    * `resolve` function is not used here (rendering never fetches); only `modes` is read.
    */
   linkPreview?: LinkPreviewOptions;
-  /**
-   * Per-chip colour and badge, looked up as each chip renders (the editor feeds it from items its
-   * mention menu has seen). It wins over the kind style and over `attrs._color` / `attrs._badge`.
-   */
-  chipStyle?: (chip: Extract<InlineNode, { type: "chip" }>) => { color?: string | number; badge?: string } | undefined;
   /** Text labels the output needs. Defaults are English. */
   labels?: { code?: string; openOriginal?: string; details?: string; /** Accessible name of each task-list checkbox. */ task?: string };
   /**
@@ -326,6 +321,12 @@ export type ChipDefinition = {
   /** Per-kind style: `{ person: { className: "…", color: 3 } }`. */
   kinds?: Record<string, { className?: string; color?: string | number; label?: string }>;
   className?: string;
+  /**
+   * Colour and badge of single chips, keyed `kind:id`. Wins over `kinds` and over a chip's
+   * `attrs._color` / `attrs._badge`. The editor fills it from the items its mention menu has seen
+   * (in memory only; the Markdown does not change).
+   */
+  styles?: Record<string, { color?: string | number; badge?: string }>;
   render?: (chip: Extract<InlineNode, { type: "chip" }>) => HTMLElement | string;
   /** Whether Backspace removes the whole chip. Default true. */
   atomic?: boolean;

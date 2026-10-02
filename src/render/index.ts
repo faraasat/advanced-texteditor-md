@@ -103,7 +103,7 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
       "data-trigger": c.trigger,
       "data-refs": c.attrs && Object.keys(c.attrs).length ? JSON.stringify(c.attrs) : undefined,
     };
-    const st = o.chipStyle?.(c) ?? { color: c.attrs?._color, badge: c.attrs?._badge };
+    const st = def?.styles?.[c.kind + ":" + c.id] ?? { color: c.attrs?._color, badge: c.attrs?._badge };
     const col = st.color ?? kd?.color;
     if (+(col as number) >= 1 && +(col as number) <= 8) a.style = `--${p}-chip-color:var(--${p}-chip-${Math.trunc(+(col as number))})`;
     else if (typeof col === "string" && safeColor(col)) a.style = `--${p}-chip-color:${col}`;
