@@ -19,18 +19,23 @@ export type MentionGlue = {
   /** The editor's shared chip definitions, and the (scheme, kind) pairs the host declared itself. */
   chipDefs: Record<string, ChipDefinition>;
   hostKinds: Set<string>;
+  /** Per-person style, keyed `scheme:kind:id`; the renderer reads it through `RenderOptions.chipStyle`. */
+  chipStyles: Map<string, { color?: string | number; badge?: string }>;
 };
 
 /**
  * Chip colour and badge are per (scheme, kind): the chip definition's `kinds` entry. A mention item
  * that carries `color`/`badge` teaches the editor that style the first time it is seen, unless the
- * host declared that kind itself.
+ * host declared that kind itself. Independently, every item's own colour and badge go into
+ * `chipStyles` (per scheme:kind:id), which wins over the kind style: two people of one kind can
+ * differ. The Markdown carries them only when `MentionOptions.persistStyle` is set.
  */
-export function learn(g: Pick<MentionGlue, "chipDefs" | "hostKinds">, o: MentionOptions, items: MentionItem[]): void {
+export function learn(g: Pick<MentionGlue, "chipDefs" | "hostKinds" | "chipStyles">, o: MentionOptions, items: MentionItem[]): void {
   const scheme = o.scheme ?? "mention";
   for (const it of items ?? []) {
     if (it.color === undefined && !it.badge) continue;
     const kind = it.kind ?? "";
+    g.chipStyles.set(`${scheme}:${kind}:${it.id}`, { color: it.color, badge: it.badge });
     if (g.hostKinds.has(`${scheme}\0${kind}`)) continue;
     const def = (g.chipDefs[scheme] ??= { scheme });
     def.kinds ??= {};
@@ -61,6 +66,10 @@ export function attachMentions(g: MentionGlue): MentionController {
       learn(g, o, [item]);
       const chip: Omit<Chip, "type"> = { scheme: o.scheme ?? "mention", kind: item.kind ?? "", id: item.id, label: item.label, trigger: o.trigger ?? "@" };
       if (item.refs && Object.keys(item.refs).length) chip.attrs = { ...item.refs };
+      if (o.persistStyle) {
+        if (item.color !== undefined) (chip.attrs ??= {})._color = String(item.color);
+        if (item.badge) (chip.attrs ??= {})._badge = item.badge;
+      }
       s.replaceRangeWithChip(range, chip);
     },
   });

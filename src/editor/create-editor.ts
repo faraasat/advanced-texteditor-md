@@ -208,7 +208,9 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   const hostKinds = new Set<string>();
   for (const d of Object.values(chipDefs)) for (const k of Object.keys(d.kinds ?? {})) hostKinds.add(`${d.scheme}\0${k}`);
 
+  const chipStyles = new Map<string, { color?: string | number; badge?: string }>();
   const render: RenderOptions = {
+    chipStyle: (c) => chipStyles.get(`${c.scheme}:${c.kind}:${c.id}`),
     gfm: true,
     math: mathOn,
     footnotes: features.footnotes !== false,
@@ -491,7 +493,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     // The typeahead is a lazy chunk, fetched when the editor is created with `mentions`.
     const make = (m: typeof import("./mention-glue")) => {
       if (destroyed || surface !== s || mentionCtl) return;
-      mentionCtl = m.attachMentions({ doc, surface: s, options: mentionOpts, labels: { noResults: labels.noResults, searching: labels.searching }, classes, chipDefs, hostKinds });
+      mentionCtl = m.attachMentions({ doc, surface: s, options: mentionOpts, labels: { noResults: labels.noResults, searching: labels.searching }, classes, chipDefs, hostKinds, chipStyles });
     };
     // Offline: no typeahead; typing and every chip already in the text are unaffected.
     chunks.mentions.use(make);

@@ -103,8 +103,9 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
       "data-trigger": c.trigger,
       "data-refs": c.attrs && Object.keys(c.attrs).length ? JSON.stringify(c.attrs) : undefined,
     };
-    const col = kd?.color;
-    if (typeof col === "number" && col >= 1 && col <= 8) a.style = `--${p}-chip-color:var(--${p}-chip-${Math.trunc(col)})`;
+    const st = o.chipStyle?.(c) ?? { color: c.attrs?._color, badge: c.attrs?._badge };
+    const col = st.color ?? kd?.color;
+    if (+(col as number) >= 1 && +(col as number) <= 8) a.style = `--${p}-chip-color:var(--${p}-chip-${Math.trunc(+(col as number))})`;
     else if (typeof col === "string" && safeColor(col)) a.style = `--${p}-chip-color:${col}`;
     const kids: VN[] = [];
     let custom: string | HTMLElement | undefined;
@@ -116,7 +117,8 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
     if (custom !== undefined) kids.push(typeof custom === "string" ? { raw: custom } : { el: custom });
     else {
       kids.push((c.trigger ?? "") + c.label);
-      if (kd?.label) kids.push(el("span", { class: k("chip-badge") }, [kd.label]));
+      const bd = st.badge ?? kd?.label;
+      if (bd) kids.push(el("span", { class: k("chip-badge") }, [bd]));
     }
     return el("span", a, kids);
   };
