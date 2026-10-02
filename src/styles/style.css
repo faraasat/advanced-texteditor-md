@@ -168,6 +168,7 @@
 .atm-toolbar {
   position: relative;
   display: flex;
+  flex-wrap: nowrap; /* a host's flex-wrap utility must not drop one button onto a second row */
   align-items: center;
   gap: var(--_s3);
   min-width: 0;
@@ -185,6 +186,7 @@
 .atm-toolbar-items {
   display: flex;
   flex: 1 1 auto;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 2px;
   min-width: var(--_ctl, 32px); /* room for the More button, however crowded the row */
