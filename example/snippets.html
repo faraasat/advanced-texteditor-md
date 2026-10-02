@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md snippets</title>
+    <meta name="description" content="Text expanders (;sig + space), a template picker with variables, a storage adapter and JSON import and export." />
+    <!-- The built library. Run `npm run build` first (see example/README.md). -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; --page-accent: #0b5cd5; --page-accent-fg: #fff; }
+      @media (prefers-color-scheme: dark) { :root { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; --page-accent: #4c8dff; --page-accent-fg: #0b0e13; } }
+      :root[data-page-theme="dark"] { color-scheme: dark; --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; --page-accent: #4c8dff; --page-accent-fg: #0b0e13; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 64ch; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      pre.out { margin: 0; max-height: 240px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      kbd { font: 600 0.85em ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--page-border); border-bottom-width: 2px; border-radius: 4px; }
+      table.snips { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+      table.snips th, table.snips td { padding: 4px 8px; text-align: start; border-block-end: 1px solid var(--page-border); vertical-align: baseline; }
+      table.snips th { color: var(--page-muted); font-weight: 600; }
+      table.snips code { font: 0.85em ui-monospace, monospace; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      button.btn { padding: 6px 12px; border: 1px solid var(--page-border); border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+      button.btn.primary { background: var(--page-accent); border-color: transparent; color: var(--page-accent-fg); }
+      button.btn:focus-visible, textarea:focus-visible { outline: 2px solid var(--page-accent); outline-offset: 1px; }
+      textarea.json { width: 100%; min-height: 8rem; margin-top: 10px; padding: 8px; border: 1px solid var(--page-border); border-radius: 8px; background: var(--page-bg); color: inherit; font: 0.8rem/1.5 ui-monospace, monospace; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Snippets</h1>
+      <p class="lead">
+        Type a trigger such as <kbd>;sig</kbd> and then <kbd>Space</kbd>, <kbd>Tab</kbd> or <kbd>Enter</kbd> to expand it;
+        <kbd>Backspace</kbd> right after puts the trigger back. Type <kbd>/</kbd> for the Templates group, or press
+        <kbd>Mod</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> and choose “Insert template…”. URL parameters: <code>mode</code>,
+        <code>value</code>, <code>expandOn</code> (comma list of space, tab, enter), <code>storage=local</code>, <code>dir=rtl</code>.
+      </p>
+      <div id="editor-host" data-testid="editor-host"></div>
+
+      <section class="card" aria-labelledby="list-h">
+        <h2 id="list-h">Snippets in this editor</h2>
+        <table class="snips" id="snip-table">
+          <thead><tr><th scope="col">Name</th><th scope="col">Trigger</th><th scope="col">Scope</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="row">
+          <button type="button" class="btn" id="btn-export">Export JSON</button>
+          <button type="button" class="btn primary" id="btn-merge">Import (merge)</button>
+          <button type="button" class="btn" id="btn-replace">Import (replace)</button>
+        </div>
+        <label for="json" class="sr-only" style="position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%)">Snippets as JSON</label>
+        <textarea class="json" id="json" spellcheck="false" placeholder="Snippets as JSON: export, edit, import"></textarea>
+        <pre class="out" id="report" role="status" aria-live="polite" tabindex="0"></pre>
+      </section>
+
+      <section class="card" aria-labelledby="md-h">
+        <h2 id="md-h">Markdown (what is stored)</h2>
+        <pre class="out" id="output-md" tabindex="0"></pre>
+      </section>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import * as S from "../dist/snippets.js";
+
+      const q = new URLSearchParams(location.search);
+      if (q.get("page") === "dark") document.documentElement.dataset.pageTheme = "dark";
+      if (q.get("dir") === "rtl") document.documentElement.dir = "rtl";
+      const out = document.getElementById("output-md");
+
+      const defaults = [
+        { id: "sig", name: "Signature", trigger: ";sig", scope: "inline", body: "{{user}}", description: "Your name", keywords: ["sign", "name"] },
+        { id: "today", name: "Date stamp", trigger: ";date", scope: "inline", body: "{{date}}", description: "Today, as 2026-10-02" },
+        { id: "long-date", name: "Long date", trigger: ";today", scope: "inline", body: "{{date:long}}" },
+        { id: "thanks", name: "Thank you", trigger: ";ty", scope: "inline", body: "Thank you, {{cursor}}!", description: "A short thank-you with the caret inside" },
+        {
+          id: "meeting", name: "Meeting notes", trigger: ";meet", scope: "block", keywords: ["agenda", "minutes"],
+          description: "Attendees, notes and actions",
+          body: "## Meeting notes: {{project}}\n\n**Date:** {{date}}\n\n### Attendees\n\n- {{user}}\n\n### Notes\n\n{{cursor}}\n\n### Actions\n\n- [ ] ",
+        },
+        { id: "quote", name: "Quote the selection", trigger: ";quote", scope: "block", description: "Wraps the selected text", body: "> {{selection}}\n>\n> {{cursor}}" },
+        { id: "status", name: "Weekly status", scope: "block", description: "Done, next, blocked", body: "## Status for {{project}}\n\n- **Done:** {{cursor}}\n- **Next:**\n- **Blocked:**" },
+      ];
+
+      const sn = S.createSnippets({
+        storage: q.get("storage") === "local" ? S.localStorageSnippets("atm-demo-snippets") : S.memorySnippets(defaults),
+        defaults,
+        locale: "en-US",
+        expandOn: q.get("expandOn") ? q.get("expandOn").split(",").filter(Boolean) : undefined,
+        variables: {
+          user: "Ada Lovelace",
+          project: "Project Alpha",
+          // A function may be async: the text is inserted once it resolves.
+          mood: async () => { await new Promise((r) => setTimeout(r, 40)); return "cheerful"; },
+        },
+      });
+
+      const rows = document.querySelector("#snip-table tbody");
+      const drawList = (list) => {
+        rows.replaceChildren();
+        for (const s of list) {
+          const tr = document.createElement("tr");
+          const name = document.createElement("td");
+          name.textContent = s.name;
+          const trig = document.createElement("td");
+          if (s.trigger) {
+            const c = document.createElement("code");
+            c.textContent = s.trigger;
+            trig.append(c);
+          } else trig.textContent = "–";
+          const scope = document.createElement("td");
+          scope.textContent = s.scope;
+          tr.append(name, trig, scope);
+          rows.append(tr);
+        }
+      };
+      sn.store.subscribe(drawList);
+      drawList(sn.store.list());
+
+      const editor = lib.createEditor(document.getElementById("editor-host"), {
+        value: q.get("value") ?? "Notes for the team.\n\n",
+        mode: q.get("mode") ?? "wysiwyg",
+        theme: q.get("theme") ?? "light",
+        plugins: [sn.plugin],
+        minHeight: 220,
+        onChange: (md) => (out.textContent = md),
+      });
+      out.textContent = editor.getValue();
+
+      const json = document.getElementById("json");
+      const report = document.getElementById("report");
+      const show = (r) => {
+        report.textContent = JSON.stringify({ mode: r.mode, added: r.added, updated: r.updated, removed: r.removed, skipped: r.skipped.map((s) => `${s.index}: ${s.reason}`), applied: r.applied }, null, 2);
+      };
+      document.getElementById("btn-export").addEventListener("click", () => (json.value = sn.export()));
+      document.getElementById("btn-merge").addEventListener("click", async () => show(await sn.import(json.value, { mode: "merge" })));
+      document.getElementById("btn-replace").addEventListener("click", async () => show(await sn.import(json.value, { mode: "replace" })));
+
+      window.__editor = editor;
+      window.__snippets = sn;
+    </script>
+  </body>
+</html>

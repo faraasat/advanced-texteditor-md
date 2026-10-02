@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Snippets** (`advanced-texteditor-md/snippets`): `createSnippets` for text expanders (`;sig` + Space / Tab / Enter) and templates with `{{date}}`, `{{time}}`, `{{cursor}}`, `{{selection}}` and host variables; a Templates group in the slash menu and an "Insert template…" picker; `localStorageSnippets` / `memorySnippets`; JSON `exportSnippets` / `importSnippets` with a per-entry report. 9.4 kB gzip, lazy.
+
 ## 0.2.1 - 2026-10-03
 
 ### Added

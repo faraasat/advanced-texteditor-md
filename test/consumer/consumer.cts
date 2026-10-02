@@ -15,4 +15,6 @@ import { createTasks } from "advanced-texteditor-md/tasks";
 export const usedTasks = [createTasks];
 import { createPresentView, splitSlides } from "advanced-texteditor-md/present";
 import { createReaderView } from "advanced-texteditor-md/reader";
+import { createSnippets } from "advanced-texteditor-md/snippets";
+export const usedSnippets = [createSnippets];
 export const usedViews = [createPresentView, splitSlides, createReaderView];

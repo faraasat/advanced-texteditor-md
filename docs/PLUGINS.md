@@ -1477,3 +1477,35 @@ createEditor(host, { plugins: [createPresentPlugin({ split: "h2" }), createReade
 Present only: `split` (`"rule"` default, `"h1"`, `"h2"`, `"auto"`), `presenter` (speaker panel with current, next, notes and timer; the S key), `start`, `hash` (`#slide-n`), `fullscreen` (`true`, `"overlay"`, `false`), `minScale`, `clickNavigation`, `swipe`. Keys: arrows, PageUp/PageDown, Space, Home/End, a typed number then Enter, F, S, Escape; in RTL the arrows swap. Reader only: `scroll` (`"window"` or `"element"`), `outline`, `outlineDepth`, `readingTime`, `wordsPerMinute`, `notes` (`"show"`/`"hide"`), `maxWidth`, `locale`.
 
 `::: notes` ... `:::` is an ordinary custom block (`NOTES_SYNTAX`, registered by the views): the present view removes it from the slide and shows it in the speaker panel, the reader shows an aside or hides it. `splitSlides(doc, mode)` is the pure splitter. The handles expose `element`, `update`, `focus`, `destroy` plus `getIndex` / `goTo` / `next` / `previous` / `setPresenter` / `setFullscreen` (present) and `outline`, `stats`, `getProgress`, `getCurrent`, `scrollTo` (reader). Content comes from the same renderer as every other view, so links, images and raw HTML follow the editor's `LinkPolicy`; no view writes back into the Markdown.
+
+## Snippets and templates (`advanced-texteditor-md/snippets`)
+
+Text expanders and templates for the editor. The entry is about 9.5 kB gzipped; the picker dialog is a lazy chunk fetched on the first open. Server-safe at import.
+
+```ts
+import { createSnippets, localStorageSnippets } from "advanced-texteditor-md/snippets";
+const snippets = createSnippets({ storage: localStorageSnippets("my-app"), defaults: [...], variables: { who: async () => "Ada" } });
+createEditor(el, { plugins: [snippets.plugin] });
+```
+
+**Markdown stored:** nothing new. Expanding a snippet inserts its body as ordinary Markdown (parsed like `insertMarkdown`); the typed trigger is gone from the document.
+
+### A snippet
+
+`{ id, name, trigger?, body, scope: "inline" | "block", description?, keywords? }`. `id` is a short slug (`[a-z0-9_-]`, at most 80), `trigger` at most 32 characters without whitespace and unique, `body` at most 20 000 characters, at most 1000 snippets. `validateSnippet` and `normalizeSnippets` apply these rules to data from anywhere; an invalid entry is skipped, never repaired.
+
+### Expansion
+
+Typed: the trigger must end at a word boundary (start of the block, after whitespace, or after an opening bracket or quote) and the key must be one of `expandOn` (default Space, Tab, Enter; `[]` turns it off). It never fires inside code, a link, a kbd, math or a chip. The whole replacement is one undo step; Backspace right after restores the typed trigger and the next Space is an ordinary space. In the Markdown pane the body goes in verbatim. Block snippets are for the slash menu and the picker; inline snippets are inserted inside the current block.
+
+### Variables
+
+`{{date}}` (ISO), `{{date:long}}` (locale), `{{time}}`, `{{cursor}}` (where the caret ends), `{{selection}}` (the selected text, empty when none) and any `variables` the host supplies: a string, a function (sync or async), or `{ value, markdown: true }`. Values are escaped as literal text unless `markdown` is set, so a name such as `*Ada*` cannot add formatting. A variable that throws, rejects or takes longer than `variableTimeoutMs` (2000) stays literal (`{{name}}`), as does an unknown name.
+
+### Store, import and export
+
+`createSnippetStore` (used by `createSnippets`) keeps the list in `localStorageSnippets(key)` or `memorySnippets()`; a storage error goes to `onError`, and a list that was never stored starts from `defaults`. `exportSnippets` writes `{ format, version, snippets }`. `importSnippets(json, { mode })` takes `"merge"` (add and update by `id`) or `"replace"` (the file becomes the list) and returns `{ mode, added, updated, removed, skipped, applied }`; one bad entry is listed in `skipped` (`"2: bad-id"`) and the rest still apply; text that is not a snippets file changes nothing and reports `bad-json`.
+
+### UI
+
+Slash menu group "Templates", the command `plugin:snippets:picker` and palette entry "Insert template…", `toolbar: true` for a button. The picker is an ARIA combobox (the field keeps focus, `aria-activedescendant` follows Arrow keys, Enter inserts, Escape closes and returns the caret). It carries the editor theme and direction. Labels take `labels`; the `plugin:snippets:insert` event reports `{ id, via }` (`trigger`, `api`, `picker`, `slash`).

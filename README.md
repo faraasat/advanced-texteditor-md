@@ -119,6 +119,7 @@ else is a subpath so you only pay for what you import.
 | `/writing` | host-driven writing aids: ghost-text suggestions, selection actions, spellcheck and language, a word goal and `readingStats`, lint squiggles with fixes |
 | `/speech` | `createDictationPlugin` (speak to type, interim words as ghost text) and `createReadAloudPlugin` (read the selection or the page, the spoken word highlighted), on the browser's Web Speech API; feature-detected, never on by default |
 | `/present`, `/reader` | `createPresentView` (a document as slides: split rules, speaker notes and panel, fullscreen, keys and swipe) and `createReaderView` (a clean article with outline, progress and reading time); `createPresentPlugin` / `createReaderPlugin` open them from the editor toolbar |
+| `/snippets` | `createSnippets`: text expanders (`;sig` + Space/Tab/Enter) and block templates with `{{date}}`, `{{time}}`, `{{cursor}}`, `{{selection}}` and host variables, a "Templates" group in the slash menu, an "Insert template…" picker (palette and optional toolbar button), a store kept in `localStorage` or memory, JSON import and export with a per-entry report |
 | `/i18n`, `/i18n/<lang>` | `loadLabels`, `resolveLocale`, `isRtl`, `createBidiPlugin`; label bundles for en, es, fr, de, pt, it, nl, ru, ja, zh, ar, hi, tr (each at most 1.5 kB gzip) |
 | `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
 
@@ -322,6 +323,23 @@ final words are inserted as plain text with a space where needed and a capital a
 the spoken word with the CSS Custom Highlight API (boxes in an overlay where it is missing). Neither starts by itself; where the
 browser lacks the API the toolbar item is disabled and its label says so. Chrome and Safari send dictation audio to a speech
 service, Firefox has no recognition. See [docs/PLUGINS.md](./docs/PLUGINS.md#dictation-and-read-aloud-advanced-texteditor-mdspeech).
+
+### Snippets and templates
+
+```ts
+import { createSnippets, localStorageSnippets } from "advanced-texteditor-md/snippets";
+
+const snippets = createSnippets({
+  storage: localStorageSnippets("my-app"),
+  defaults: [{ id: "sig", name: "Signature", trigger: ";sig", scope: "inline", body: "Best,\n{{user}}" }],
+  variables: { user: async () => "Ada" },
+});
+createEditor(el, { plugins: [snippets.plugin] });
+const json = snippets.export(); //            JSON text, one entry per snippet
+const report = await snippets.import(json); // { added, updated, removed, skipped, applied }
+```
+
+A snippet is Markdown. Typing its trigger at a word boundary and pressing Space, Tab or Enter replaces the trigger with the body in one undo step; Backspace straight after puts the trigger back. Block snippets appear under "Templates" in the slash menu, and "Insert template…" (palette, optional toolbar button) opens a searchable picker. `{{cursor}}` places the caret, `{{selection}}` wraps what was selected, `{{date}}`, `{{date:long}}` and `{{time}}` are built in, host variables may be async (2 s limit) and their values are escaped as text unless declared `markdown`. Nothing is stored in the document: the Markdown that results is ordinary text. See [docs/PLUGINS.md](./docs/PLUGINS.md#snippets-and-templates-advanced-texteditor-mdsnippets).
 
 ### Mentions, badges, colours, merged identities
 

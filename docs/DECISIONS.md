@@ -731,3 +731,11 @@ drag-reordering a list by state, and a task filter that survives re-rendering of
 - **`insertText` is literal, `insertMarkdown` parses** (input rules do not run for either). With no focus and no remembered selection the surface now places the caret at the end (`place()`, shared with `focus()`).
 - **Markdown-mode `insertChip`** backslash-escapes `\ [ ] ( ) * _ ` ~ < > & $` in the label and flattens whitespace; the trigger is not escaped.
 - **Size.** These fixes took the eager entry from 62.86 to 63.1 kB against the 63 kB ceiling, which was not raised. Paid for by: moving per-person style bookkeeping into the lazy mention glue (`ChipDefinition.styles` instead of a map and a render hook in the entry), deleting the unused `Surface.getDoc` and its cached Doc, and dropping the Safari < 14 `matchMedia.addListener` fallback. A lazy status bar was tried and rejected: it is always fetched at startup (it only moves bytes) and breaks the "a plain editor downloads no chunk" contract. Headroom is now about 0.03 kB; the next change to the entry has to remove code first.
+
+## 2026-10-03: Snippets (`advanced-texteditor-md/snippets`)
+
+- **Lazy extension, nothing eager.** The eager entry stayed at 62.97 kB of 63; snippets is a plugin in `src/extensions/snippets/` (9.4 kB gzip of 15). The picker is a lazy chunk.
+- **Trigger at a word boundary only.** `Regards,;sig` does not expand; `(;sig` does (opening brackets and quotes are allowed before the trigger). This keeps ordinary text such as URLs and code from expanding by accident. Inside code, links, kbd, math and chips a trigger never fires.
+- **Values are text unless declared Markdown.** A host variable is escaped (`escapeMarkdownText`), so a user-controlled value cannot inject links, images or syntax; `{ markdown: true }` is the host's explicit opt-in. Imported snippet bodies are Markdown and go through the normal parser and `LinkPolicy`, so a `javascript:` link in a body stays dead.
+- **Import is validated, never repaired.** Every entry passes `validateSnippet`; bad ones are reported in `skipped` and the rest apply. Not JSON, or the wrong `format`, changes nothing.
+- **Body-level UI.** The picker is appended to `document.body` and calls `mirrorTheme`.

@@ -32,6 +32,7 @@ export default defineConfig({
     reader: "src/extensions/reader/index.ts",
     writing: "src/extensions/writing/index.ts",
     speech: "src/extensions/speech/index.ts",
+    snippets: "src/extensions/snippets/index.ts",
     i18n: "src/extensions/i18n/index.ts",
     "i18n/en": "src/extensions/i18n/en.ts",
     "i18n/es": "src/extensions/i18n/es.ts",

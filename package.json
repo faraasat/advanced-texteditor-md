@@ -319,6 +319,16 @@
         "default": "./dist/speech.cjs"
       }
     },
+    "./snippets": {
+      "import": {
+        "types": "./dist/snippets.d.ts",
+        "default": "./dist/snippets.js"
+      },
+      "require": {
+        "types": "./dist/snippets.d.cts",
+        "default": "./dist/snippets.cjs"
+      }
+    },
     "./i18n": {
       "import": {
         "types": "./dist/i18n.d.ts",
@@ -480,6 +490,9 @@
       ],
       "speech": [
         "./dist/speech.d.ts"
+      ],
+      "snippets": [
+        "./dist/snippets.d.ts"
       ],
       "i18n": [
         "./dist/i18n.d.ts"

@@ -1,0 +1,140 @@
+/* Snippets (advanced-texteditor-md/snippets): the template picker dialog.
+   Colours: var(--atm-snippets-x, var(--atm-*, fallback)). */
+
+.atm-snip-picker {
+  position: fixed;
+  z-index: 1001;
+  inset-block-start: min(14vh, 8rem);
+  inset-inline: 0;
+  margin-inline: auto;
+  inline-size: min(32rem, calc(100vw - 16px));
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid var(--atm-snippets-border, var(--atm-border, #d0d7de));
+  border-radius: var(--atm-r, 8px);
+  background: var(--atm-snippets-bg, var(--atm-bg, #fff));
+  color: var(--atm-snippets-fg, var(--atm-fg, #1f2328));
+  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
+  font: 0.875rem/1.4 var(--atm-font-family, ui-sans-serif, system-ui, sans-serif);
+}
+.atm-snip-input {
+  box-sizing: border-box;
+  inline-size: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--atm-snippets-border, var(--atm-border, #d0d7de));
+  border-radius: 6px;
+  background: var(--atm-snippets-bg, var(--atm-bg, #fff));
+  color: inherit;
+  font: inherit;
+}
+.atm-snip-input:focus-visible {
+  outline: 2px solid var(--atm-snippets-ring, var(--atm-ring, var(--atm-accent, #2563eb)));
+  outline-offset: 0;
+}
+.atm-snip-list {
+  max-block-size: 14rem;
+  margin-block-start: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.atm-snip-opt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.atm-snip-opt[aria-selected="true"],
+.atm-snip-opt:hover {
+  background: color-mix(in srgb, var(--atm-snippets-accent, var(--atm-accent, #2563eb)) 14%, transparent);
+}
+.atm-snip-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.atm-snip-trig {
+  padding: 0 5px;
+  border: 1px solid var(--atm-snippets-border, var(--atm-border, #d0d7de));
+  border-radius: 4px;
+  font: 0.8em/1.5 var(--atm-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  unicode-bidi: isolate;
+  direction: ltr;
+}
+.atm-snip-scope {
+  margin-inline-start: auto;
+  color: var(--atm-snippets-muted, var(--atm-muted, #59636e));
+  font-size: 0.75rem;
+}
+.atm-snip-desc {
+  flex: 1 0 100%;
+  color: var(--atm-snippets-muted, var(--atm-muted, #59636e));
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+.atm-snip-empty {
+  padding: 12px 8px;
+  color: var(--atm-snippets-muted, var(--atm-muted, #59636e));
+  text-align: center;
+}
+.atm-snip-preview {
+  max-block-size: 7rem;
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  /* A glance, not a scroller: a scrollable region would need to be a Tab stop, and Tab stays in the field. */
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--atm-snippets-preview-bg, var(--atm-code-bg, color-mix(in srgb, var(--atm-fg, #1f2328) 6%, transparent)));
+  color: var(--atm-snippets-fg, var(--atm-fg, #1f2328));
+  font: 0.8125rem/1.45 var(--atm-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+.atm-snip-preview[hidden],
+.atm-snip-list[hidden],
+.atm-snip-empty[hidden] {
+  display: none;
+}
+.atm-snip-sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-snip-picker,
+  .atm-snip-opt {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+@media (forced-colors: active) {
+  .atm-snip-picker,
+  .atm-snip-input,
+  .atm-snip-trig {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+  .atm-snip-opt[aria-selected="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+    background: transparent;
+  }
+  .atm-snip-preview {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+}
+@media print {
+  .atm-snip-picker {
+    display: none !important;
+  }
+}
