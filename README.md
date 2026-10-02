@@ -120,6 +120,7 @@ else is a subpath so you only pay for what you import.
 | `/speech` | `createDictationPlugin` (speak to type, interim words as ghost text) and `createReadAloudPlugin` (read the selection or the page, the spoken word highlighted), on the browser's Web Speech API; feature-detected, never on by default |
 | `/present`, `/reader` | `createPresentView` (a document as slides: split rules, speaker notes and panel, fullscreen, keys and swipe) and `createReaderView` (a clean article with outline, progress and reading time); `createPresentPlugin` / `createReaderPlugin` open them from the editor toolbar |
 | `/snippets` | `createSnippets`: text expanders (`;sig` + Space/Tab/Enter) and block templates with `{{date}}`, `{{time}}`, `{{cursor}}`, `{{selection}}` and host variables, a "Templates" group in the slash menu, an "Insert template…" picker (palette and optional toolbar button), a store kept in `localStorage` or memory, JSON import and export with a per-entry report |
+| `/links` | `createWikiLinks` (type `[[`, pick a page, get a chip stored as `[Title](wiki:id)`; pages the host's `resolve` says are gone are marked broken) and `createLinkManager` (a dialog listing every link with its state; edit, remove, go to, optional host `check`, upgrade `http:` to `https:` in one undo step); pure `findLinks`, `findWikiIds`, `findBacklinks` |
 | `/i18n`, `/i18n/<lang>` | `loadLabels`, `resolveLocale`, `isRtl`, `createBidiPlugin`; label bundles for en, es, fr, de, pt, it, nl, ru, ja, zh, ar, hi, tr (each at most 1.5 kB gzip) |
 | `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
 
@@ -340,6 +341,21 @@ const report = await snippets.import(json); // { added, updated, removed, skippe
 ```
 
 A snippet is Markdown. Typing its trigger at a word boundary and pressing Space, Tab or Enter replaces the trigger with the body in one undo step; Backspace straight after puts the trigger back. Block snippets appear under "Templates" in the slash menu, and "Insert template…" (palette, optional toolbar button) opens a searchable picker. `{{cursor}}` places the caret, `{{selection}}` wraps what was selected, `{{date}}`, `{{date:long}}` and `{{time}}` are built in, host variables may be async (2 s limit) and their values are escaped as text unless declared `markdown`. Nothing is stored in the document: the Markdown that results is ordinary text. See [docs/PLUGINS.md](./docs/PLUGINS.md#snippets-and-templates-advanced-texteditor-mdsnippets).
+
+### Wiki links and the link manager
+
+```ts
+import { createWikiLinks, createLinkManager } from "advanced-texteditor-md/links";
+
+const wiki = createWikiLinks({
+  search: async (q) => pages.filter((p) => p.title.toLowerCase().includes(q.toLowerCase())).map((p) => ({ id: p.id, label: p.title })),
+  resolve: async (ids) => Object.fromEntries(ids.map((id) => [id, { exists: pages.some((p) => p.id === id) }])),
+  onOpen: (id) => router.push(`/pages/${id}`),
+});
+createEditor(el, { chips: wiki.chips, plugins: [wiki.plugin, createLinkManager({ wiki, check: async (url) => ({ ok: await ping(url) }) })] });
+```
+
+Typing `[[` opens a page picker; the choice becomes a chip stored as `[Title](wiki:id)`, so every other Markdown reader shows an ordinary link. The library never fetches: pages come from your `search` and `resolve` (batched, cached, aborted on destroy), addresses from your `check`. A page `resolve` reports as missing is drawn with a dotted underline and a warning sign. "Manage links…" (palette, slash menu, optional toolbar button) lists every link with its state, lets you edit, remove (the text stays) or jump to one, and upgrades `http:` addresses to `https:` after a confirmation, as one undo step. `findLinks`, `findWikiIds` and `findBacklinks` work on Markdown or a parsed Doc without a DOM. See [docs/PLUGINS.md](./docs/PLUGINS.md#wiki-links-and-the-link-manager-advanced-texteditor-mdlinks).
 
 ### Mentions, badges, colours, merged identities
 

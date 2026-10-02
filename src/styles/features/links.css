@@ -1,0 +1,387 @@
+/*
+ * advanced-texteditor-md/links: wiki chips (broken-page marking) and the link manager dialog.
+ * Colours: var(--atm-links-*, var(--atm-*, <fallback>)); no theme selectors; logical properties only.
+ */
+
+/* ── wiki chips ── */
+.atm-wiki {
+  --atm-chip-color: var(--atm-links-wiki, var(--atm-accent, #2563eb));
+}
+.atm-wiki,
+.atm-surface .atm-chip.atm-wiki {
+  cursor: pointer;
+}
+.atm-wiki[role="link"]:focus-visible {
+  outline: 2px solid var(--atm-links-ring, var(--atm-ring, #2563eb));
+  outline-offset: 1px;
+}
+/* A page that does not exist: a dotted underline and a warning sign beside the label, not colour alone. */
+.atm-wiki-broken {
+  --atm-chip-color: var(--atm-links-broken, var(--atm-danger, #b42318));
+  text-decoration: underline dotted;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.atm-wiki-broken::after {
+  content: "\26A0\FE0E";
+  content: "\26A0\FE0E" / "";
+  margin-inline-start: 0.25em;
+  font-size: 0.85em;
+}
+
+/* ── link manager ── */
+.atm-links-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--atm-links-scrim, rgb(15 23 42 / 0.45));
+  font: 0.875rem/1.45 var(--atm-font-family, ui-sans-serif, system-ui, sans-serif);
+  color: var(--atm-links-fg, var(--atm-fg, #1f2328));
+}
+.atm-links-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  inline-size: min(46rem, 100%);
+  max-block-size: min(40rem, 100%);
+  padding: 14px 16px 16px;
+  border: 1px solid var(--atm-links-border, var(--atm-border, #d0d7de));
+  border-radius: var(--atm-r, 10px);
+  background: var(--atm-links-bg, var(--atm-bg, #fff));
+  box-shadow: var(--atm-shadow, 0 16px 48px rgb(31 35 40 / 0.28));
+  overflow: hidden;
+}
+.atm-links-dialog:focus {
+  outline: none;
+}
+.atm-links-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.atm-links-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+.atm-links-close {
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.atm-links-close:hover {
+  background: var(--atm-links-hover, color-mix(in srgb, currentColor 10%, transparent));
+}
+.atm-links-summary,
+.atm-links-note,
+.atm-links-more,
+.atm-links-empty {
+  margin: 0;
+  color: var(--atm-links-muted, var(--atm-muted, #59636e));
+}
+.atm-links-summary {
+  font-weight: 600;
+}
+.atm-links-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.atm-links-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-block-size: 2.25rem;
+  margin-inline-end: auto;
+}
+.atm-links-check input {
+  inline-size: 1rem;
+  block-size: 1rem;
+  accent-color: var(--atm-links-accent, var(--atm-accent, #2563eb));
+}
+.atm-links-btn {
+  min-block-size: 2.25rem;
+  padding: 0 12px;
+  border: 1px solid var(--atm-links-border, var(--atm-border, #d0d7de));
+  border-radius: 6px;
+  background: var(--atm-links-btn-bg, var(--atm-bg, #fff));
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.atm-links-btn:hover:not(:disabled) {
+  background: var(--atm-links-hover, color-mix(in srgb, currentColor 8%, transparent));
+}
+.atm-links-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.atm-links-primary {
+  border-color: var(--atm-links-accent, var(--atm-accent, #2563eb));
+  background: var(--atm-links-accent, var(--atm-accent, #2563eb));
+  color: var(--atm-links-accent-fg, var(--atm-accent-fg, #fff));
+}
+.atm-links-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--atm-links-accent, var(--atm-accent, #2563eb)) 88%, #000);
+}
+.atm-links-dialog :is(button, input, select):focus-visible {
+  outline: 2px solid var(--atm-links-ring, var(--atm-ring, #2563eb));
+  outline-offset: 2px;
+}
+.atm-links-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--atm-links-border, var(--atm-border, #d0d7de));
+  border-radius: 8px;
+  background: var(--atm-links-row-bg, color-mix(in srgb, currentColor 5%, transparent));
+}
+.atm-links-confirm[hidden] {
+  display: none;
+}
+.atm-links-confirm-text {
+  flex: 1 1 14rem;
+  margin: 0;
+}
+.atm-links-confirm-actions,
+.atm-links-form-actions {
+  display: flex;
+  gap: 8px;
+}
+.atm-links-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: auto;
+  min-block-size: 0;
+}
+.atm-links-list[hidden],
+.atm-links-empty[hidden],
+.atm-links-more[hidden],
+.atm-links-note[hidden],
+.atm-links-btn[hidden] {
+  display: none;
+}
+.atm-links-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--atm-links-border, var(--atm-border, #d0d7de));
+  border-inline-start-width: 4px;
+  border-radius: 8px;
+}
+.atm-links-row[data-status="broken"] {
+  border-inline-start-color: var(--atm-links-broken, var(--atm-danger, #b42318));
+}
+.atm-links-row[data-status="insecure"] {
+  border-inline-start-color: var(--atm-links-warn, #9a6700);
+}
+.atm-links-row[data-status="refused"] {
+  border-inline-start-color: var(--atm-links-broken, var(--atm-danger, #b42318));
+  border-inline-start-style: dashed;
+}
+.atm-links-row[data-status="ok"] {
+  border-inline-start-color: var(--atm-links-ok, #1a7f37);
+}
+.atm-links-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 8px;
+  min-inline-size: 0;
+}
+.atm-links-kind {
+  align-self: center;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--atm-links-chip, color-mix(in srgb, currentColor 10%, transparent));
+  font-size: 0.75rem;
+}
+.atm-links-text {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.atm-links-href {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--atm-links-muted, var(--atm-muted, #59636e));
+  font: 0.8rem/1.4 var(--atm-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: ltr;
+  text-align: start;
+  unicode-bidi: plaintext;
+}
+.atm-links-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px 8px;
+}
+.atm-links-status {
+  padding: 0 8px;
+  border: 1px solid;
+  color: inherit;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+/* State is the label, the border and the row's edge, never a text colour that depends on the theme. */
+.atm-links-status[data-status="ok"] {
+  border-color: var(--atm-links-ok, #1a7f37);
+}
+.atm-links-status[data-status="broken"],
+.atm-links-status[data-status="refused"] {
+  border-color: var(--atm-links-broken, #cf222e);
+  border-style: solid;
+  border-width: 2px;
+}
+.atm-links-status[data-status="insecure"] {
+  border-color: var(--atm-links-warn, #bf8700);
+  border-width: 2px;
+}
+.atm-links-status[data-status="checking"] {
+  border-style: dashed;
+  color: var(--atm-links-muted, var(--atm-muted, #59636e));
+}
+.atm-links-note-text {
+  color: var(--atm-links-muted, var(--atm-muted, #59636e));
+  font-size: 0.8rem;
+}
+.atm-links-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 6px;
+}
+.atm-links-actions .atm-links-btn {
+  min-block-size: 2rem;
+  padding: 0 10px;
+  font-size: 0.8rem;
+}
+.atm-links-editing {
+  display: block;
+  border-inline-start-color: var(--atm-links-accent, var(--atm-accent, #2563eb));
+}
+.atm-links-form {
+  display: grid;
+  gap: 8px;
+}
+.atm-links-field {
+  display: grid;
+  gap: 2px;
+}
+.atm-links-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.atm-links-input {
+  inline-size: 100%;
+  min-block-size: 2.25rem;
+  padding: 0 8px;
+  border: 1px solid var(--atm-links-border, var(--atm-border, #8c959f));
+  border-radius: 6px;
+  background: var(--atm-links-input-bg, var(--atm-bg, #fff));
+  color: inherit;
+  font: inherit;
+  box-sizing: border-box;
+}
+.atm-links-error {
+  margin: 0;
+  color: inherit;
+  font-weight: 700;
+}
+.atm-links-error[hidden] {
+  display: none;
+}
+.atm-links-live {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 560px) {
+  .atm-links-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .atm-links-dialog {
+    inline-size: 100%;
+    max-block-size: 92%;
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+    padding-block-end: max(16px, env(safe-area-inset-bottom));
+  }
+  .atm-links-row {
+    grid-template-columns: 1fr;
+  }
+  .atm-links-state {
+    justify-content: flex-start;
+  }
+  .atm-links-actions .atm-links-btn {
+    min-block-size: 2.75rem;
+  }
+  .atm-links-btn,
+  .atm-links-input {
+    min-block-size: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-links-overlay,
+  .atm-links-dialog,
+  .atm-links-btn {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .atm-links-dialog,
+  .atm-links-row,
+  .atm-links-confirm,
+  .atm-links-input,
+  .atm-links-btn {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+  .atm-links-primary {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+  .atm-links-status {
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+  .atm-wiki-broken {
+    text-decoration: underline wavy;
+  }
+}

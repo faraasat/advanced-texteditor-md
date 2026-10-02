@@ -739,3 +739,11 @@ drag-reordering a list by state, and a task filter that survives re-rendering of
 - **Values are text unless declared Markdown.** A host variable is escaped (`escapeMarkdownText`), so a user-controlled value cannot inject links, images or syntax; `{ markdown: true }` is the host's explicit opt-in. Imported snippet bodies are Markdown and go through the normal parser and `LinkPolicy`, so a `javascript:` link in a body stays dead.
 - **Import is validated, never repaired.** Every entry passes `validateSnippet`; bad ones are reported in `skipped` and the rest apply. Not JSON, or the wrong `format`, changes nothing.
 - **Body-level UI.** The picker is appended to `document.body` and calls `mirrorTheme`.
+
+## 2026-10-03: Wiki links and link manager (`advanced-texteditor-md/links`)
+
+- **A preset on the chips system, not a new syntax.** A wiki link is the ordinary link `[Title](wiki:id)`; the parser, stringifier and every other renderer are untouched. Lazy subpath, 13 kB gzip of 15; the eager entry did not grow.
+- **The library never fetches.** Pages come from the host's `search` and `resolve`, URLs from its `check`; this keeps the package free of network code and CORS decisions, and lets the host authorise each lookup. `resolve` is batched, cached and aborted so a long document costs a few calls.
+- **Upgrade to https is a confirmation plus one undo step**, host-limited with `upgradeHosts`, and `localhost` and non-http addresses are never rewritten. A re-serialised autolink loses its angle brackets (`<https://x>` becomes `https://x`), which is the editor's canonical form; the history is kept in that case (earlier the length check reset it).
+- **Focus trap moves focus by hand.** WebKit's native Tab order skips buttons, so a trap that only wraps at the ends lets focus leave the dialog; the dialog now picks the next focusable itself.
+- **Broken-page colour is `--atm-links-broken`, falling back to `--atm-danger`**, so the dark theme gets a readable red.

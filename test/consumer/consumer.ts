@@ -94,17 +94,21 @@ import { createPresentView, createPresentPlugin, splitSlides, type PresentView, 
 import { createReaderView, createReaderPlugin, type ReaderView, type ReaderOptions } from "advanced-texteditor-md/reader";
 import { createSuggestPlugin, readingStats } from "advanced-texteditor-md/writing";
 import { createSnippets, localStorageSnippets, importSnippets, exportSnippets, type Snippet } from "advanced-texteditor-md/snippets";
+import { createWikiLinks, createLinkManager, findLinks, findBacklinks } from "advanced-texteditor-md/links";
 import { loadLabels, createBidiPlugin } from "advanced-texteditor-md/i18n";
 import de from "advanced-texteditor-md/i18n/de";
 const snippetList: Snippet[] = [{ id: "sig", name: "Signature", trigger: ";sig", body: "Ada {{cursor}}", scope: "inline" }];
 const snippets = createSnippets({ storage: localStorageSnippets("consumer"), defaults: snippetList, variables: { who: async () => "Ada", site: { value: "[x](https://example.com)", markdown: true } } });
+const wikiLinks = createWikiLinks({ search: async (q) => [{ id: q, label: q }], resolve: async (ids) => Object.fromEntries(ids.map((i) => [i, { exists: true }])), onOpen: (id) => void id });
+export const wikiEditor = { chips: wikiLinks.chips, plugins: [wikiLinks.plugin, createLinkManager({ wiki: wikiLinks, upgradeHosts: "all" })] satisfies Plugin[] };
+export const linkList: { kind: string; href: string }[] = findLinks("[a](https://example.com)");
 const featurePlugins: Plugin[] = [
   createAlertsPlugin(), createCodeBlocksPlugin(), createTablesPlugin(), createDiagramsPlugin({ renderers: {} }), createExportPlugin(),
   createMarkdownMentionsPlugin(), createSuggestPlugin({ onSuggest: async () => null }), createDictationPlugin({ lang: "en-US", onError: (e) => e.code }), createReadAloudPlugin({ rate: 1, voice: (voices) => voices[0] }), createBidiPlugin(), createPresentPlugin({ split: "auto" }), createReaderPlugin({ outlineDepth: 2 }), snippets.plugin,
 ];
 export const features = [
   featurePlugins, alertSyntax, parseCodeInfo, diffLang, csvToTable, renderDiagrams, createDiffView, diffWords, createHistoryStore, exportHtml,
-  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists, createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, createPresentView, createReaderView, splitSlides, readingStats, fitSpoken, importSnippets, exportSnippets, loadLabels, de.bold,
+  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists, createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, createPresentView, createReaderView, splitSlides, readingStats, fitSpoken, importSnippets, exportSnippets, createWikiLinks, createLinkManager, findLinks, findBacklinks, loadLabels, de.bold,
 ];
 export const deflistsTyped: Plugin = createDefinitionListsPlugin({ labels: { term: "Term" }, classPrefix: "atm" });
 export const deflistsParsed = parse("Term\n: Definition", { syntax: { block: DEFINITION_LIST_SYNTAX } });

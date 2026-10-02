@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Wiki links and link manager** (`advanced-texteditor-md/links`): `createWikiLinks` (`[[` picker, chips stored as `[Title](wiki:id)`, broken-page marks through the host's `resolve`, optional "Create page", `onOpen`) and `createLinkManager` (review, edit, remove, go to, host `check`, upgrade `http:` to `https:` in one undo step); pure `findLinks`, `findWikiIds`, `findBacklinks`. 13 kB gzip, lazy.
 - **Snippets** (`advanced-texteditor-md/snippets`): `createSnippets` for text expanders (`;sig` + Space / Tab / Enter) and templates with `{{date}}`, `{{time}}`, `{{cursor}}`, `{{selection}}` and host variables; a Templates group in the slash menu and an "Insert template…" picker; `localStorageSnippets` / `memorySnippets`; JSON `exportSnippets` / `importSnippets` with a per-entry report. 9.4 kB gzip, lazy.
 
 ## 0.2.1 - 2026-10-03

@@ -1509,3 +1509,28 @@ Typed: the trigger must end at a word boundary (start of the block, after whites
 ### UI
 
 Slash menu group "Templates", the command `plugin:snippets:picker` and palette entry "Insert template…", `toolbar: true` for a button. The picker is an ARIA combobox (the field keeps focus, `aria-activedescendant` follows Arrow keys, Enter inserts, Escape closes and returns the caret). It carries the editor theme and direction. Labels take `labels`; the `plugin:snippets:insert` event reports `{ id, via }` (`trigger`, `api`, `picker`, `slash`).
+
+## Wiki links and the link manager (`advanced-texteditor-md/links`)
+
+`[[` page links with broken-page marking, and a dialog to review every link in a document. The entry is about 13 kB gzipped; the dialog is a lazy chunk fetched on first open. Server-safe at import.
+
+```ts
+import { createWikiLinks, createLinkManager, findLinks, findBacklinks } from "advanced-texteditor-md/links";
+const wiki = createWikiLinks({ search, resolve, create, onOpen });
+createEditor(el, { chips: wiki.chips, plugins: [wiki.plugin, createLinkManager({ wiki, check, upgradeHosts: "all" })] });
+renderDom(md, { chips: wiki.chips, postRender: [wiki.postRender] }); // read-only views
+```
+
+**Markdown stored:** `[Title](wiki:id)`, a plain link with the scheme `wiki` (option `scheme`). Nothing else is written; the broken mark, the dialog and the picker are drawn outside the document. An old viewer shows a link whose address is `wiki:id`.
+
+### `createWikiLinks(options)`
+
+`search(query, { signal })` returns `{ id, label, description? }` items for the text typed after the trigger (default `[[`, two characters or more; a single `[` would fight `[text](url)`). `resolve(ids, { signal })` answers `{ [id]: { exists, title? } }` for a batch (up to `batchSize` 50 ids, cache `cacheSize` 500, answers trusted `ttlMs` 300 000; an id missing from the answer counts as not found); it runs `resolveDelayMs` (400) after an edit and is aborted when the last editor is destroyed. Without `resolve` nothing is marked broken. `create(query)` adds a "Create page" row for text no page matches. `onOpen(id, chip)` runs on click or Enter. Returned: `chips`, `plugin`, `status(id)`, `lookup(ids)`, `refresh()`, `onStatus(fn)`, `postRender`, `destroy()`. A `[[` inside code does not open the picker; the query cannot contain `[`, `]` or a newline. Labels: `labels`.
+
+### `createLinkManager(options)`
+
+Lists every link (text, address, kind: link, image, wiki, autolink, reference, chip) with its state: `ok`, `broken` (the page does not exist, or `check` said the address does not work), `insecure` (an `http:` address), `refused` (the link policy would not render it, such as `javascript:`) or `checking`. Per row: Go to (selects it in the editor and closes the dialog), Edit (text and address), Remove link (the text stays). "Check links" runs your `check(url)` four at a time (`checkConcurrency`) and aborts when the dialog closes. "Upgrade N http links to https" asks first, skips hosts outside `upgradeHosts` (exact names or `*.example.com`; default `"all"`) and `localhost`, and is one undo step. The edits are pure Markdown rewrites (`applyEdits`, `editLink`, `removeLink`, `upgradeEdits`), applied through the pane so undo works. The dialog is a modal with `aria-modal`, a focus trap, Escape to close and focus returned to the opener; it carries the editor theme. `shortcut` (default none), `toolbar` (default false) and `slash` (default true) control how it opens.
+
+### Pure helpers
+
+`findLinks(markdownOrDoc)` returns `{ kind, href, text, title?, scheme?, id?, bare?, line / column / offset (Markdown input) or block (Doc input) }[]`; `findWikiIds` the distinct page ids; `findBacklinks(docs, targetId)` which of `{ id, markdown }` documents link to a page. All are linear in the input.

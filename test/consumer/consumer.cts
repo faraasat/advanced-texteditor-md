@@ -17,4 +17,6 @@ import { createPresentView, splitSlides } from "advanced-texteditor-md/present";
 import { createReaderView } from "advanced-texteditor-md/reader";
 import { createSnippets } from "advanced-texteditor-md/snippets";
 export const usedSnippets = [createSnippets];
+import { findLinks, createWikiLinks } from "advanced-texteditor-md/links";
+export const usedLinks = [findLinks, createWikiLinks];
 export const usedViews = [createPresentView, splitSlides, createReaderView];

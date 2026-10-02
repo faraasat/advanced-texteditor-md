@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md links</title>
+    <meta name="description" content="Wiki links and the link manager: type [[ to link a page, broken pages are marked, and a dialog lists, checks, edits and upgrades every link." />
+    <!-- The built library. Run `npm run build` first (see example/README.md). -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; --page-link: #0550ae; }
+      :root[data-page-theme="dark"] { color-scheme: dark; }
+      @media (prefers-color-scheme: dark) { :root:not([data-page-theme="light"]) { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; --page-link: #79b8ff; } }
+      :root[data-page-theme="dark"] { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; --page-link: #79b8ff; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 64ch; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      pre.out { margin: 0; max-height: 240px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      kbd { font: 600 0.85em ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--page-border); border-bottom-width: 2px; border-radius: 4px; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 0; }
+      .row button { min-height: 36px; padding: 0 12px; border: 1px solid var(--page-border); border-radius: 6px; background: var(--page-card); color: var(--page-fg); font: inherit; cursor: pointer; }
+      .row button:focus-visible { outline: 2px solid var(--page-link); outline-offset: 2px; }
+      ul.plain { margin: 0; padding-inline-start: 1.1em; }
+      .muted { color: var(--page-muted); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Links</h1>
+      <p class="lead">
+        Type <kbd>[[</kbd> and a few letters to link a page. A page that no longer exists is marked. Open
+        <strong>Manage links</strong> (or the palette, <kbd>Ctrl/Cmd Shift P</kbd>) to list, check, edit and upgrade every link.
+        URL parameters: <code>mode</code>, <code>value</code>, <code>readonly=1</code>, <code>dir=rtl</code>.
+      </p>
+      <div id="editor-host" data-testid="editor-host"></div>
+      <div class="row">
+        <button type="button" id="open-manager">Manage links</button>
+        <button type="button" id="delete-page">Delete the page "Style guide"</button>
+        <button type="button" id="restore-page">Restore it</button>
+      </div>
+      <section class="card" aria-labelledby="open-h">
+        <h2 id="open-h">Opened pages (onOpen)</h2>
+        <p id="opened" class="muted" data-testid="opened">Nothing opened yet.</p>
+      </section>
+      <section class="card" aria-labelledby="back-h">
+        <h2 id="back-h">Pages that link to "Project Alpha" (findBacklinks)</h2>
+        <ul class="plain" id="backlinks" data-testid="backlinks"></ul>
+      </section>
+      <section class="card" aria-labelledby="view-h">
+        <h2 id="view-h">Read-only view (renderDom + postRender)</h2>
+        <div id="view" class="atm-content" data-testid="view"></div>
+      </section>
+      <section class="card" aria-labelledby="md-h">
+        <h2 id="md-h">Markdown (what is stored)</h2>
+        <pre class="out" id="output-md" tabindex="0"></pre>
+      </section>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import * as L from "../dist/links.js";
+
+      const q = new URLSearchParams(location.search);
+      if (q.get("page-theme")) document.documentElement.setAttribute("data-page-theme", q.get("page-theme"));
+      if (q.get("dir") === "rtl") document.documentElement.setAttribute("dir", "rtl");
+      const out = document.getElementById("output-md");
+
+      // A fake page index: neutral titles, in memory.
+      const pages = new Map([
+        ["alpha", { title: "Project Alpha", note: "Roadmap and owners" }],
+        ["checklist", { title: "Release checklist", note: "Steps before every release" }],
+        ["notes", { title: "Meeting notes", note: "Weekly sync" }],
+        ["style", { title: "Style guide", note: "Voice and formatting" }],
+        ["onboarding", { title: "Onboarding for Ada", note: "First week" }],
+      ]);
+      const gone = new Set(["old-roadmap"]);
+      const delay = (ms, signal) => new Promise((res, rej) => { const t = setTimeout(res, ms); signal?.addEventListener("abort", () => { clearTimeout(t); rej(new DOMException("aborted", "AbortError")); }); });
+      const search = async (query, { signal }) => {
+        await delay(40, signal);
+        const s = query.trim().toLowerCase();
+        return [...pages].filter(([, p]) => p.title.toLowerCase().includes(s)).map(([id, p]) => ({ id, label: p.title, description: p.note }));
+      };
+      const resolve = async (ids, { signal }) => {
+        await delay(30, signal);
+        return Object.fromEntries(ids.map((id) => [id, pages.has(id) ? { exists: true, title: pages.get(id).title } : { exists: false }]));
+      };
+      let seq = 0;
+      const wiki = L.createWikiLinks({
+        search,
+        resolve,
+        resolveDelayMs: 150,
+        create: async (title) => { const id = "new-" + ++seq; pages.set(id, { title, note: "New page" }); return { id, label: title }; },
+        onOpen: (id, chip) => { document.getElementById("opened").textContent = "Opened " + id + " (" + chip.label + ")"; },
+      });
+      const manager = L.createLinkManager({
+        wiki,
+        toolbar: true,
+        // The library never fetches: this stands in for a server-side checker.
+        check: async (url, { signal }) => { await delay(60, signal); return url.includes("dead") ? { ok: false, message: "404 Not Found" } : { ok: true }; },
+      });
+
+      const initial =
+        q.get("value") ??
+        [
+          "# Release plan",
+          "",
+          "See [Project Alpha](wiki:alpha) for owners and the [Release checklist](wiki:checklist). The old plan, [Old roadmap](wiki:old-roadmap), is gone.",
+          "",
+          "Reading: [Guide](https://example.com/guide), the [API notes](http://example.com/api), a [dead link](https://example.org/dead) and ![diagram](http://example.com/diagram.png).",
+          "",
+        ].join("\n");
+      const editor = lib.createEditor(document.getElementById("editor-host"), {
+        value: initial,
+        mode: q.get("mode") ?? "wysiwyg",
+        readOnly: q.get("readonly") === "1",
+        theme: q.get("theme") ?? "light",
+        chips: wiki.chips,
+        plugins: [wiki.plugin, manager],
+        links: { allowedSchemes: ["http", "https", "mailto"] },
+        toolbar: { groups: ["history", "text", "blocks", "insert", "plugins"] },
+        minHeight: 220,
+        onChange: (md) => { out.textContent = md; renderView(md); backlinks(); },
+      });
+      const view = document.getElementById("view");
+      const renderView = (md) => view.replaceChildren(lib.renderDom(md, { chips: wiki.chips, postRender: [wiki.postRender] }));
+      const docs = [
+        { id: "Weekly sync", markdown: "Agenda: [Project Alpha](wiki:alpha) status." },
+        { id: "Handbook", markdown: "Start at [Style guide](wiki:style). Project: [Alpha](wiki:alpha)." },
+        { id: "Standup", markdown: "Nothing linked." },
+      ];
+      function backlinks() {
+        const list = document.getElementById("backlinks");
+        const all = [...docs, { id: "This document", markdown: editor.getValue() }];
+        list.replaceChildren(...L.findBacklinks(all, "alpha").map((b) => Object.assign(document.createElement("li"), { textContent: b.id + " (" + b.links.length + (b.links.length === 1 ? " link)" : " links)") })));
+      }
+      wiki.onStatus(() => renderView(editor.getValue()));
+      out.textContent = editor.getValue();
+      renderView(editor.getValue());
+      backlinks();
+      document.getElementById("open-manager").addEventListener("click", () => manager.open(editor));
+      document.getElementById("delete-page").addEventListener("click", () => { pages.delete("style"); wiki.refresh(); });
+      document.getElementById("restore-page").addEventListener("click", () => { pages.set("style", { title: "Style guide", note: "Voice and formatting" }); wiki.refresh(); });
+      window.__editor = editor;
+      window.__pages = pages;
+      window.__wiki = wiki;
+    </script>
+  </body>
+</html>
