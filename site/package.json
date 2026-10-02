@@ -12,8 +12,8 @@
     "advanced-texteditor-md": "file:..",
     "next": "16.3.8",
     "prism-react-renderer": "^2.4.1",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@types/node": "^20",
