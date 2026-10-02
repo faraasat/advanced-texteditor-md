@@ -326,7 +326,9 @@ export function controller(env: Env, root: HTMLElement, mode: "editor" | "view",
     ev.preventDefault();
     ev.stopPropagation();
     if (mode === "editor") dismissed = anchor;
-    close(true);
+    // Only a card or chip that holds focus gets it back: refocusing a chip a mouse merely hovered
+    // would reopen its card (focus opens it).
+    close(mode === "editor" || inside || (!!anchor && anchor.contains(d.activeElement)));
   }
   /* Touch long-press: no hover on a touch screen, so a press held for 500 ms opens the card. */
   const endPress = () => {

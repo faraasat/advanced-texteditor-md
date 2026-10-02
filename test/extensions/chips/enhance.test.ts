@@ -143,3 +143,20 @@ describe("chip cards in the editor: interactive marker", () => {
     m.destroy();
   });
 });
+
+describe("Escape on a hovered (not focused) view chip", () => {
+  it("closes the card and does not reopen it by refocusing the chip", async () => {
+    const host = html("[@Jane](mention:u1)");
+    const chip = host.querySelector<HTMLElement>(".atm-chip")!;
+    const h = enhanceChipCards(host, { getCard: () => ({ title: "Jane" }), delayMs: 0 });
+    await wait(20);
+    chip.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    await wait(20);
+    expect(card()).not.toBeNull();
+    key(document.body, "Escape");
+    await wait(20);
+    expect(card()).toBeNull();
+    expect(document.activeElement).not.toBe(chip);
+    h.destroy();
+  });
+});
