@@ -15,8 +15,11 @@ export type StringifyOptions = ParseOptions & {
 };
 
 export function stringify(doc: Doc, opts: StringifyOptions = {}): string {
-  let s = stringifyOnce(doc, opts);
-  if (opts.stable === false) return s;
+  const s = stringifyOnce(doc, opts);
+  return opts.stable === false ? s : settle(s, opts);
+}
+
+function settle(s: string, opts: ParseOptions): string {
   const po = { ...opts, positions: false };
   for (let i = 0; i < 4; i++) {
     const t = stringifyOnce(parse(s, po), opts);

@@ -191,6 +191,20 @@ export function parseBlocks(
 
     const t = l.slice(ind);
 
+    // Host block syntaxes with their own matcher (front matter, definition lists): BlockSyntax.match.
+    for (const sy of ctx.bl) {
+      let r: { node: BlockNode; end: number } | null | undefined;
+      try {
+        r = sy.match?.(lines, i, { blocks: (ls) => parseBlocks(ls, ctx), top: ctx.d < 2 });
+      } catch {}
+      if (r && r.end > i) {
+        push(r.node, s, r.end);
+        i = r.end;
+        break;
+      }
+    }
+    if (i > s) continue;
+
     const fm = FENCE.exec(t);
     if (fm && !(fm[1][0] === "`" && fm[2].includes("`"))) {
       const ch = fm[1][0];

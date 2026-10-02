@@ -454,7 +454,7 @@ Gzip, after minification, measured 2026-10-02 (`npm run size`; the enforced figu
 
 | Entry | Eager | Budget |
 |---|---|---|
-| `index` (editor) | 62.0 kB | 62 kB (target 48 kB) |
+| `index` (editor) | 62.8 kB | 63 kB (target 48 kB) |
 | `parser` | 12.1 kB | 14 kB |
 | `render` | 13.1 kB | 14 kB |
 | `math` | 5.0 kB | 5 kB |

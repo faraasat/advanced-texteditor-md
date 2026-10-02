@@ -623,3 +623,7 @@ rotation turned it back (found in the RTL screenshots).
 
 **Not done.** The sticky toolbar's shadow uses `scroll-state` container queries only (Chromium); other engines get no shadow
 rather than a scroll listener in the entry.
+
+## 2026-10-02 — Eager budget 62.2 -> 63 kB for the large-document speed fix
+Serialising a 200 kB document cost 964 ms because computing the saved selection was quadratic in the number of blocks (4.9 s at 500 kB). The fix (`src/editor/selection.ts`: scan from the caret's own block, keep a cached length per block) brings it to about 44 ms at 200 kB and about 100 ms at 500 kB, measured in a profiling build. The code must run on every edit, so it cannot be lazy: it costs +0.64 kB gzip (62.19 -> 62.83), together with the `BlockSyntax.match`/`serialize` hook that front matter and definition lists need. The budget is 63 kB, not 62.2.
+A per-block cache of parsed blocks and Markdown ("incremental serialisation") was also built and REMOVED: it produced Markdown that differed from the full path for custom blocks and footnote definitions, and the full path is already fast enough after the selection fix. `getValue()` still waits 120-300 ms after typing in documents over 20 kB.

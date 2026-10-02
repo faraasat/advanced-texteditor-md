@@ -31,7 +31,7 @@ import { enterRule, inlineRule, spaceRule } from "./surface/rules";
 import { insertMarkdown as insertMd, insertPlain, onCopy, onDrop, onPaste, selectionDoc, type DragState } from "./surface/clipboard";
 import {
   getRange, indexOf, isAtom, isBlock, isEl, isText, itemAt, leafOffset, lengthOf, offsetOf, pointAt, restorePath, restoreSelection,
-  saveSelection, savePath, setSelection, type SelPath,
+  saveSelection, savePath, setSelection, trackBlocks, type SelPath,
 } from "./selection";
 
 export type { Surface, SurfaceOptions };
@@ -73,6 +73,7 @@ export function createSurface(options: SurfaceOptions): Surface {
   // Spaces typed into pre-wrap content are real spaces, not &nbsp;.
   root.style.whiteSpace = "pre-wrap";
   root.style.overflowWrap = "break-word";
+  const tracker = trackBlocks(root);
 
   let readOnly = false;
   let composing = false;
@@ -218,6 +219,7 @@ export function createSurface(options: SurfaceOptions): Surface {
     if (composing || destroyed) return false;
     const s = saveSelection(root);
     if (normalizeTree(ctx, scope === undefined ? currentTop() : scope) && s) restoreSelection(root, s);
+    tracker.sync();
     const doc = domToDoc(root, dtd);
     const md = stringify(doc, parseOpts);
     dirty = false;
@@ -1329,6 +1331,7 @@ export function createSurface(options: SurfaceOptions): Surface {
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      tracker.stop();
       if (hlTimer) clearTimeout(hlTimer);
       if (syncTimer) clearTimeout(syncTimer);
       root.removeEventListener("beforeinput", onBeforeInput as EventListener);

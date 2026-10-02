@@ -30,7 +30,7 @@ const KB = 1024;
  * asynchronous. The target is printed on every run so the gap stays visible.
  */
 const BUDGET = {
-  "index.js": 62.2, // 62 until 2026-10-02; +0.2 for codeBlock.meta (the info string kept through edits), see DECISIONS
+  "index.js": 63, // 62 until 2026-10-02; +0.2 codeBlock.meta; +0.8 for the large-document speed fix, see DECISIONS
   "parser.js": 14, // parser + stringify
   "render.js": 14, // render-only entry (it contains the parser it needs)
   "math.js": 5,

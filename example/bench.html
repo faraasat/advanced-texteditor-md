@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md benchmark</title>
+    <meta name="description" content="The page scripts/bench.mjs drives: render, typing latency and getValue cost on large documents." />
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: #fff; color: #1f2328; }
+      main { max-width: 900px; margin: 0 auto; padding: 16px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Benchmark</h1>
+      <p>Driven by <code>node scripts/bench.mjs</code>. Open with <code>?kb=100</code> to try a document by hand.</p>
+      <div id="host"></div>
+    </main>
+    <script type="module">
+      import * as lib from "../dist/index.js";
+
+      /** A deterministic document of about `kb` kilobytes that uses every common block. */
+      function makeDoc(kb) {
+        const words = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau upsilon".split(" ");
+        let seed = 7;
+        const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
+        const w = (n) => Array.from({ length: n }, () => words[Math.floor(rnd() * words.length)]).join(" ");
+        const sections = [
+          (i) => `## Section ${i}\n\n${w(30)} **${w(3)}** and *${w(2)}* with \`code ${i}\` and a [link](https://example.com/${i}).\n\n${w(45)}`,
+          (i) => `- ${w(6)}\n- ${w(5)} **${w(2)}**\n- [ ] task ${i}\n- [x] done ${i}`,
+          (i) => `> ${w(25)}\n> ${w(12)}`,
+          (i) => "```js\nfunction f" + i + "(a, b) {\n  return a + b; // " + w(4) + "\n}\n```",
+          (i) => `| a | b | c |\n| --- | :---: | ---: |\n| ${w(2)} | ${w(1)} | ${i} |\n| ${w(1)} | ${w(2)} | ${i + 1} |`,
+          (i) => `1. ${w(5)}\n2. ${w(7)}\n3. ${w(3)}`,
+          (i) => `${w(60)} ~~${w(2)}~~ $x^${i % 9}$.`,
+        ];
+        const out = ["# Benchmark document"];
+        let size = out[0].length;
+        for (let i = 0; size < kb * 1024; i++) {
+          const s = sections[i % sections.length](i);
+          out.push(s);
+          size += s.length + 2;
+        }
+        return out.join("\n\n") + "\n";
+      }
+
+      let editor = null;
+      const host = document.getElementById("host");
+      const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
+
+      /** Create the editor on a fresh document; returns the time until the first frame after it. */
+      window.__bench = {
+        makeDoc,
+        async mount(kb, opts = {}) {
+          editor?.destroy();
+          host.textContent = "";
+          const md = makeDoc(kb);
+          await raf();
+          const t0 = performance.now();
+          editor = lib.createEditor(host, { value: md, theme: "light", ...opts });
+          const tCreate = performance.now() - t0;
+          await raf();
+          await raf();
+          const tFrame = performance.now() - t0;
+          window.__editor = editor;
+          return { bytes: md.length, createMs: tCreate, firstFrameMs: tFrame };
+        },
+        /** Put the caret at the end of the n-th paragraph (spread over the document). */
+        caretAt(fraction) {
+          const ps = host.querySelectorAll(".atm-surface > p");
+          const p = ps[Math.min(ps.length - 1, Math.floor(ps.length * fraction))];
+          const r = document.createRange();
+          r.selectNodeContents(p);
+          r.collapse(false);
+          const s = getSelection();
+          s.removeAllRanges();
+          s.addRange(r);
+          host.querySelector(".atm-surface").focus();
+        },
+        /** getValue() right after an edit: the cost of one serialisation (it flushes the pending one). */
+        getValueMs() {
+          const t0 = performance.now();
+          const v = editor.getPane().getValue();
+          return { ms: performance.now() - t0, length: v.length };
+        },
+        /** Keydown → the next frame, for each key typed while this is armed. */
+        armLatency() {
+          const out = [];
+          const surface = host.querySelector(".atm-surface");
+          const on = (e) => {
+            const t = performance.now();
+            requestAnimationFrame(() => setTimeout(() => out.push(performance.now() - t), 0));
+          };
+          surface.addEventListener("keydown", on, true);
+          return () => {
+            surface.removeEventListener("keydown", on, true);
+            return out;
+          };
+        },
+      };
+
+      const kb = Number(new URLSearchParams(location.search).get("kb"));
+      if (kb > 0) window.__bench.mount(kb);
+      window.__ready = true;
+    </script>
+  </body>
+</html>

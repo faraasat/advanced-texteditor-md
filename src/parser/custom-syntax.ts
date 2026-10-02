@@ -47,7 +47,7 @@ const fenceOf = (b: BlockSyntax) => b.fence ?? ":::";
 export function blockOpen(t: string, ctx: Ctx): { syn: BlockSyntax; data?: Record<string, string> } | null {
   for (const syn of ctx.bl) {
     const f = fenceOf(syn);
-    if (!t.startsWith(f)) continue;
+    if (syn.match || !t.startsWith(f)) continue;
     const m = new RegExp(`^${escRe(f)}[ \\t]*${escRe(syn.name)}(?=\\s|$)(.*)$`).exec(t);
     if (m) return { syn, data: syn === DETAILS ? detailsData(m[1]) : parseData(m[1]) };
   }

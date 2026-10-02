@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// ATM_E2E_PORT lets two checkouts run their suites side by side (each serves its own dist/).
+const PORT = Number(process.env.ATM_E2E_PORT) || 4319;
+
 // E2E drives the built library in a real browser. contenteditable behaviour
 // (selection, IME, Enter/Backspace, paste) is exactly what jsdom cannot
 // reproduce, so this layer is where editor regressions are actually caught.
@@ -11,7 +14,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
-  use: { baseURL: "http://127.0.0.1:4319", trace: "on-first-retry" },
+  use: { baseURL: `http://127.0.0.1:${PORT}`, trace: "on-first-retry" },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
     { name: "mobile", use: { ...devices["Pixel 7"] } },
@@ -22,8 +25,8 @@ export default defineConfig({
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
   webServer: {
-    command: "npx --yes http-server . -p 4319 -s --silent",
-    url: "http://127.0.0.1:4319/example/index.html",
+    command: `npx --yes http-server . -p ${PORT} -s --silent`,
+    url: `http://127.0.0.1:${PORT}/example/index.html`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
   },

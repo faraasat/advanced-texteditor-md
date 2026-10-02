@@ -129,6 +129,28 @@ export type BlockSyntax = {
   tag?: string;
   className?: string;
   attrs?: Record<string, string>;
+  /**
+   * A block that is NOT a `::: name` container (front matter, definition lists, ...). Called at the
+   * start of every block whose first line is indented less than four spaces, before the built-in
+   * rules. `lines` are the lines of the container being parsed (the whole document at the top);
+   * return the node and the index of the first line after it, or null. A syntax with `match` never
+   * opens a `::: name` container. A throw counts as null. The node is usually
+   * `{ type: "custom", name, children: api.blocks(innerLines), data }`; `serialize` writes it back.
+   */
+  match?: (lines: string[], i: number, api: BlockSyntaxApi) => { node: BlockNode; end: number } | null;
+  /**
+   * Write a `custom` node of this name back to Markdown. Without it the node is written as a
+   * `::: name` container. `api.blocks` serialises child blocks. A throw falls back to the container.
+   */
+  serialize?: (node: Extract<BlockNode, { type: "custom" }>, api: { blocks(nodes: BlockNode[]): string }) => string;
+};
+
+/** What `BlockSyntax.match` receives besides the lines. */
+export type BlockSyntaxApi = {
+  /** Parse lines as blocks in the current context (their inline content is filled in later). */
+  blocks(lines: string[]): BlockNode[];
+  /** True at document level (not inside a quote, list item or container). */
+  top: boolean;
 };
 
 /* ───────────────────────────── Parser / renderer ───────────────────────────── */

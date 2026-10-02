@@ -367,6 +367,9 @@ function blockStr(b: BlockNode, x: Ctx, alt: number, ai: boolean): string {
     }
     case "custom": {
       const sy = x.bl.find((s) => s.name === b.name);
+      try {
+        if (sy?.serialize) return sy.serialize(b, { blocks: (n) => blocks(n, x, true) });
+      } catch {}
       const f = sy ? fenceFor(sy) : ":::";
       const inner = blocks(b.children, x, true);
       // Built-in details: `::: details [open] Summary`; a summary that starts with "open" or "\" gets a "\".
@@ -384,7 +387,8 @@ function blocks(nodes: BlockNode[], x: Ctx, ai: boolean, sep = "\n\n"): string {
   for (const b of nodes) {
     const same = b.type === "list" && prev?.type === "list" && prev.ordered === b.ordered;
     alt = same ? 1 - alt : 0;
-    const s = blockStr(b, x, alt, ai && prev?.type !== "list" && !(prev?.type === "codeBlock" && prev.fence === "indent"));
+    const a = ai && prev?.type !== "list" && !(prev?.type === "codeBlock" && prev.fence === "indent");
+    const s = blockStr(b, x, alt, a);
     if (!s) continue;
     out += (prev ? sep : "") + s;
     prev = b;
@@ -396,3 +400,4 @@ function blocks(nodes: BlockNode[], x: Ctx, ai: boolean, sep = "\n\n"): string {
 export function stringifyOnce(doc: Doc, o: import("../types").ParseOptions = {}): string {
   return blocks(doc.children, makeCtx(o), true);
 }
+

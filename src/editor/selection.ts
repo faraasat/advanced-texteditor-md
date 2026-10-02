@@ -94,10 +94,16 @@ type Ev =
   | { t: "leaf"; el: HTMLElement | null; parent: Node; first: Node | null; pos: number }
   | { t: "leafend"; el: HTMLElement | null; parent: Node; last: Node | null; pos: number; empty: boolean };
 
-/** Walk `root` in the linear model. The visitor may return a value to stop. */
-function walk<R>(root: Node, v: (e: Ev) => R | undefined): R | number {
-  let pos = 0;
-  let first = true;
+/** Where a walk of ONE top-level block starts: the position and "no leaf yet" state the whole walk has there. */
+type From = { kid: Node; pos: number; first: boolean };
+
+/**
+ * Walk `root` in the linear model. The visitor may return a value to stop. With `from`, only that
+ * top-level block is walked, as the whole walk would walk it (see `fast`).
+ */
+function walk<R>(root: Node, v: (e: Ev) => R | undefined, from?: From): R | number {
+  let pos = from ? from.pos : 0;
+  let first = from ? from.first : true;
   let stop: R | undefined;
   let content = false;
   const inline = (n: Node, tail: Node | null): boolean => {
@@ -163,6 +169,10 @@ function walk<R>(root: Node, v: (e: Ev) => R | undefined): R | number {
     if (flush()) return true;
     return (stop = v({ t: "end", n: el, pos })) !== undefined;
   };
+  if (from) {
+    const c = from.kid;
+    return (isLeaf(c) ? leaf(c as HTMLElement, root, Array.from(c.childNodes)) : container(c)) ? (stop as R) : pos;
+  }
   if (isLeaf(root) && root.nodeType === 1 && !isAtom(root)) {
     // Walking a single leaf: its content starts at 0.
     const tail = trailingBr(Array.from(root.childNodes));
@@ -172,6 +182,79 @@ function walk<R>(root: Node, v: (e: Ev) => R | undefined): R | number {
   }
   if (container(root)) return stop as R;
   return pos;
+}
+
+/* ─────────────── per-block caches (2026-10-02, incremental serialisation) ─────────────── */
+
+/**
+ * Remembers facts about each TOP-LEVEL block of a root (its linear length here; its Doc nodes in
+ * the surface) until something inside that block changes. A MutationObserver drops the entries of
+ * every top-level block a mutation touched, and of every node (re)inserted at the top level (a block
+ * moved back up may carry facts from before). `sync()` takes the pending records, so callers see a
+ * current cache without waiting for the observer's microtask.
+ */
+export type BlockTracker = { map<T>(): WeakMap<Node, T>; sync(): void; stop(): void };
+
+const TRACKED = new WeakMap<Node, { t: BlockTracker; lens: WeakMap<Node, [number, boolean]> }>();
+
+export function trackBlocks(root: Node): BlockTracker {
+  const maps: WeakMap<Node, unknown>[] = [];
+  const drop = (rs: MutationRecord[]) => {
+    for (const r of rs) {
+      let n: Node | null = r.target;
+      if (n === root) r.addedNodes.forEach((a) => maps.forEach((m) => m.delete(a)));
+      else {
+        while (n && n.parentNode !== root) n = n.parentNode;
+        if (n) for (const m of maps) m.delete(n);
+      }
+    }
+  };
+  const mo = new MutationObserver(drop);
+  mo.observe(root, { subtree: true, childList: true, characterData: true, attributes: true });
+  const t: BlockTracker = {
+    map<T>() {
+      const m = new WeakMap<Node, T>();
+      maps.push(m);
+      return m;
+    },
+    sync: () => drop(mo.takeRecords()),
+    stop() {
+      mo.disconnect();
+      TRACKED.delete(root);
+    },
+  };
+  TRACKED.set(root, { t, lens: t.map() });
+  return t;
+}
+
+/**
+ * The walk of a tracked root restricted to the top-level blocks that matter: the blocks before them
+ * contribute their cached length (one walk per block, once per change) instead of being walked again.
+ * Exactly the full walk's events and positions, or undefined when this cannot decide (a top-level
+ * node that is not a block, or no match), and the caller walks everything.
+ */
+function fast<R>(root: Node, v: (e: Ev) => R | undefined, until: (pos: number, end: number, kid: Node) => boolean): R | undefined {
+  const c = TRACKED.get(root);
+  if (!c) return;
+  c.t.sync();
+  let pos = 0;
+  let first = true;
+  for (let k = root.firstChild; k; k = k.nextSibling) {
+    if (!isBlock(k)) return;
+    let e = c.lens.get(k);
+    if (!e) {
+      let leafy = false;
+      const d = walk(root, (x) => void (x.t === "leaf" && (leafy = true)), { kid: k, pos: 0, first: false }) as number;
+      c.lens.set(k, (e = [d, leafy]));
+    }
+    const end = pos + e[0] - (e[1] && first ? 1 : 0);
+    if (until(pos, end, k)) {
+      const r = walk(root, v, { kid: k, pos, first });
+      return typeof r === "number" ? undefined : r;
+    }
+    pos = end;
+    if (e[1]) first = false;
+  }
 }
 
 type Target = { kind: "text"; n: Text; off: number } | { kind: "before"; n: Node } | { kind: "end"; n: Node };
@@ -221,15 +304,15 @@ function target(root: Node, node: Node, off: number): Target {
 export function offsetOf(root: Node, node: Node, off: number): number {
   if (!root.contains(node)) return 0;
   const t = target(root, node, off);
-  const r = walk<number>(root, (e) => {
+  const v = (e: Ev) => {
     if (t.kind === "text" && e.t === "text" && e.n === t.n) return e.pos + t.off;
     if (t.kind === "before" && e.t === "before" && e.n === t.n) return e.pos;
     if (t.kind === "end" && e.t === "end" && e.n === t.n) return e.pos;
     if (t.kind === "end" && e.t === "leafend" && e.el === t.n) return e.pos;
     if (e.t === "ghost" && (e.n === t.n || e.n.contains(t.n))) return e.pos;
     return undefined;
-  });
-  return r;
+  };
+  return fast(root, v, (_p, _e, k) => k.contains(t.n)) ?? walk<number>(root, v);
 }
 
 export type Point = { node: Node; offset: number };
@@ -243,7 +326,7 @@ export const indexOf = (n: Node) => {
 /** DOM point for a linear offset. At a boundary between text and an atom the text side wins. */
 export function pointAt(root: Node, n: number): Point {
   let lastLeaf: { el: HTMLElement | null; parent: Node; last: Node | null } | null = null;
-  const r = walk<Point>(root, (e) => {
+  const v = (e: Ev): Point | undefined => {
     if (e.t === "text" && e.n.data.length && n >= e.pos && n <= e.pos + e.n.data.length) return { node: e.n, offset: n - e.pos };
     if (e.t === "atom" && n === e.pos) {
       if (isBlock(e.n) && e.n.parentNode) return { node: e.n.parentNode, offset: indexOf(e.n) };
@@ -258,7 +341,11 @@ export function pointAt(root: Node, n: number): Point {
       if (n === e.pos) return endOfLeaf(e.el, e.parent, e.last);
     }
     return undefined;
-  });
+  };
+  const f = fast(root, v, (_p, end) => n <= end);
+  if (f) return f;
+  lastLeaf = null;
+  const r = walk<Point>(root, v);
   if (typeof r === "number") {
     if (lastLeaf) {
       const l = lastLeaf as { el: HTMLElement | null; parent: Node; last: Node | null };
@@ -314,10 +401,19 @@ export function lengthOf(root: Node): number {
 export type Path = [number, number];
 export type SelPath = { anchor: Path; focus: Path };
 
-function topIndex(root: Node, n: number): Path {
+/**
+ * Block starts never decrease in document order, so the scan may start at the top-level block that
+ * holds `near` (the selection's node) when that block starts at or before `n`: two or three walks
+ * instead of one per block before it (that made every edit quadratic in the document size).
+ */
+function topIndex(root: Node, n: number, near?: Node | null): Path {
   const kids = Array.from(root.childNodes).filter((c) => isBlock(c));
   let best: Path = [0, n];
-  for (let i = 0; i < kids.length; i++) {
+  let i = 0;
+  while (near && near.parentNode !== root) near = near.parentNode;
+  const k = near ? kids.indexOf(near as ChildNode) : -1;
+  if (k > 0 && offsetOf(root, kids[k], 0) <= n) i = k;
+  for (; i < kids.length; i++) {
     const s = offsetOf(root, kids[i], 0);
     if (s <= n) best = [i, n - s];
     else break;
@@ -325,8 +421,8 @@ function topIndex(root: Node, n: number): Path {
   return best;
 }
 
-export function toPath(root: Node, n: number): Path {
-  return topIndex(root, n);
+export function toPath(root: Node, n: number, near?: Node | null): Path {
+  return topIndex(root, n, near);
 }
 
 export function fromPath(root: Node, p: Path): number {
@@ -383,7 +479,8 @@ export function setSelection(root: Node, a: Point, f: Point = a): void {
 
 export function savePath(root: Node): SelPath | null {
   const s = saveSelection(root);
-  return s ? { anchor: toPath(root, s.anchor), focus: toPath(root, s.focus) } : null;
+  const sel = root.ownerDocument!.getSelection();
+  return s ? { anchor: toPath(root, s.anchor, sel?.anchorNode), focus: toPath(root, s.focus, sel?.focusNode) } : null;
 }
 
 export function restorePath(root: Node, p: SelPath): void {
