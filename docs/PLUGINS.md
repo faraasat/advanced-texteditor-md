@@ -853,12 +853,34 @@ createEditor(el, {
   `hydrateAll`): chips of the configured schemes get `tabindex="0"` and `role="button"` (never inside the editing
   surface). Focus opens the card; **Enter** or **Space** moves focus into a card with links; Escape closes and focus
   returns to the chip.
+- **Touch:** a press held for 500 ms on a chip opens the card (the system context menu is suppressed for that press); a
+  tap anywhere else closes it. A mouse press is not a long-press.
+- **Pointer and states:** a chip with a card gets `data-atm-interactive`, `cursor: pointer`, a hover tint and underline, an
+  active tint and a `:focus-visible` ring (a 1px `ButtonText` border and `Highlight` hover in forced-colors mode; no
+  transition under `prefers-reduced-motion`). In the editor the attribute is set on first hover and when a card exists; a chip
+  the host answers `null` for loses it and keeps the default cursor. In views every chip of the schemes is marked at once
+  and loses the mark when `getCard` answers `null`. Cards are RTL-safe: they copy the editor's `dir`, theme and density.
 - A card with nothing to reach is `role="tooltip"`, referenced by the chip's `aria-describedby`. A card with links is
   `role="dialog"` with `aria-modal="false"`; in views the chip also gets `aria-haspopup="dialog"` and `aria-expanded`.
 - Data is drawn with `textContent`. `avatarUrl` and `links[].href` must pass `urlAllowed` with http/https, anything else
   is dropped; strings are capped (200 / 500 characters), at most 20 fields, 50 list items and 10 links are shown.
 - The card is a child of `document.body`, `position: fixed`, and copies the editor's `data-atm-theme`. The `signal`
   aborts when the card closes before the data arrived and when the editor is destroyed.
+
+### Cards in any read-only markup: `enhanceChipCards(root, options)`
+
+`options` is the same object `createChipCardsPlugin` takes. It binds the chips inside `root` (markup you rendered yourself: `renderHtml`
+output, `innerHTML`, a framework's DOM) and returns `{ refresh(), destroy() }`.
+
+```js
+const h = enhanceChipCards(container, { getCard, delayMs: 200 });
+h.refresh();  // after the markup changed: binds chips that appeared since (a bound chip is skipped)
+h.destroy();  // closes the card, unbinds, and removes the tabindex / role / data-atm-interactive it added
+```
+
+Chips get `tabindex="0"`, `role="button"` and `data-atm-interactive` only when they have none (a host's own `tabindex` or `role` is kept and left alone
+on `destroy`). Chips inside a `contenteditable` are skipped. It does nothing without a DOM element, so it is safe to call during server rendering.
+The React wrapper calls it from an effect for `<MarkdownView cards={...} />`.
 
 ### Group mentions: `createGroupMentions({ groups, section?, maxGroups?, labels? })`
 
@@ -1530,6 +1552,27 @@ renderDom(md, { chips: wiki.chips, postRender: [wiki.postRender] }); // read-onl
 ### `createLinkManager(options)`
 
 Lists every link (text, address, kind: link, image, wiki, autolink, reference, chip) with its state: `ok`, `broken` (the page does not exist, or `check` said the address does not work), `insecure` (an `http:` address), `refused` (the link policy would not render it, such as `javascript:`) or `checking`. Per row: Go to (selects it in the editor and closes the dialog), Edit (text and address), Remove link (the text stays). "Check links" runs your `check(url)` four at a time (`checkConcurrency`) and aborts when the dialog closes. "Upgrade N http links to https" asks first, skips hosts outside `upgradeHosts` (exact names or `*.example.com`; default `"all"`) and `localhost`, and is one undo step. The edits are pure Markdown rewrites (`applyEdits`, `editLink`, `removeLink`, `upgradeEdits`), applied through the pane so undo works. The dialog is a modal with `aria-modal`, a focus trap, Escape to close and focus returned to the opener; it carries the editor theme. `shortcut` (default none), `toolbar` (default false) and `slash` (default true) control how it opens.
+
+### `createLinkAffordances(options)` and heading anchors
+
+```ts
+import { createLinkAffordances, createHeadingAnchors, enhanceHeadingAnchors } from "advanced-texteditor-md/links";
+createEditor(el, { plugins: [createLinkAffordances({ onOpen: (href) => router.open(href) })] });
+renderDom(md, { postRender: [createHeadingAnchors({ levels: [2, 3] }).postRender] });
+const off = enhanceHeadingAnchors(viewEl); // any read-only markup; off() removes the buttons
+```
+
+`createLinkAffordances({ onOpen?, hint?, delayMs?, labels? })`: in the WYSIWYG surface a plain click on a link places the caret, so **Ctrl/Cmd+click** opens it
+(`window.open(href, "_blank", "noopener,noreferrer")` for http, https, mailto and tel; `onOpen(href, ev)` returning `true` takes over). While Ctrl or Cmd is down the
+surface carries `atm-mod-down` and links show a pointer. Hovering (after `delayMs`, 450) or focusing a link shows a `role="tooltip"` with the address and "Ctrl+click to
+open" ("Cmd" on Apple platforms), referenced by the link's `aria-describedby`; Escape and mouse-out hide it. The tooltip is off with `hint: false` and when the editor has
+`linkPreview` (that card is the hint). The code is a lazy chunk.
+
+`createHeadingAnchors({ levels?, url?, onCopy?, labels?, classPrefix? })` and `enhanceHeadingAnchors(root, options)`: a `<a class="atm-h-anchor" href="#id">` button
+(`aria-label` "Copy link to this section") is appended to each heading of levels 1 to 4 in **read-only** output (never inside a `contenteditable`). Headings without an
+id get a GitHub-style one (`headingSlug`: letters and digits of any script, dashes, `-2` for duplicates). The button is hidden until the heading is hovered or the button
+has keyboard focus (always faint on touch screens), copies `url(id)` (default: the page address with `#id`) and announces "Link copied" in a `role="status"` region.
+Opt-in: nothing is added unless you install it.
 
 ### Pure helpers
 

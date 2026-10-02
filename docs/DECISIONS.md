@@ -775,3 +775,14 @@ drag-reordering a list by state, and a task filter that survives re-rendering of
 - **Tab traps keyboard users, so it announces itself** (`aria-description`) and Escape then Tab leaves. `tabIndent: false` leaves Tab alone.
 - **Matching shares the find plugin's functions.** The pure core of find and replace moved to `src/plugins/find-core.ts` (re-exported from `find-replace.ts`, so nothing changes for users); importing it from the source pane no longer pulls the find bar and its styles into the entry (16.6 kB became 11.6 kB gzip).
 - **A find box with no width is skipped.** A range that ends at a span boundary reports an empty rectangle next to the real one.
+
+
+## 2026-10-03 — Affordances: one marker, CSS for the rest (chips cards, links, tooltips)
+
+- **`data-atm-interactive` is the single marker** for "this has something behind it". It is written by lazy code only (the card controller, the heading anchors), because the eager `index` is at 62.97 of 63 kB. CSS does the rest (cursor, hover, active, focus ring, forced colors). A chip whose host answers `getCard` with `null` loses it. Not covered: a chip that only has a `ChipDefinition.onClick` and no card plugin in the editor; setting its marker would need eager code. Views get it from the React wrapper, which knows `onChipClick`.
+- **`enhanceChipCards` returns a handle**, not `void` like `enhanceFootnotes`, because a framework re-renders markup and must be able to rebind (`refresh`) and unbind (`destroy`) without leaking listeners.
+- **Heading anchors scan synchronously, copy lazily.** `renderDom` hands `postRender` a detached wrapper whose children move on, so anything that waits for a lazy chunk before touching the DOM finds an empty wrapper. Only the click handler is lazy.
+- **Tooltips for icon-only controls are CSS** (`[data-atm-tip]::after`), not a script: no size cost, themable, shown on hover and `:focus-visible`, delayed only on the way in. The accessible name stays `aria-label`.
+- **Read-only task checkboxes keep the default cursor**, not `not-allowed`: they are display, not a refused control. There is no interactive-toggle option for views.
+- **The code-block copy button is not faded until hover**: opacity lowers the contrast axe measures, and a button that is always there works on touch and for keyboard users alike.
+- **Guard.** `test/styles/cursor-guard.test.ts` parses every stylesheet and fails when a class styled on `:hover`/`:active` has no `cursor` rule anywhere, with a short, justified exemption list.

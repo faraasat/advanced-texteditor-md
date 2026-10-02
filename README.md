@@ -641,6 +641,20 @@ what you do not import.
 - Regular-expression syntaxes are cut off by length and match-count limits; the find-and-replace plugin refuses
   catastrophic shapes. JavaScript cannot interrupt a running regex, so avoid hostile patterns of your own.
 
+### Cards, pointers and link affordances
+
+```ts
+import { createChipCardsPlugin, enhanceChipCards } from "advanced-texteditor-md/chips";
+import { createLinkAffordances, createHeadingAnchors } from "advanced-texteditor-md/links";
+
+const getCard = async (chip, { signal }) => ({ title: chip.label, subtitle: "Design lead", links: [{ label: "Profile", href: `/people/${chip.id}` }] });
+createEditor(el, { plugins: [createChipCardsPlugin({ getCard }), createLinkAffordances()] }); // editor
+const handle = enhanceChipCards(viewEl, { getCard }); //  any read-only markup; handle.refresh() after it changes, handle.destroy() to undo
+renderDom(md, { postRender: [createChipCardsPlugin({ getCard }).postRender, createHeadingAnchors().postRender] });
+```
+
+Cards are opt-in: without `getCard` nothing changes. Hover, keyboard focus (the caret beside a chip in the editor, Tab in a view) and a touch long-press open the card; Escape closes it. A chip that has a card shows a pointer, a hover tint and a focus ring (`data-atm-interactive`); a chip without one keeps the default cursor. In the editor, Ctrl/Cmd+click opens a link and a hover tooltip shows its address (`createLinkAffordances`); headings of read-only views can get a copy-link button (`createHeadingAnchors`). See [docs/PLUGINS.md](./docs/PLUGINS.md#hover-cards-createchipcardsplugin-options). Cursors by control: pointer on buttons, links in views, summaries and footnote references; text in the editable area and on links while editing; `zoom-in` on zoomable images; `grab` / `grabbing` on drag handles; resize cursors on image handles; `not-allowed` on disabled buttons.
+
 ## Accessibility notes
 
 - The editable is `role="textbox"` `aria-multiline`; the toolbar is a `role="toolbar"` with roving tabindex, `aria-pressed`

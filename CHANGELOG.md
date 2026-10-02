@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Chip cards everywhere.** `enhanceChipCards(root, { getCard, ... })` (`advanced-texteditor-md/chips`) gives the chips inside any read-only markup (`renderHtml` output, a framework's DOM) the same cards the editor and `renderDom` already had: hover, keyboard focus and a touch long-press (500 ms) open the card, Escape closes it, a tap elsewhere closes it, and the long-press does not also open the system menu. It returns `{ refresh(), destroy() }` and does nothing without a DOM element.
+- **Interactive chips look interactive.** A chip with something behind it carries `data-atm-interactive` (set by the lazy card code, so the eager `index` does not grow) and gets `cursor: pointer`, a hover tint and underline, an active tint and a `:focus-visible` ring; a chip the host has no card for keeps the default cursor. Honours `prefers-reduced-motion` and `forced-colors`.
+- **`createLinkAffordances`** (`/links`): Ctrl/Cmd+click opens a link from the editor (new tab, `noopener`, scheme allow-list; `onOpen` can take over), the cursor over links becomes a pointer while the key is held, and hovering or focusing a link shows its address in a tooltip (off when the editor has `linkPreview`).
+- **`createHeadingAnchors` / `enhanceHeadingAnchors`** (`/links`): an opt-in "copy link to this section" button on the headings of read-only views, shown on hover and keyboard focus, announced through a live region, ids generated GitHub-style (`headingSlug`).
+- **Library tooltip for icon-only tools** (`[data-atm-tip]`, CSS only): the image and table toolbars no longer use a native `title`.
+- `e2e/affordances.spec.ts` (computed cursor, hover, focus ring, disabled look, tooltip, reduced motion, forced colors) and a unit guard (`test/styles/cursor-guard.test.ts`) that fails when a class styled on `:hover` has no `cursor` rule.
+
+### Fixed
+- Escape on a view chip whose card a mouse had opened refocused the chip, which opened the card again.
+- The editable surface shows the text cursor in every engine (WebKit showed the arrow over links), and footnote references in the editor show a pointer.
+
 ## 0.3.0 - 2026-10-03
 
 ### Added
