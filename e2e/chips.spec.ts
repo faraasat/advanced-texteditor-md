@@ -182,6 +182,65 @@ test.describe("hover cards", () => {
   });
 });
 
+test.describe("interactive chips: pointer, hover, focus, touch", () => {
+  const cursor = (loc: import("@playwright/test").Locator) => loc.evaluate((e) => getComputedStyle(e).cursor);
+
+  test("editor: a chip with a card shows a pointer, one without keeps the default", async ({ page, isMobile }) => {
+    test.skip(isMobile, "no pointer on a touch screen");
+    await open(page);
+    const jane = surface(page).locator('.atm-chip[data-id="u1"]');
+    await jane.hover();
+    await expect(jane).toHaveAttribute("data-atm-interactive", "");
+    expect(await cursor(jane)).toBe("pointer");
+    const snippet = surface(page).locator(".atm-chip-snippet");
+    await snippet.hover();
+    await page.waitForTimeout(500); // the host answers null
+    await expect(snippet).not.toHaveAttribute("data-atm-interactive", "");
+    expect(await cursor(snippet)).not.toBe("pointer");
+  });
+
+  test("renderHtml + enhanceChipCards: Tab focuses, hover opens, Escape closes, focus ring shows", async ({ page, isMobile }) => {
+    await open(page);
+    const chip = page.locator('#html-view .atm-chip[data-id="u1"]');
+    await expect(chip).toHaveAttribute("tabindex", "0");
+    expect(await cursor(chip)).toBe("pointer");
+    await chip.focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect(chip).toBeFocused();
+    const card = page.locator(".atm-chip-card");
+    await expect(card).toBeVisible();
+    expect(await chip.evaluate((e) => getComputedStyle(e).outlineStyle)).toBe("solid");
+    await page.keyboard.press("Escape");
+    await expect(card).toHaveCount(0);
+    if (!isMobile) {
+      await page.mouse.move(2, 2);
+      await chip.hover();
+      await expect(card).toBeVisible();
+      await expect(chip).toHaveCSS("text-decoration-line", "underline");
+    }
+  });
+
+  test("a touch long-press opens the card and a tap elsewhere closes it", async ({ page, isMobile }) => {
+    test.skip(!isMobile, "touch only");
+    await open(page);
+    const chip = page.locator('#html-view .atm-chip[data-id="u1"]');
+    await chip.dispatchEvent("pointerdown", { pointerType: "touch", isPrimary: true });
+    const card = page.locator(".atm-chip-card");
+    await expect(card).toBeVisible({ timeout: 3000 });
+    await page.locator("h1, h2").first().dispatchEvent("pointerdown", { pointerType: "touch", isPrimary: true });
+    await expect(card).toHaveCount(0);
+  });
+
+  test("the helper cleans up", async ({ page }) => {
+    await open(page);
+    await page.evaluate(() => (window as unknown as { __htmlCards: { destroy(): void } }).__htmlCards.destroy());
+    const chip = page.locator('#html-view .atm-chip[data-id="u1"]');
+    await expect(chip).not.toHaveAttribute("tabindex", /.*/);
+    await expect(chip).not.toHaveAttribute("data-atm-interactive", /.*/);
+  });
+});
+
 /* ───────────────────────────── chips ───────────────────────────── */
 
 test.describe("chips", () => {

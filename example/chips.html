@@ -30,6 +30,10 @@
         <kbd>Alt ↓</kbd> reaches the card's links. URL parameters: <code>mode</code>, <code>value</code>, <code>readonly=1</code>.
       </p>
       <div id="editor-host" data-testid="editor-host"></div>
+      <section class="card" aria-labelledby="html-view-h">
+        <h2 id="html-view-h">renderHtml + enhanceChipCards</h2>
+        <div id="html-view" class="atm-content" dir="auto"></div>
+      </section>
       <section class="card" aria-labelledby="view-h">
         <h2 id="view-h">Read-only view (renderDom + postRender)</h2>
         <div id="view" class="atm-content"></div>
@@ -111,6 +115,9 @@
       });
       out.textContent = editor.getValue();
       document.getElementById("view").append(lib.renderDom(initial, { chips, postRender: [cards.postRender, decor.postRender] }));
+      const htmlView = document.getElementById("html-view");
+      htmlView.innerHTML = lib.renderHtml(initial, { chips });
+      window.__htmlCards = C.enhanceChipCards(htmlView, { getCard, delayMs: 200 });
       window.__editor = editor;
     </script>
   </body>

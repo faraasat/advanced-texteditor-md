@@ -64,7 +64,9 @@ export type ChipCardsOptions = {
   labels?: Partial<ChipCardsLabels>;
 };
 
-export function createChipCardsPlugin(options: ChipCardsOptions): Plugin {
+type Cards = { plugin: Plugin; scan(root: HTMLElement): void; release(): void };
+
+function makeCards(options: ChipCardsOptions): Cards {
   const labels: ChipCardsLabels = {
     card: "Details",
     editorHint: "Alt+Down to reach the links",
@@ -81,7 +83,11 @@ export function createChipCardsPlugin(options: ChipCardsOptions): Plugin {
   const pending = new Set<AbortController>();
   const editors = new WeakMap<EditorInstance, { ctl: Controller | null; keydown(ev: KeyboardEvent): boolean }>();
   const views = new WeakMap<Document, Controller>();
+  const made = new Set<Controller>();
   const bound = new WeakSet<HTMLElement>();
+  /** Chips of read-only roots this instance prepared: what it added, and how to unbind. */
+  const prepared = new Map<HTMLElement, { tabindex: boolean; role: boolean; off?: () => void }>();
+  let released = false;
 
   const wants = (el: Element | null): el is HTMLElement =>
     !!el && el.classList.contains(`${p}-chip`) && (!schemes || schemes.includes((el.getAttribute("data-scheme") ?? "").toLowerCase()));
@@ -111,6 +117,7 @@ export function createChipCardsPlugin(options: ChipCardsOptions): Plugin {
 
   /** Read-only roots: chips become focusable buttons (only there; never inside the surface). */
   function viewRoot(root: HTMLElement) {
+    if (released || !root || typeof root.querySelectorAll !== "function") return;
     const d = root.ownerDocument;
     const chips = Array.from(root.querySelectorAll<HTMLElement>(`.${p}-chip`)).filter(
       (c) => wants(c) && !bound.has(c) && !c.closest("[contenteditable='true'], [contenteditable='']"),
@@ -118,17 +125,42 @@ export function createChipCardsPlugin(options: ChipCardsOptions): Plugin {
     if (!chips.length) return;
     for (const c of chips) {
       bound.add(c);
-      if (!c.hasAttribute("tabindex")) c.setAttribute("tabindex", "0");
-      if (!c.hasAttribute("role")) c.setAttribute("role", "button");
+      const rec = { tabindex: !c.hasAttribute("tabindex"), role: !c.hasAttribute("role") };
+      if (rec.tabindex) c.setAttribute("tabindex", "0");
+      if (rec.role) c.setAttribute("role", "button");
+      c.setAttribute("data-atm-interactive", "");
+      prepared.set(c, rec);
     }
     withUI((m) => {
+      if (released) return;
       let ctl = views.get(d);
-      if (!ctl) views.set(d, (ctl = m.controller(env(), d.documentElement, "view")));
-      for (const c of chips) ctl.bind(c);
+      if (!ctl) {
+        views.set(d, (ctl = m.controller(env(), d.documentElement, "view")));
+        made.add(ctl);
+      }
+      for (const c of chips) {
+        const rec = prepared.get(c);
+        if (rec) rec.off = ctl.bind(c);
+      }
     });
   }
 
-  return {
+  function release() {
+    released = true;
+    for (const [c, rec] of prepared) {
+      rec.off?.();
+      if (rec.tabindex) c.removeAttribute("tabindex");
+      if (rec.role) c.removeAttribute("role");
+      c.removeAttribute("data-atm-interactive");
+      c.removeAttribute("aria-haspopup");
+      c.removeAttribute("aria-expanded");
+      bound.delete(c);
+    }
+    prepared.clear();
+    for (const ctl of made) ctl.close();
+  }
+
+  const plugin: Plugin = {
     name: "chip-cards",
     postRender(root: HTMLElement, ctx: PostRenderContext) {
       if (ctx.mode === "view") viewRoot(root);
@@ -178,4 +210,29 @@ export function createChipCardsPlugin(options: ChipCardsOptions): Plugin {
       };
     },
   };
+  return { plugin, scan: viewRoot, release };
+}
+
+export function createChipCardsPlugin(options: ChipCardsOptions): Plugin {
+  return makeCards(options).plugin;
+}
+
+export type ChipCardsHandle = {
+  /** Bind chips that appeared since (idempotent: a chip already bound is skipped). */
+  refresh(): void;
+  /** Close the card and remove everything `enhanceChipCards` added. */
+  destroy(): void;
+};
+
+/**
+ * Give the chips inside a read-only `root` their cards (what `createChipCardsPlugin` does for
+ * `renderDom`, for markup you rendered yourself: `renderHtml` output, a framework's DOM). Chips of
+ * the configured schemes get `tabindex="0"`, `role="button"` and `data-atm-interactive`; hover,
+ * focus and a touch long-press open the card, Escape closes it. Call `refresh()` after the markup
+ * changed. Server-safe: without a DOM element it does nothing.
+ */
+export function enhanceChipCards(root: HTMLElement | null | undefined, options: ChipCardsOptions): ChipCardsHandle {
+  const c = makeCards(options);
+  if (root && typeof root.querySelectorAll === "function") c.scan(root);
+  return { refresh: () => root && c.scan(root), destroy: c.release };
 }

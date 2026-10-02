@@ -21,7 +21,7 @@ export type Env = {
 
 export type Controller = {
   /** View mode: listen on this chip. */
-  bind(chip: HTMLElement): void;
+  bind(chip: HTMLElement): () => void;
   anchor(): HTMLElement | null;
   open(chip: HTMLElement, delay: number, how: "hover" | "focus" | "caret"): void;
   close(returnFocus?: boolean): void;
@@ -118,12 +118,20 @@ export function controller(env: Env, root: HTMLElement, mode: "editor" | "view",
   let savedRange: Range | null = null;
   let wantFocus = false;
   let globals = false;
+  let pressTimer: ReturnType<typeof setTimeout> | undefined;
+  let pressed: HTMLElement | null = null;
+  /** Chips whose host answered "no card": they stay non-interactive. */
+  const nocard = new WeakSet<HTMLElement>();
+  const mark = (c: HTMLElement) => {
+    if (!nocard.has(c) && !c.hasAttribute("data-atm-interactive")) c.setAttribute("data-atm-interactive", "");
+  };
 
   const listenGlobal = (on: boolean) => {
     if (on === globals) return;
     globals = on;
     const m = on ? "addEventListener" : "removeEventListener";
     d[m]("keydown", onDocKey, true);
+    d[m]("pointerdown", onDocPointer, true);
     win?.[m]("scroll", onScroll, true);
     win?.[m]("resize", onScroll);
   };
@@ -232,6 +240,10 @@ export function controller(env: Env, root: HTMLElement, mode: "editor" | "view",
         pending.delete(c);
         if (ac === c) ac = null;
         if (mine !== token || !a.isConnected || c.signal.aborted) return;
+        if (!r) {
+          nocard.add(a);
+          a.removeAttribute("data-atm-interactive");
+        }
         show(a, r, how);
       });
     };
@@ -269,6 +281,7 @@ export function controller(env: Env, root: HTMLElement, mode: "editor" | "view",
   const onOver = (e: Event) => {
     const c = chipAt(e.target);
     if (!c) return;
+    if (mode === "editor") mark(c);
     if (win?.matchMedia?.("(hover: none)").matches) return; // touch: mouse events are emulated
     open(c, delay, "hover");
   };
@@ -314,6 +327,34 @@ export function controller(env: Env, root: HTMLElement, mode: "editor" | "view",
     ev.stopPropagation();
     if (mode === "editor") dismissed = anchor;
     close(true);
+  }
+  /* Touch long-press: no hover on a touch screen, so a press held for 500 ms opens the card. */
+  const endPress = () => {
+    clearTimeout(pressTimer);
+    pressTimer = undefined;
+  };
+  const onPointerDown = (e: Event) => {
+    const ev = e as PointerEvent;
+    if (ev.pointerType !== "touch" && ev.pointerType !== "pen") return;
+    const c = chipAt(ev.target);
+    if (!c || nocard.has(c)) return;
+    endPress();
+    pressTimer = setTimeout(() => {
+      pressTimer = undefined;
+      pressed = c;
+      open(c, 0, "focus");
+    }, 500);
+  };
+  const onContextMenu = (e: Event) => {
+    // The long-press that opened a card must not also open the system menu.
+    if (pressed && chipAt(e.target) === pressed) e.preventDefault();
+  };
+  function onDocPointer(e: Event) {
+    const t = e.target as Node | null;
+    if (!t || (pop && pop.contains(t)) || (anchor && anchor.contains(t))) return;
+    if ((e as PointerEvent).pointerType === "mouse") return; // a mouse leaving is handled by hover
+    pressed = null;
+    close();
   }
   function onScroll(e: Event) {
     if (pop && e.target instanceof Node && pop.contains(e.target)) return;
@@ -362,8 +403,30 @@ export function controller(env: Env, root: HTMLElement, mode: "editor" | "view",
     t.addEventListener("focusin", onFocusIn);
     t.addEventListener("focusout", onFocusOut);
     t.addEventListener("keydown", onRootKey);
+    t.addEventListener("pointerdown", onPointerDown);
+    t.addEventListener("pointerup", endPress);
+    t.addEventListener("pointercancel", endPress);
+    t.addEventListener("pointermove", endPress);
+    t.addEventListener("contextmenu", onContextMenu);
+    return () => unbind(t);
   };
-  if (mode === "editor") bind(root);
+  const unbind = (t: HTMLElement) => {
+    t.removeEventListener("mouseover", onOver);
+    t.removeEventListener("mouseout", onOut);
+    t.removeEventListener("focusin", onFocusIn);
+    t.removeEventListener("focusout", onFocusOut);
+    t.removeEventListener("keydown", onRootKey);
+    t.removeEventListener("pointerdown", onPointerDown);
+    t.removeEventListener("pointerup", endPress);
+    t.removeEventListener("pointercancel", endPress);
+    t.removeEventListener("pointermove", endPress);
+    t.removeEventListener("contextmenu", onContextMenu);
+    if (anchor === t) close();
+  };
+  if (mode === "editor") {
+    bind(root);
+    for (const c of Array.from(root.querySelectorAll<HTMLElement>(`.${p}-chip`))) if (wants(c)) mark(c);
+  }
   if (mode === "editor") d.addEventListener("selectionchange", onSelection);
 
   return {
@@ -375,11 +438,8 @@ export function controller(env: Env, root: HTMLElement, mode: "editor" | "view",
     isOpen: () => !!anchor,
     destroy() {
       close();
-      root.removeEventListener("mouseover", onOver);
-      root.removeEventListener("mouseout", onOut);
-      root.removeEventListener("focusin", onFocusIn);
-      root.removeEventListener("focusout", onFocusOut);
-      root.removeEventListener("keydown", onRootKey);
+      endPress();
+      unbind(root);
       d.removeEventListener("selectionchange", onSelection);
     },
     // Escape from the editor keydown hook: remember it so the same caret does not reopen it.

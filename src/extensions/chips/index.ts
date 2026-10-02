@@ -12,8 +12,8 @@
  * The wire format is the library's own: `[@Label](scheme:kind/id?k=v)`. Nothing here changes it.
  * Server-safe at import.
  */
-export { createChipCardsPlugin } from "./cards";
-export type { ChipCardData, ChipCardResult, ChipCardsOptions, ChipCardsLabels } from "./cards";
+export { createChipCardsPlugin, enhanceChipCards } from "./cards";
+export type { ChipCardsHandle, ChipCardData, ChipCardResult, ChipCardsOptions, ChipCardsLabels } from "./cards";
 export { createGroupMentions, expandGroupMentions } from "./groups";
 export type { MentionGroup, GroupMentions, GroupMentionsOptions, GroupMentionsLabels, ExpandedMention } from "./groups";
 export { createTagTrigger, createChannelTrigger, createCommandTrigger } from "./presets";

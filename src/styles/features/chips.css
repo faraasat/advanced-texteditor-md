@@ -88,12 +88,51 @@
 .atm-chip-editable {
   cursor: text;
 }
-.atm-chip[role="button"] {
+
+/* ── interactive chips ──
+ * `data-atm-interactive` is set by the lazy code (cards, decorations) on a chip that has something
+ * behind it, so a plain chip keeps the default cursor. Selectors repeat with `.atm-surface` to win
+ * over the surface's `cursor: default`. */
+.atm-chip[role="button"],
+.atm-chip[data-atm-interactive],
+.atm-surface .atm-chip[data-atm-interactive] {
   cursor: pointer;
 }
-.atm-chip[role="button"]:focus-visible {
+.atm-chip[data-atm-interactive]:hover,
+.atm-surface .atm-chip[data-atm-interactive]:hover {
+  background: color-mix(in srgb, var(--atm-c, var(--atm-chip-color, var(--atm-accent, #2563eb))) 26%, transparent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.atm-chip[data-atm-interactive]:active,
+.atm-surface .atm-chip[data-atm-interactive]:active {
+  background: color-mix(in srgb, var(--atm-c, var(--atm-chip-color, var(--atm-accent, #2563eb))) 36%, transparent);
+}
+.atm-chip[role="button"]:focus-visible,
+.atm-chip[data-atm-interactive]:focus-visible {
   outline: 2px solid var(--atm-chips-ring, var(--atm-ring, var(--atm-accent, #2563eb)));
   outline-offset: 1px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .atm-chip[data-atm-interactive] {
+    transition: background-color 0.12s ease;
+  }
+}
+@media (forced-colors: active) {
+  .atm-chip[data-atm-interactive] {
+    border: 1px solid ButtonText;
+  }
+  .atm-chip[data-atm-interactive]:hover,
+  .atm-surface .atm-chip[data-atm-interactive]:hover {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+  .atm-chip[role="button"]:focus-visible,
+  .atm-chip[data-atm-interactive]:focus-visible {
+    outline: 2px solid Highlight;
+  }
 }
 
 /* ── hover card ── */
