@@ -179,6 +179,116 @@
         "default": "./dist/lightbox.cjs"
       }
     },
+    "./alerts": {
+      "import": {
+        "types": "./dist/alerts.d.ts",
+        "default": "./dist/alerts.js"
+      },
+      "require": {
+        "types": "./dist/alerts.d.cts",
+        "default": "./dist/alerts.cjs"
+      }
+    },
+    "./code-blocks": {
+      "import": {
+        "types": "./dist/code-blocks.d.ts",
+        "default": "./dist/code-blocks.js"
+      },
+      "require": {
+        "types": "./dist/code-blocks.d.cts",
+        "default": "./dist/code-blocks.cjs"
+      }
+    },
+    "./tables": {
+      "import": {
+        "types": "./dist/tables.d.ts",
+        "default": "./dist/tables.js"
+      },
+      "require": {
+        "types": "./dist/tables.d.cts",
+        "default": "./dist/tables.cjs"
+      }
+    },
+    "./diagrams": {
+      "import": {
+        "types": "./dist/diagrams.d.ts",
+        "default": "./dist/diagrams.js"
+      },
+      "require": {
+        "types": "./dist/diagrams.d.cts",
+        "default": "./dist/diagrams.cjs"
+      }
+    },
+    "./diff": {
+      "import": {
+        "types": "./dist/diff.d.ts",
+        "default": "./dist/diff.js"
+      },
+      "require": {
+        "types": "./dist/diff.d.cts",
+        "default": "./dist/diff.cjs"
+      }
+    },
+    "./export": {
+      "import": {
+        "types": "./dist/export.d.ts",
+        "default": "./dist/export.js"
+      },
+      "require": {
+        "types": "./dist/export.d.cts",
+        "default": "./dist/export.cjs"
+      }
+    },
+    "./chips": {
+      "import": {
+        "types": "./dist/chips.d.ts",
+        "default": "./dist/chips.js"
+      },
+      "require": {
+        "types": "./dist/chips.d.cts",
+        "default": "./dist/chips.cjs"
+      }
+    },
+    "./blocks": {
+      "import": {
+        "types": "./dist/blocks.d.ts",
+        "default": "./dist/blocks.js"
+      },
+      "require": {
+        "types": "./dist/blocks.d.cts",
+        "default": "./dist/blocks.cjs"
+      }
+    },
+    "./writing": {
+      "import": {
+        "types": "./dist/writing.d.ts",
+        "default": "./dist/writing.js"
+      },
+      "require": {
+        "types": "./dist/writing.d.cts",
+        "default": "./dist/writing.cjs"
+      }
+    },
+    "./i18n": {
+      "import": {
+        "types": "./dist/i18n.d.ts",
+        "default": "./dist/i18n.js"
+      },
+      "require": {
+        "types": "./dist/i18n.d.cts",
+        "default": "./dist/i18n.cjs"
+      }
+    },
+    "./i18n/*": {
+      "import": {
+        "types": "./dist/i18n/*.d.ts",
+        "default": "./dist/i18n/*.js"
+      },
+      "require": {
+        "types": "./dist/i18n/*.d.cts",
+        "default": "./dist/i18n/*.cjs"
+      }
+    },
     "./highlight/*": {
       "import": {
         "types": "./dist/highlight/*.d.ts",
@@ -278,6 +388,39 @@
       ],
       "lightbox": [
         "./dist/lightbox.d.ts"
+      ],
+      "alerts": [
+        "./dist/alerts.d.ts"
+      ],
+      "code-blocks": [
+        "./dist/code-blocks.d.ts"
+      ],
+      "tables": [
+        "./dist/tables.d.ts"
+      ],
+      "diagrams": [
+        "./dist/diagrams.d.ts"
+      ],
+      "diff": [
+        "./dist/diff.d.ts"
+      ],
+      "export": [
+        "./dist/export.d.ts"
+      ],
+      "chips": [
+        "./dist/chips.d.ts"
+      ],
+      "blocks": [
+        "./dist/blocks.d.ts"
+      ],
+      "writing": [
+        "./dist/writing.d.ts"
+      ],
+      "i18n": [
+        "./dist/i18n.d.ts"
+      ],
+      "i18n/*": [
+        "./dist/i18n/*.d.ts"
       ]
     }
   }

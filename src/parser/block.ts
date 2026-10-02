@@ -207,7 +207,10 @@ export function parseBlocks(
         code.push(x.slice(Math.min(ind, xi)));
       }
       const end = j < n ? j + 1 : j;
-      push({ type: "codeBlock", lang: info.split(/\s+/)[0], code: code.join("\n"), fence: ch === "`" ? "```" : "~~~" }, s, end);
+      const sp = info.search(/\s/);
+      const cb: Extract<BlockNode, { type: "codeBlock" }> = { type: "codeBlock", lang: sp < 0 ? info : info.slice(0, sp), code: code.join("\n"), fence: ch === "`" ? "```" : "~~~" };
+      if (sp > 0) cb.meta = info.slice(sp).trim();
+      push(cb, s, end);
       i = end;
       continue;
     }

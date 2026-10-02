@@ -36,7 +36,13 @@ describe("minifyCss", () => {
 
 describe("minified library stylesheets mean the same thing", () => {
   const dir = resolve(__dirname, "../../src/styles");
-  const files = readdirSync(dir).filter((f) => f.endsWith(".css") && f !== "tailwind.css");
+  // features.css only @imports the feature stylesheets (src/styles/features/*.css), which are checked one by one.
+  const files = [
+    ...readdirSync(dir).filter((f) => f.endsWith(".css") && f !== "tailwind.css" && f !== "features.css"),
+    ...readdirSync(resolve(dir, "features"))
+      .filter((f) => f.endsWith(".css") && readFileSync(resolve(dir, "features", f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim())
+      .map((f) => "features/" + f),
+  ];
   // jsdom's CSS parser is stricter than a browser's (it drops `color-mix(in srgb,...)` once the
   // spaces after the commas are gone), so declarations are compared as text below and the parser is
   // used for what it does well: the rule structure, selector by selector.
@@ -50,7 +56,8 @@ describe("minified library stylesheets mean the same thing", () => {
       for (const r of Array.from(list)) {
         const sr = r as CSSStyleRule;
         const mr = r as CSSMediaRule;
-        out.push(depth + (sr.selectorText !== undefined ? n(sr.selectorText) : "@" + n(mr.media?.mediaText ?? r.cssText.slice(0, 40)).replace(/: /g, ":")));
+        // An at-rule jsdom does not model (@container) is labelled by its prelude, which whitespace cannot change.
+        out.push(depth + (sr.selectorText !== undefined ? n(sr.selectorText) : "@" + n(mr.media?.mediaText ?? r.cssText.split("{")[0]).replace(/: /g, ":").replace(/\s*([(),])\s*/g, "$1")));
         const inner = (r as CSSGroupingRule).cssRules;
         if (inner) walk(inner, depth + 1);
       }

@@ -9,7 +9,7 @@
  * --atm-tok-meta
  *
  * THIS FILE is the single source of the syntax colours of every built-in theme (light, dark,
- * sepia, slate, contrast). A theme only sets the private layer `--atm-th-*`; a token reads
+ * sepia, slate, contrast, ocean, forest, rose). A theme only sets the private layer `--atm-th-*`; a token reads
  * `--atm-tok-*` first, then the theme layer, so a variable you define always wins, in every
  * theme. `themes.css` carries no syntax colours. Dark applies under [data-atm-theme="dark"]
  * (on the editor or any ancestor) and, when nothing says otherwise, to a dark OS. To add a
@@ -115,6 +115,66 @@
   --atm-th-regex: #9dffa0;
   --atm-th-variable: #ffd08a;
   --atm-th-meta: #e0e0e0;
+}
+
+/* ocean */
+[data-atm-theme="ocean"] {
+  --atm-th-comment: #8eaabb;
+  --atm-th-string: #9be7c4;
+  --atm-th-number: #ffc58a;
+  --atm-th-keyword: #ff9ec7;
+  --atm-th-literal: #8ec5ff;
+  --atm-th-function: #c9b5ff;
+  --atm-th-type: #ffd479;
+  --atm-th-operator: #d4e6ef;
+  --atm-th-punctuation: #9fbccc;
+  --atm-th-property: #7fd3ff;
+  --atm-th-tag: #7fe3b0;
+  --atm-th-attr-name: #ffc58a;
+  --atm-th-attr-value: #9be7c4;
+  --atm-th-regex: #6fe7e0;
+  --atm-th-variable: #ffd479;
+  --atm-th-meta: #9fbccc;
+}
+
+/* forest */
+[data-atm-theme="forest"] {
+  --atm-th-comment: #536656;
+  --atm-th-string: #14532d;
+  --atm-th-number: #1e40af;
+  --atm-th-keyword: #9f1239;
+  --atm-th-literal: #1e40af;
+  --atm-th-function: #6d28d9;
+  --atm-th-type: #854d0e;
+  --atm-th-operator: #1c2a1f;
+  --atm-th-punctuation: #4c604f;
+  --atm-th-property: #1e40af;
+  --atm-th-tag: #166534;
+  --atm-th-attr-name: #854d0e;
+  --atm-th-attr-value: #14532d;
+  --atm-th-regex: #166534;
+  --atm-th-variable: #854d0e;
+  --atm-th-meta: #4c604f;
+}
+
+/* rose */
+[data-atm-theme="rose"] {
+  --atm-th-comment: #6b4a53;
+  --atm-th-string: #0a3069;
+  --atm-th-number: #0550ae;
+  --atm-th-keyword: #b4183b;
+  --atm-th-literal: #0550ae;
+  --atm-th-function: #7c2fd0;
+  --atm-th-type: #8a3a00;
+  --atm-th-operator: #2d1b20;
+  --atm-th-punctuation: #6b4a53;
+  --atm-th-property: #0550ae;
+  --atm-th-tag: #116329;
+  --atm-th-attr-name: #8a3a00;
+  --atm-th-attr-value: #0a3069;
+  --atm-th-regex: #116329;
+  --atm-th-variable: #8a3a00;
+  --atm-th-meta: #6b4a53;
 }
 
 /* dark OS, when no theme is set on the root */

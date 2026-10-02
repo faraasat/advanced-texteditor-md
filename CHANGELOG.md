@@ -3,6 +3,48 @@
 ## Unreleased
 
 ### Added
+- **Chrome v2: seven new layouts**: `ribbon` (tabbed, grouped, labelled; collapsible), `sidebar` (outline + inspector around
+  a page), `focus` (fading chrome, immersive mode, typewriter scrolling), `tabs` (Write / Preview / Markdown), `compact`,
+  `mobile` (keyboard-pinned toolbar, bottom sheets) and `auto` (mobile below a breakpoint). `layoutOptions` configures them.
+  Each is a lazy chunk.
+- **Command palette** (Mod-Shift-P): fuzzy search over every command, categories, recent commands, an ARIA combobox.
+  `commandPalette: false | { recent }`.
+- **Keyboard shortcuts sheet** (Mod-/) built from the live keymap.
+- **Context menu** (right-click, Shift+F10, the ContextMenu key) for text, links, images, tables, code and chips, with a
+  "Turn into" submenu. `contextMenu: false` turns it off.
+- **Settings popover** (`exec("settings")`): density, text size, line width, spelling, line numbers, typewriter, visible
+  whitespace; `settings: { storage, key, defaults }` keeps them; `settings:change` event.
+- **Toolbar model**: named groups (`TOOLBAR_GROUPS`, `toolbar.groups`), inline items, item types `toggle`, `dropdown`,
+  `split` and `color`, `priority` for overflow, `toolbar.labels` (`hover` / `always` / `never`), `icons` overrides.
+- **Status bar v2**: `statusBar: { items, wordsPerMinute }` with reading time, selection, cursor position, save status
+  (`exec("setSaveStatus", …)`), zoom and a direction toggle.
+- **Slash menu v2**: sections, recent items, descriptions, shortcuts, a preview column, nested submenus (table size, embeds).
+- **Density** (`density: "compact" | "comfortable" | "spacious"`), public spacing / type / elevation / motion tokens,
+  tooltips (on focus, after 500 ms of hover), split buttons, menu arrows, empty-state hints, caret and selection colours,
+  scrollbars, the sticky toolbar's shadow, block chrome and loading skeletons.
+- **Themes `ocean`, `forest` and `rose`**, selectable by name, AA-checked like the others.
+- **Code blocks keep their info string**: `codeBlock.meta` holds everything after the language (`title="a.ts" {1,3-5}`), round-trips, renders as `data-meta` on `<pre>`.
+<!-- feature:alerts -->
+- **GitHub alerts** (`advanced-texteditor-md/alerts`): `> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` and custom kinds render as coloured callouts with icons (CSS alone styles static pages), round-trip unescaped, and are edited in place: a `[!` completion list, slash items, a toolbar type switcher, `alert` / `insertAlert` commands (also in the Markdown pane).
+<!-- feature:code-blocks -->
+- **Code blocks v2** (`advanced-texteditor-md/code-blocks`, `highlight/diff`): file-name titles, highlighted lines `{1,3-5}`, line numbers, wrap toggle and tab size from the info string; a code bar in the editor (searchable language, file name, Copy, Wrap, Line numbers, Format JSON; Alt+F10); auto-indent, Tab / Shift+Tab, bracket and quote pairing; view headers with Copy; `diff` colouring.
+<!-- feature:tables -->
+- **Tables v2** (`advanced-texteditor-md/tables`): column resizing by drag or keyboard (view-only widths, never stored), opt-in sortable columns in read-only views with `aria-sort`, spreadsheet paste (TSV and spreadsheet HTML become a GFM table, or fill cells), CSV / TSV import (`csvToTable`, `tableImport`, limits with a clear refusal), row and column moves by drag and Mod-Alt-Shift-arrows, a header-row toggle, alignment shortcuts; also in the Markdown pane.
+<!-- feature:diagrams -->
+- Diagrams and embeds from fenced code blocks (`advanced-texteditor-md/diagrams`): `createDiagramsPlugin({ renderers })` draws ```` ```mermaid ````, ```` ```chart ````, ```` ```tex ```` (any language the host registers) with host-supplied renderers (no diagram library bundled), a live debounced preview under the block in the editor that never enters the Markdown, read-only views with a "Show source" toggle (`renderDiagrams`, `postRender`), lazy rendering, an LRU cache, aborted in-flight renders, untrusted string output in `<iframe sandbox="">`, and an `insertDiagram` command.
+
+<!-- feature:diff -->
+- Compare and version history (`advanced-texteditor-md/diff`): a dependency-free, bounded Myers diff (`diffArrays`, `diffWords` with per-character CJK tokens, `diffBlocks` on the library's own parser), `createDiffView` (side by side or inline, word or block granularity, keyboard navigation, per-change accept / reject, `getMerged()` computed from the Markdown source), and `createHistoryStore` / `createHistoryPlugin` (versioned snapshots, compare, restore, optional automatic snapshots).
+<!-- feature:export -->
+- Export and import (`advanced-texteditor-md/export`): copy as Markdown, HTML, plain or rich text (with a copy-event fallback), download `.md` / `.html`, `exportHtml` (fragment or a self-contained standalone document with a CSP and the editor's tokens), print only the document, import `.md` / `.txt` / `.html` by picker or by dropping a file, with an accessible confirm bar.
+<!-- feature:chips -->
+- Mentions v2 and chips v2 (`advanced-texteditor-md/chips`): hover cards for chips (mouse, the caret beside a chip, focus in read-only views; tooltip or non-modal dialog, cached, abortable), `@team` group mentions (`createGroupMentions`, `expandGroupMentions`, CSS-only group styling), tag / channel / command presets (tags created on space), recent-and-frequent ranking (`rankMentions`, `createMentionRanker`), the mention typeahead in the Markdown pane, chip icons, avatars, remove buttons and label editing (one undo step each), and a toolbar chip picker. The wire format is unchanged.
+<!-- feature:blocks -->
+- Content blocks (`advanced-texteditor-md/blocks`): `::: columns` / `::: col` layouts with insert, add/remove-column commands and safe Enter/Backspace at column edges; a footnote dialog (insert and edit, one undo step) plus back links per reference and tooltips in views; document-level rule styles (`line`, `dots`, `fade`, `ornament`, `wave`); `createShortcodes` / `mergeShortcodes` to clean a host emoji table; `[2026-10-02](date:2026-10-02)` date chips with `@today`, a `/date` item and a native date picker; file cards for uploaded files with the size stored in the link title; and image galleries for a paragraph of images. `createContentBlocksPlugins` builds them all.
+<!-- feature:writing -->
+- Writing aids (`advanced-texteditor-md/writing`), all driven by host functions with nothing bundled: ghost-text completion (`createSuggestPlugin`: Tab accepts in one undo step, Mod-ArrowRight one word, Escape dismisses, abortable, WYSIWYG and Markdown pane), selection actions (`createSelectionActionsPlugin`: commands and toolbar items, busy state with Cancel, replaces the saved selection or offers the result to copy), spellcheck and language (`createLanguagePlugin`), the pure `readingStats` helper (CJK by character) and a word goal (`createWordGoalPlugin`), and lint hooks (`createLintPlugin`: Highlight API squiggles with an overlay fallback, fix popover, Alt+F8 navigation).
+<!-- feature:i18n -->
+- Languages and right-to-left text (`advanced-texteditor-md/i18n`, `advanced-texteditor-md/i18n/<code>`): complete label bundles for English, Spanish, French, German, Portuguese, Italian, Dutch, Russian, Japanese, Chinese, Arabic, Hindi and Turkish (each at most 1.5 kB gzip, one lazy chunk per language, `loadLabels` with BCP 47 fallback), `resolveLocale`, `isRtl`, and `createBidiPlugin` (`dir`, per-block direction, `setDirection` / `toggleDirection`, the `plugin:i18n:direction` event, no writes during an IME composition). Wording is not native-reviewed.
 - **Images**: `![alt|align|width](src "caption")` stores alignment (`left`, `center`, `right`; none = inline) and a pixel width in
   the alt text, which every Markdown viewer still shows as an image. A paragraph holding only a captioned image renders as
   `<figure class="atm-figure"><img><figcaption class="atm-caption">`. In the editor a selected image gets a frame with corner
@@ -26,6 +68,14 @@
   (`e2e/security.spec.ts`), and a consumer bundling test (`test/consumer/bundle.test.ts`).
 
 ### Changed
+- **Toolbar tooltips are drawn on demand, not as native `title`s.** Buttons carry `aria-label`, `aria-keyshortcuts` and
+  `data-sc` (the formatted shortcut); the tooltip (`role="tooltip"`, `aria-describedby`) comes from the `toolbar-menu` chunk.
+- **The default toolbar order is derived from groups** (`text`, `blocks`, `insert`, `history`, `plugins`); `DEFAULT_ITEM_ORDER`
+  is gone. Plugin items without a `group` still come last.
+- **Menus enter with movement only, never opacity**, so their text is at full contrast from the first frame.
+- **The `mentions` lazy chunk is now `mention-glue`** (the typeahead and the editor's wiring in one chunk).
+- **`layoutOptions.focus.dim` is off by default** and only dims while typing: dimmed text is below WCAG AA by design.
+- **Right-to-left chrome**: logical properties throughout, mirrored arrows and chevrons; code blocks stay left to right.
 - **The bottom-bar submit event is now `atm:submit`, not `submit`.** A `submit` CustomEvent bubbled into a surrounding `<form>`'s
   submit listeners. Listen for `atm:submit` (same `detail: { value, editor }`, cancelable) or pass `onSubmit`.
 - `chips` accepts an array or a record keyed by scheme in both `EditorOptions` and `RenderOptions`, normalised in one place. A scheme

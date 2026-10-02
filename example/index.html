@@ -30,6 +30,9 @@
         --page-bg: #ebe2c9; --page-fg: #433422; --page-muted: #655339; --page-card: #f4ecd8; --page-border: #d3c6a6; --page-accent: #8a4b08;
       }
       [data-atm-theme="contrast"] { --page-bg: #000; --page-fg: #fff; --page-muted: #e0e0e0; --page-card: #000; --page-border: #fff; --page-accent: #ffea00; }
+      [data-atm-theme="ocean"] { --page-bg: #071520; --page-fg: #e3f1f8; --page-muted: #9fbccc; --page-card: #0b1d2a; --page-border: #24445a; --page-accent: #5ed1e8; }
+      [data-atm-theme="forest"] { --page-bg: #e9f0e6; --page-fg: #1c2a1f; --page-muted: #4c604f; --page-card: #f5f8f3; --page-border: #c4d3c1; --page-accent: #2f6f3e; }
+      [data-atm-theme="rose"] { --page-bg: #fbeaee; --page-fg: #2d1b20; --page-muted: #6b4a53; --page-card: #fff7f8; --page-border: #ecd0d7; --page-accent: #b0305a; }
 
       * { box-sizing: border-box; }
       body {
@@ -103,6 +106,13 @@
                 <option value="bottom-bar">bottom-bar</option>
                 <option value="split">split</option>
                 <option value="document">document</option>
+                <option value="ribbon">ribbon</option>
+                <option value="sidebar">sidebar</option>
+                <option value="focus">focus</option>
+                <option value="tabs">tabs</option>
+                <option value="compact">compact</option>
+                <option value="mobile">mobile</option>
+                <option value="auto">auto (by width)</option>
               </select>
             </div>
             <div class="field grow">
@@ -113,13 +123,43 @@
                 <option value="sepia">sepia</option>
                 <option value="slate">slate</option>
                 <option value="contrast">contrast</option>
+                <option value="ocean">ocean</option>
+                <option value="forest">forest</option>
+                <option value="rose">rose</option>
                 <option value="auto">auto (OS)</option>
               </select>
             </div>
           </div>
           <div class="row" style="margin-top: 10px">
-            <label class="check"><input type="checkbox" id="readonly" /> Read-only</label>
+            <div class="field grow">
+              <label for="density">Density</label>
+              <select id="density">
+                <option value="comfortable">comfortable</option>
+                <option value="compact">compact</option>
+                <option value="spacious">spacious</option>
+              </select>
+            </div>
+            <div class="field grow">
+              <label for="labels">Toolbar labels</label>
+              <select id="labels">
+                <option value="hover">on hover</option>
+                <option value="always">always</option>
+                <option value="never">never</option>
+              </select>
+            </div>
           </div>
+          <div class="row" style="margin-top: 10px">
+            <label class="check"><input type="checkbox" id="readonly" /> Read-only</label>
+            <label class="check"><input type="checkbox" id="rtl" /> Right to left</label>
+            <label class="check"><input type="checkbox" id="rich-status" /> Rich status bar</label>
+          </div>
+          <div class="row" style="margin-top: 10px">
+            <button class="btn secondary" type="button" id="open-palette">Command palette</button>
+            <button class="btn secondary" type="button" id="open-shortcuts">Shortcuts</button>
+            <button class="btn secondary" type="button" id="open-settings">Settings</button>
+            <button class="btn secondary" type="button" id="open-context">Context menu</button>
+          </div>
+          <p class="hint">Keys: <kbd>Mod</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> palette, <kbd>Mod</kbd>+<kbd>/</kbd> shortcuts, <kbd>Shift</kbd>+<kbd>F10</kbd> or right-click for the context menu.</p>
         </section>
 
         <section class="card" aria-labelledby="up-h">
@@ -167,6 +207,28 @@ A **bold** claim, a ==highlight== and $a^2 + b^2 = c^2$.
           <h2 id="log-h">Events</h2>
           <ul class="log" id="event-log" aria-live="off"></ul>
         </section>
+
+        <!-- ═══ feature-subpaths:begin (feature demos; each page imports its own subpath from ../dist) ═══ -->
+        <section class="card" aria-labelledby="feat-h">
+          <h2 id="feat-h">Feature subpaths</h2>
+          <style>
+            .feature-links { margin: 0; padding-inline-start: 1.1em; display: grid; gap: 4px; font-size: 0.9rem; }
+            .feature-links a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+          </style>
+          <ul class="feature-links">
+            <li><a href="./alerts.html">Alerts</a>: <code>&gt; [!NOTE]</code> callouts</li>
+            <li><a href="./code-blocks.html">Code blocks</a>: titles, line numbers, code bar, diff</li>
+            <li><a href="./tables.html">Tables</a>: resize, sort, paste, import, reorder</li>
+            <li><a href="./diagrams.html">Diagrams</a>: host renderers for fenced blocks</li>
+            <li><a href="./diff.html">Compare</a>: diff view and version history</li>
+            <li><a href="./export.html">Export and import</a>: copy, download, print, drop a file</li>
+            <li><a href="./chips.html">Mentions and chips</a>: cards, groups, tags, picker</li>
+            <li><a href="./content-blocks.html">Content blocks</a>: columns, footnotes, dates, files, galleries</li>
+            <li><a href="./writing.html">Writing aids</a>: suggestions, actions, word goal, lint</li>
+            <li><a href="./i18n.html">Languages</a>: 13 label bundles, right-to-left</li>
+          </ul>
+        </section>
+        <!-- ═══ feature-subpaths:end ═══ -->
       </aside>
     </div>
 

@@ -1,0 +1,275 @@
+/*
+ * advanced-texteditor-md/chips: group chips, chip decorations (icon, avatar, remove button,
+ * editable label), hover cards, the label editor and the chip picker.
+ *
+ * Group chips are styled from the renderer's own class (`atm-chip-kind-group`), so a static
+ * `renderHtml` page shows them right with CSS alone. Everything else is drawn by the plugins.
+ * Colours: var(--atm-chips-*, var(--atm-*, <fallback>)); no theme selectors.
+ */
+
+/* ── group chips (`kind: "group"`) ── */
+.atm-chip-kind-group {
+  --atm-chip-color: var(--atm-chips-group, #8250df);
+  font-weight: 600;
+}
+.atm-chip-kind-group::before {
+  content: "";
+  display: inline-block;
+  flex: none;
+  align-self: center;
+  width: 0.95em;
+  height: 0.95em;
+  margin-inline-end: 0.15em;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5.5 7a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm5.5 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM0 13.2C0 11 2.5 9 5.5 9S11 11 11 13.2V14H0v-.8Zm12 .8v-.8c0-1.3-.5-2.5-1.4-3.4C13.6 9.6 16 11.2 16 13.2V14h-4Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5.5 7a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm5.5 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM0 13.2C0 11 2.5 9 5.5 9S11 11 11 13.2V14H0v-.8Zm12 .8v-.8c0-1.3-.5-2.5-1.4-3.4C13.6 9.6 16 11.2 16 13.2V14h-4Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.atm-mention-avatar-group {
+  background: color-mix(in srgb, var(--atm-chips-group, #8250df) 22%, var(--atm-bg, #fff));
+}
+
+/* ── decorations inside a chip (never content: no text, contenteditable=false) ── */
+.atm-chip-icon,
+.atm-chip-avatar {
+  display: inline-flex;
+  flex: none;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  width: 1.1em;
+  height: 1.1em;
+  margin-inline-start: -0.2em;
+  overflow: hidden;
+  line-height: 0;
+}
+.atm-chip-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+.atm-chip-avatar {
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+.atm-chip-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.atm-chip-remove {
+  display: inline-flex;
+  flex: none;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  height: 1.15em;
+  margin: 0 -0.25em 0 0.05em;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.atm-chip-remove::before {
+  content: "\00d7";
+  font-size: 1.05em;
+  font-weight: 600;
+}
+.atm-chip-remove:hover,
+.atm-chip-remove:focus-visible {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+.atm-chip-editable {
+  cursor: text;
+}
+.atm-chip[role="button"] {
+  cursor: pointer;
+}
+.atm-chip[role="button"]:focus-visible {
+  outline: 2px solid var(--atm-chips-ring, var(--atm-ring, var(--atm-accent, #2563eb)));
+  outline-offset: 1px;
+}
+
+/* ── hover card ── */
+.atm-chip-card {
+  width: max-content;
+  min-width: 12rem;
+  max-width: min(22rem, calc(100vw - 16px));
+  max-height: min(24rem, calc(100vh - 16px));
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--atm-chips-card-border, var(--atm-border, #d0d7de));
+  border-radius: var(--atm-r, 8px);
+  background: var(--atm-chips-card-bg, var(--atm-bg, #fff));
+  color: var(--atm-chips-card-fg, var(--atm-fg, #1f2328));
+  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
+  font: 0.875rem/1.4 var(--atm-font-family, ui-sans-serif, system-ui, sans-serif);
+  overflow-wrap: anywhere;
+}
+.atm-chip-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.atm-chip-card-avatar {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.atm-chip-card-title {
+  font-weight: 600;
+}
+.atm-chip-card-sub,
+.atm-chip-card-more,
+.atm-chip-card-hint,
+.atm-chip-card-list-label {
+  color: var(--atm-chips-muted, var(--atm-muted, #59636e));
+  font-size: 0.8em;
+}
+.atm-chip-card-fields {
+  display: grid;
+  gap: 2px 0;
+  margin: 8px 0 0;
+}
+.atm-chip-card-fields > div {
+  display: flex;
+  gap: 8px;
+}
+.atm-chip-card-fields dt {
+  color: var(--atm-chips-muted, var(--atm-muted, #59636e));
+}
+.atm-chip-card-fields dd {
+  margin: 0;
+}
+.atm-chip-card-list {
+  margin-top: 8px;
+}
+.atm-chip-card-list ul,
+.atm-chip-card-links {
+  margin: 4px 0 0;
+  padding-inline-start: 1.1em;
+}
+.atm-chip-card-links {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.atm-chip-card-links a {
+  color: var(--atm-chips-link, var(--atm-accent, #0969da));
+}
+.atm-chip-card-hint {
+  margin-top: 6px;
+}
+
+/* ── label editor and picker dialogs ── */
+.atm-chip-edit,
+.atm-chip-picker {
+  width: min(18rem, calc(100vw - 16px));
+  padding: 8px;
+  border: 1px solid var(--atm-chips-card-border, var(--atm-border, #d0d7de));
+  border-radius: var(--atm-r, 8px);
+  background: var(--atm-chips-card-bg, var(--atm-bg, #fff));
+  color: var(--atm-chips-card-fg, var(--atm-fg, #1f2328));
+  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
+  font: 0.875rem/1.4 var(--atm-font-family, ui-sans-serif, system-ui, sans-serif);
+}
+.atm-chip-edit-form {
+  display: grid;
+  gap: 6px;
+}
+.atm-chip-edit-label {
+  font-size: 0.8em;
+  color: var(--atm-chips-muted, var(--atm-muted, #59636e));
+}
+.atm-chip-edit-input,
+.atm-chip-picker-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--atm-chips-card-border, var(--atm-border, #d0d7de));
+  border-radius: 6px;
+  background: var(--atm-chips-card-bg, var(--atm-bg, #fff));
+  color: inherit;
+  font: inherit;
+}
+.atm-chip-edit-input:focus-visible,
+.atm-chip-picker-input:focus-visible {
+  outline: 2px solid var(--atm-chips-ring, var(--atm-ring, var(--atm-accent, #2563eb)));
+  outline-offset: 0;
+}
+.atm-chip-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.atm-chip-edit-actions button {
+  padding: 4px 10px;
+  border: 1px solid var(--atm-chips-card-border, var(--atm-border, #d0d7de));
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.atm-chip-edit-apply {
+  background: var(--atm-chips-accent, var(--atm-accent, #2563eb)) !important;
+  border-color: transparent !important;
+  color: var(--atm-chips-accent-fg, var(--atm-accent-fg, #fff)) !important;
+}
+.atm-chip-picker .atm-chip-picker-menu {
+  position: static;
+  max-height: 16rem;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-chip-card,
+  .atm-chip-edit,
+  .atm-chip-picker,
+  .atm-chip-remove {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .atm-chip-card,
+  .atm-chip-edit,
+  .atm-chip-picker {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+  .atm-chip-kind-group::before {
+    background: CanvasText;
+  }
+  .atm-chip-remove {
+    color: ButtonText;
+    opacity: 1;
+  }
+  .atm-chip[role="button"]:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+@media print {
+  .atm-chip-remove,
+  .atm-chip-card,
+  .atm-chip-edit,
+  .atm-chip-picker {
+    display: none !important;
+  }
+}

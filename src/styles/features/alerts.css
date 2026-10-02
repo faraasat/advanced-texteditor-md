@@ -1,0 +1,229 @@
+/*
+ * GitHub alerts (advanced-texteditor-md/alerts): `> [!NOTE]` ... A blockquote whose first paragraph
+ * starts with a `.atm-alert-marker` is an alert. Two ways to find it, kept as SEPARATE rules (a
+ * selector list with an unsupported `:has()` would drop the whole list):
+ *   - `blockquote.atm-alert.atm-alert-<kind>`: set by the plugin's postRender / editor observer;
+ *   - `blockquote:has(> p:first-child > .atm-alert-marker:first-child)`: static `renderHtml` pages.
+ * Colours: --atm-alert-<kind> (falls back to the theme's callout / chip / danger tokens).
+ */
+:root {
+  --atm-alert-icon-note: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M12%2016v-4M12%208h.01M12%2021a9%209%200%201%200%200-18%209%209%200%200%200%200%2018z'/%3E%3C/svg%3E");
+  --atm-alert-icon-tip: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M9%2018h6M10%2021h4M12%203a6%206%200%200%200-3.5%2010.9c.6.5%201%201.2%201%202.1h5c0-.9.4-1.6%201-2.1A6%206%200%200%200%2012%203z'/%3E%3C/svg%3E");
+  --atm-alert-icon-important: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M21%2015a2%202%200%200%201-2%202H7l-4%204V5a2%202%200%200%201%202-2h14a2%202%200%200%201%202%202zM12%207v4M12%2014h.01'/%3E%3C/svg%3E");
+  --atm-alert-icon-warning: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M10.3%203.9%201.8%2018a2%202%200%200%200%201.7%203h17a2%202%200%200%200%201.7-3L13.7%203.9a2%202%200%200%200-3.4%200zM12%209v4M12%2017h.01'/%3E%3C/svg%3E");
+  --atm-alert-icon-caution: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M7.9%202h8.2L22%207.9v8.2L16.1%2022H7.9L2%2016.1V7.9zM12%208v4M12%2016h.01'/%3E%3C/svg%3E");
+}
+.atm-alert-marker {
+  font-weight: 600;
+}
+.atm-alert-marker::before {
+  content: "[!";
+}
+.atm-alert-marker::after {
+  content: "]";
+}
+
+blockquote.atm-alert {
+  --_c: var(--atm-alert-c, var(--atm-alert-note, var(--atm-callout-note, #1d4ed8)));
+  border-inline-start: 0.25em solid var(--_c);
+  background: color-mix(in srgb, var(--_c) 6%, transparent);
+  color: var(--atm-alert-fg, var(--atm-fg, inherit));
+  padding: 0.5em 1em;
+  border-start-end-radius: var(--atm-radius, 6px);
+  border-end-end-radius: var(--atm-radius, 6px);
+}
+
+blockquote:has(> p:first-child > .atm-alert-marker:first-child) {
+  --_c: var(--atm-alert-c, var(--atm-alert-note, var(--atm-callout-note, #1d4ed8)));
+  border-inline-start: 0.25em solid var(--_c);
+  background: color-mix(in srgb, var(--_c) 6%, transparent);
+  color: var(--atm-alert-fg, var(--atm-fg, inherit));
+  padding: 0.5em 1em;
+  border-start-end-radius: var(--atm-radius, 6px);
+  border-end-end-radius: var(--atm-radius, 6px);
+}
+
+blockquote.atm-alert > p:first-child > .atm-alert-marker:first-child {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 100%;
+  position: relative;
+  margin-block-end: 0.25em;
+  padding-inline-start: 1.6em;
+  /* The accent mixed toward the text colour keeps AA contrast on the tinted background in every theme. */
+  color: var(--atm-alert-title-fg, color-mix(in srgb, var(--_c) 75%, var(--atm-fg, #1f2328)));
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+blockquote.atm-alert > p:first-child > .atm-alert-marker:first-child::before {
+  content: none;
+}
+
+blockquote.atm-alert > p:first-child > .atm-alert-marker:first-child::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0.2em;
+  width: 1.1em;
+  height: 1.1em;
+  background: currentColor;
+  -webkit-mask: var(--_icon, var(--atm-alert-icon-note)) center / contain no-repeat;
+  mask: var(--_icon, var(--atm-alert-icon-note)) center / contain no-repeat;
+}
+
+blockquote:has(> p:first-child > .atm-alert-marker:first-child) > p:first-child > .atm-alert-marker:first-child {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 100%;
+  position: relative;
+  margin-block-end: 0.25em;
+  padding-inline-start: 1.6em;
+  /* The accent mixed toward the text colour keeps AA contrast on the tinted background in every theme. */
+  color: var(--atm-alert-title-fg, color-mix(in srgb, var(--_c) 75%, var(--atm-fg, #1f2328)));
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+blockquote:has(> p:first-child > .atm-alert-marker:first-child) > p:first-child > .atm-alert-marker:first-child::before {
+  content: none;
+}
+
+blockquote:has(> p:first-child > .atm-alert-marker:first-child) > p:first-child > .atm-alert-marker:first-child::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0.2em;
+  width: 1.1em;
+  height: 1.1em;
+  background: currentColor;
+  -webkit-mask: var(--_icon, var(--atm-alert-icon-note)) center / contain no-repeat;
+  mask: var(--_icon, var(--atm-alert-icon-note)) center / contain no-repeat;
+}
+
+/* Before postRender has localised it, the title is the kind word as written (NOTE): show it as "Note". */
+blockquote:not([data-atm-alert]) > p:first-child > .atm-alert-marker:first-child {
+  text-transform: lowercase;
+}
+blockquote:not([data-atm-alert]) > p:first-child > .atm-alert-marker:first-child::first-letter {
+  text-transform: uppercase;
+}
+
+.atm-alert-note {
+  --atm-alert-c: var(--atm-alert-note, var(--atm-callout-note, #1d4ed8));
+  --_icon: var(--atm-alert-icon-note);
+}
+
+blockquote:has(> p:first-child > .atm-alert-marker[data-kind="NOTE" i]:first-child) {
+  --atm-alert-c: var(--atm-alert-note, var(--atm-callout-note, #1d4ed8));
+  --_icon: var(--atm-alert-icon-note);
+}
+
+.atm-alert-tip {
+  --atm-alert-c: var(--atm-alert-tip, var(--atm-callout-tip, #15803d));
+  --_icon: var(--atm-alert-icon-tip);
+}
+
+blockquote:has(> p:first-child > .atm-alert-marker[data-kind="TIP" i]:first-child) {
+  --atm-alert-c: var(--atm-alert-tip, var(--atm-callout-tip, #15803d));
+  --_icon: var(--atm-alert-icon-tip);
+}
+
+.atm-alert-important {
+  --atm-alert-c: var(--atm-alert-important, var(--atm-chip-4, #6d28d9));
+  --_icon: var(--atm-alert-icon-important);
+}
+
+blockquote:has(> p:first-child > .atm-alert-marker[data-kind="IMPORTANT" i]:first-child) {
+  --atm-alert-c: var(--atm-alert-important, var(--atm-chip-4, #6d28d9));
+  --_icon: var(--atm-alert-icon-important);
+}
+
+.atm-alert-warning {
+  --atm-alert-c: var(--atm-alert-warning, var(--atm-callout-warning, #b45309));
+  --_icon: var(--atm-alert-icon-warning);
+}
+
+blockquote:has(> p:first-child > .atm-alert-marker[data-kind="WARNING" i]:first-child) {
+  --atm-alert-c: var(--atm-alert-warning, var(--atm-callout-warning, #b45309));
+  --_icon: var(--atm-alert-icon-warning);
+}
+
+.atm-alert-caution {
+  --atm-alert-c: var(--atm-alert-caution, var(--atm-danger, #b42318));
+  --_icon: var(--atm-alert-icon-caution);
+}
+
+blockquote:has(> p:first-child > .atm-alert-marker[data-kind="CAUTION" i]:first-child) {
+  --atm-alert-c: var(--atm-alert-caution, var(--atm-danger, #b42318));
+  --_icon: var(--atm-alert-icon-caution);
+}
+
+/* The `[!` completion rows and the type switcher. */
+.atm-alert-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.atm-alert-option-icon {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  background: currentColor;
+  -webkit-mask: var(--atm-alert-icon-note) center / contain no-repeat;
+  mask: var(--atm-alert-icon-note) center / contain no-repeat;
+}
+
+.atm-alert-option[data-kind="NOTE"] .atm-alert-option-icon {
+  -webkit-mask-image: var(--atm-alert-icon-note);
+  mask-image: var(--atm-alert-icon-note);
+}
+
+.atm-alert-option[data-kind="TIP"] .atm-alert-option-icon {
+  -webkit-mask-image: var(--atm-alert-icon-tip);
+  mask-image: var(--atm-alert-icon-tip);
+}
+
+.atm-alert-option[data-kind="IMPORTANT"] .atm-alert-option-icon {
+  -webkit-mask-image: var(--atm-alert-icon-important);
+  mask-image: var(--atm-alert-icon-important);
+}
+
+.atm-alert-option[data-kind="WARNING"] .atm-alert-option-icon {
+  -webkit-mask-image: var(--atm-alert-icon-warning);
+  mask-image: var(--atm-alert-icon-warning);
+}
+
+.atm-alert-option[data-kind="CAUTION"] .atm-alert-option-icon {
+  -webkit-mask-image: var(--atm-alert-icon-caution);
+  mask-image: var(--atm-alert-icon-caution);
+}
+
+.atm-alert-option-code {
+  margin-inline-start: auto;
+  color: var(--atm-muted, #59636e);
+  font: 0.8em var(--atm-font-mono, ui-monospace, monospace);
+}
+.atm-alert-switcher {
+  font: inherit;
+  max-width: 11em;
+}
+@media (forced-colors: active) {
+  blockquote.atm-alert {
+    border-inline-start-color: CanvasText;
+    background: Canvas;
+  }
+  blockquote.atm-alert > p:first-child > .atm-alert-marker:first-child {
+    color: CanvasText;
+  }
+  blockquote.atm-alert > p:first-child > .atm-alert-marker:first-child::after {
+    background: CanvasText;
+  }
+}
+@media print {
+  blockquote.atm-alert {
+    background: none;
+    break-inside: avoid;
+  }
+}

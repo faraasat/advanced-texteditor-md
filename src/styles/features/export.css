@@ -1,0 +1,256 @@
+/*
+ * Export / import (advanced-texteditor-md/export): the toolbar menu, the confirm bar for a dropped
+ * file, and everything about printing.
+ *
+ * Variables (all optional): --atm-export-bg, --atm-export-fg, --atm-export-border,
+ * --atm-export-accent, --atm-export-danger; each falls back to the editor's --atm-* token.
+ */
+
+.atm-export-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.atm-export-icon {
+  display: inline-flex;
+}
+.atm-export-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 14rem;
+  max-width: calc(100vw - 8px);
+  margin: 0;
+  padding: 4px;
+  background: var(--atm-export-bg, var(--atm-bg, #fff));
+  color: var(--atm-export-fg, var(--atm-fg, #1f2328));
+  border: 1px solid var(--atm-export-border, var(--atm-border, #d0d7de));
+  border-radius: var(--atm-r, 8px);
+  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
+  font-size: 0.875rem;
+}
+.atm-export-menu[hidden] {
+  display: none;
+}
+.atm-export-item {
+  display: block;
+  width: 100%;
+  min-height: 2rem;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.atm-export-item:hover:not(:disabled),
+.atm-export-item:focus-visible {
+  background: color-mix(in srgb, var(--atm-export-accent, var(--atm-accent, #2563eb)) 14%, transparent);
+}
+.atm-export-item:focus-visible,
+.atm-export-action:focus-visible {
+  outline: 2px solid var(--atm-ring, var(--atm-accent, #2563eb));
+  outline-offset: -2px;
+}
+.atm-export-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* The bar that asks before a dropped file replaces the document. */
+.atm-export-confirm {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 14px;
+  background: var(--atm-export-bg, var(--atm-surface, #f6f8fa));
+  color: var(--atm-export-fg, var(--atm-fg, #1f2328));
+  border-bottom: 1px solid var(--atm-export-border, var(--atm-border, #d0d7de));
+  border-inline-start: 4px solid var(--atm-export-accent, var(--atm-accent, #2563eb));
+  font-size: 0.9rem;
+}
+.atm-export-confirm-title,
+.atm-export-confirm-body {
+  margin: 0;
+}
+.atm-export-confirm-title {
+  flex: 1 1 100%;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.atm-export-confirm-body {
+  flex: 1 1 14rem;
+  color: var(--atm-muted, #59636e);
+}
+.atm-export-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.atm-export-action {
+  min-height: 2rem;
+  padding: 4px 12px;
+  border: 1px solid var(--atm-export-border, var(--atm-border, #d0d7de));
+  border-radius: 6px;
+  background: var(--atm-export-bg, var(--atm-bg, #fff));
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.atm-export-replace {
+  color: var(--atm-export-danger, var(--atm-danger, #b42318));
+  border-color: color-mix(in srgb, var(--atm-export-danger, var(--atm-danger, #b42318)) 45%, transparent);
+}
+.atm-export-cancel {
+  background: var(--atm-export-accent, var(--atm-accent, #2563eb));
+  color: var(--atm-accent-fg, #fff);
+  border-color: transparent;
+}
+
+@media (forced-colors: active) {
+  .atm-export-menu,
+  .atm-export-confirm,
+  .atm-export-action {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+  .atm-export-item:hover:not(:disabled),
+  .atm-export-item:focus-visible {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+/* ───────────── print ─────────────
+   Only the document: no toolbar, status bar, menus, popovers, handles or drop bar; black on
+   white; nothing split across pages where it would hurt. Add `atm-print-urls` to the editor (or
+   any ancestor) to print each link's address after it. The `print` command prints a standalone
+   copy in a hidden frame; when that is not possible it prints the page with `atm-printing` on
+   <html> and `atm-print-root` on the editor, which hides everything else. */
+
+.atm-print-frame {
+  display: none;
+}
+
+@media print {
+  .atm-toolbar,
+  .atm-statusbar,
+  .atm-mode-switch,
+  .atm-menu,
+  .atm-slash-menu,
+  .atm-mention-menu,
+  .atm-popover,
+  .atm-tooltip,
+  .atm-toast,
+  .atm-tool-bar,
+  .atm-tool-pop,
+  .atm-tool-menu,
+  .atm-block-menu,
+  .atm-block-handle,
+  .atm-img-handle,
+  .atm-drop-indicator,
+  .atm-lightbox,
+  .atm-export-menu,
+  .atm-export-confirm,
+  .atm-print-frame,
+  .atm-live {
+    display: none !important;
+  }
+  .atm,
+  .atm-body,
+  .atm-surface-host,
+  .atm-markdown-host,
+  .atm-preview,
+  .atm-surface-host > * {
+    display: block;
+    max-height: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .atm-surface a,
+  .atm-preview a {
+    color: inherit;
+    text-decoration: underline;
+  }
+  .atm-print-urls a[href^="http"]::after,
+  .atm-print-urls a[href^="mailto:"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+  .atm-surface pre,
+  .atm-preview pre,
+  .atm-surface figure,
+  .atm-preview figure,
+  .atm-surface tr,
+  .atm-preview tr,
+  .atm-surface blockquote,
+  .atm-preview blockquote,
+  .atm-surface img,
+  .atm-preview img,
+  .atm-surface details,
+  .atm-preview details {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .atm-surface h1,
+  .atm-surface h2,
+  .atm-surface h3,
+  .atm-surface h4,
+  .atm-surface h5,
+  .atm-surface h6,
+  .atm-preview h1,
+  .atm-preview h2,
+  .atm-preview h3,
+  .atm-preview h4,
+  .atm-preview h5,
+  .atm-preview h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .atm-surface thead,
+  .atm-preview thead {
+    display: table-header-group;
+  }
+  .atm-surface pre,
+  .atm-preview pre {
+    white-space: pre-wrap;
+    overflow: visible;
+  }
+  .atm-surface img,
+  .atm-preview img {
+    max-width: 100%;
+  }
+
+  /* Fallback: print the page itself, showing only the editor. */
+  html.atm-printing body * {
+    visibility: hidden !important;
+  }
+  html.atm-printing .atm-print-root,
+  html.atm-printing .atm-print-root * {
+    visibility: visible !important;
+  }
+  html.atm-printing .atm-print-root {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    width: 100%;
+    margin: 0;
+  }
+  html.atm-printing .atm-print-root .atm-toolbar,
+  html.atm-printing .atm-print-root .atm-statusbar,
+  html.atm-printing .atm-print-root .atm-export-confirm {
+    display: none !important;
+  }
+}

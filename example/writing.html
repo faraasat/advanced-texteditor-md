@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md writing aids</title>
+    <meta name="description" content="Ghost-text completion, selection actions, spellcheck and language, a word goal and lint hooks, all driven by host functions." />
+    <!-- The built library. Run `npm run build` first (see example/README.md). -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; }
+      @media (prefers-color-scheme: dark) { :root { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; } }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 64ch; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      pre.out { margin: 0; max-height: 240px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      kbd { font: 600 0.85em ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--page-border); border-bottom-width: 2px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Writing aids</h1>
+      <p class="lead">
+        Type <q>quick</q> and wait for the ghost text (<kbd>Tab</kbd> accepts, <kbd>Esc</kbd> dismisses). Select text for the
+        actions menu. <q>teh</q> is flagged by the demo linter (<kbd>Alt F8</kbd> next issue, <kbd>Alt Enter</kbd> fixes). Every
+        suggestion, action and check here is a small local function standing in for the host's own. URL parameters:
+        <code>value</code>, <code>mode</code>, <code>goal</code>, <code>lang</code>, <code>spell=0</code>, <code>hl=0</code> (overlay squiggles), <code>menu=0</code>.
+      </p>
+      <div id="editor-host" data-testid="editor-host"></div>
+      <section class="card" aria-labelledby="stats-h">
+        <h2 id="stats-h">readingStats()</h2>
+        <pre class="out" id="output-stats" tabindex="0"></pre>
+      </section>
+      <section class="card" aria-labelledby="md-h">
+        <h2 id="md-h">Markdown (what is stored)</h2>
+        <pre class="out" id="output-md" tabindex="0"></pre>
+      </section>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import * as W from "../dist/writing.js";
+
+      const q = new URLSearchParams(location.search);
+      const out = document.getElementById("output-md");
+      const statsOut = document.getElementById("output-stats");
+      const sleep = (ms, signal) => new Promise((res, rej) => {
+        const t = setTimeout(res, ms);
+        signal?.addEventListener("abort", () => (clearTimeout(t), rej(new DOMException("aborted", "AbortError"))));
+      });
+
+      // Stand-ins for the host's completion, transforms and checker: deterministic and offline.
+      const COMPLETIONS = { quick: " brown fox jumps over the lazy dog", Once: " upon a time" };
+      const onSuggest = async (ctx) => {
+        await sleep(30, ctx.signal);
+        const last = ctx.before.split(/\s+/).pop();
+        return COMPLETIONS[last] ?? null;
+      };
+      const actions = [
+        { id: "upper", label: "Uppercase", run: (s) => s.text.toUpperCase() },
+        { id: "emphasise", label: "Emphasise", run: async (s, { signal }) => (await sleep(300, signal), `**${s.text}**`) },
+        { id: "fail", label: "Always fails", run: async () => { throw new Error("no"); } },
+      ];
+      const lint = ({ text }) => {
+        const issues = [];
+        for (const m of text.matchAll(/\bteh\b/gi)) issues.push({ from: m.index, to: m.index + 3, severity: "error", message: "Possible typo.", fixes: [{ label: "the", replacement: "the" }] });
+        for (const m of text.matchAll(/\bvery\b/gi)) issues.push({ from: m.index, to: m.index + 4, severity: "info", message: "Often unnecessary.", fixes: [{ label: "Remove", replacement: "" }] });
+        return issues;
+      };
+
+      const plugins = [
+        W.createSuggestPlugin({ onSuggest, debounceMs: Number(q.get("debounce") ?? 150) }),
+        W.createSelectionActionsPlugin({ actions, menu: q.get("menu") !== "0" }),
+        W.createLanguagePlugin({ spellcheck: q.get("spell") === "0" ? false : undefined, lang: q.get("lang") ?? undefined, toolbar: true }),
+        W.createWordGoalPlugin({ goal: Number(q.get("goal") ?? 25), debounceMs: 50 }),
+        W.createLintPlugin({ lint, debounceMs: 150, highlightApi: q.get("hl") === "0" ? false : "auto" }),
+      ];
+
+      const initial = q.get("value") ?? "# Writing aids\n\nI saw teh very quiet cat.\n";
+      const show = (md) => {
+        out.textContent = md;
+        const s = W.readingStats(md);
+        statsOut.textContent = `${s.words} words, ${s.characters} characters, about ${Math.max(1, Math.round(s.readingMinutes))} min to read`;
+      };
+      const editor = lib.createEditor(document.getElementById("editor-host"), {
+        value: initial,
+        mode: q.get("mode") ?? "wysiwyg",
+        theme: "light",
+        plugins,
+        minHeight: 220,
+        onChange: show,
+      });
+      show(editor.getValue());
+      window.__editor = editor;
+      window.__events = [];
+      for (const e of ["plugin:writing:goal", "plugin:writing:spellcheck", "plugin:writing:lang", "plugin:writing:lint"]) editor.on(e, (p) => window.__events.push([e, p]));
+    </script>
+  </body>
+</html>

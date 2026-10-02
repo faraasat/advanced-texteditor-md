@@ -7,6 +7,18 @@
 import type { Labels } from "./i18n";
 
 export const LAZY_LABELS = {
+  apply: "Apply",
+  cancel: "Cancel",
+  upload: "Upload",
+  language: "Language",
+  slashMenu: "Insert block",
+  closeDialog: "Close",
+  paragraphHint: "Paragraph",
+  embedActions: "Embed actions",
+  embedConvert: "Convert to link",
+  embedOpen: "Open",
+  previewLoading: "Loading preview",
+  unknownShortcut: "your system's emoji shortcut",
   linkText: "Text",
   imageAlt: "Description (alt text)",
   fromUrl: "From address",

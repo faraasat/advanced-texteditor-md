@@ -76,3 +76,25 @@ export const all = [
   createPresignedUploader, createDataUrlUploader, validateFile, urlAllowed, createMentionController, mentionHref, parseMentionHref,
   htmlToMarkdown, looksLikeMarkdown, createLinkPreviewController, checkPreviewUrl, matchEmbed, createEmbedElement, ed, ropts, hydrateAll, hydrateToc, findMatches, restyleMarkdown, DRAFT_EDITOR_EVENT, offX, offPane, outline,
 ];
+
+// Feature subpaths (2026-10-02): every one imported by name, so the exports map and the d.ts agree.
+import { createAlertsPlugin, alertSyntax } from "advanced-texteditor-md/alerts";
+import { createCodeBlocksPlugin, parseCodeInfo } from "advanced-texteditor-md/code-blocks";
+import diffLang from "advanced-texteditor-md/highlight/diff";
+import { createTablesPlugin, csvToTable } from "advanced-texteditor-md/tables";
+import { createDiagramsPlugin, renderDiagrams } from "advanced-texteditor-md/diagrams";
+import { createDiffView, diffWords, createHistoryStore } from "advanced-texteditor-md/diff";
+import { createExportPlugin, exportHtml } from "advanced-texteditor-md/export";
+import { createChipCardsPlugin, createTagTrigger, createMarkdownMentionsPlugin } from "advanced-texteditor-md/chips";
+import { createContentBlocksPlugins, createShortcodes } from "advanced-texteditor-md/blocks";
+import { createSuggestPlugin, readingStats } from "advanced-texteditor-md/writing";
+import { loadLabels, createBidiPlugin } from "advanced-texteditor-md/i18n";
+import de from "advanced-texteditor-md/i18n/de";
+const featurePlugins: Plugin[] = [
+  createAlertsPlugin(), createCodeBlocksPlugin(), createTablesPlugin(), createDiagramsPlugin({ renderers: {} }), createExportPlugin(),
+  createMarkdownMentionsPlugin(), createSuggestPlugin({ onSuggest: async () => null }), createBidiPlugin(),
+];
+export const features = [
+  featurePlugins, alertSyntax, parseCodeInfo, diffLang, csvToTable, renderDiagrams, createDiffView, diffWords, createHistoryStore, exportHtml,
+  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, readingStats, loadLabels, de.bold,
+];

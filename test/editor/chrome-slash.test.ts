@@ -38,6 +38,8 @@ const key = (el: HTMLElement, k: string, init: KeyboardEventInit = {}) => {
 };
 const menu = (x: ReturnType<typeof m>) => x.root.querySelector<HTMLElement>('[role="listbox"]');
 const options = (x: ReturnType<typeof m>) => Array.from(x.root.querySelectorAll<HTMLElement>('[role="option"]'));
+/** An option's name (v2 options also show a description and a shortcut). */
+const label = (o: HTMLElement) => o.querySelector(".atm-menu-label")!.textContent;
 
 describe("slash: detection", () => {
   it("opens at the start and after whitespace only", () => {
@@ -95,7 +97,7 @@ describe("slash: menu", () => {
   it("filters as you type and closes when the slash is gone", () => {
     const x = m();
     typeAt(x, "/tab");
-    expect(options(x).map((o) => o.textContent)).toEqual(["Table"]);
+    expect(options(x).map(label)).toEqual(["Table"]);
     typeAt(x, "/tabx");
     expect(menu(x)!.textContent).toContain("No matching blocks");
     typeAt(x, "");
@@ -205,7 +207,7 @@ describe("slash: menu", () => {
     const run = vi.fn();
     const x = m({ plugins: [{ name: "p", slash: [{ id: "mine", label: "Insert thing", keywords: ["thingy"], run }] }] });
     typeAt(x, "/thingy");
-    expect(options(x).map((o) => o.textContent)).toEqual(["Insert thing"]);
+    expect(options(x).map(label)).toEqual(["Insert thing"]);
     key(x.surface.editable, "Enter");
     expect(run).toHaveBeenCalledWith(x.ed);
   });
@@ -242,6 +244,6 @@ describe("slash: menu", () => {
   it("labels can be translated", () => {
     const x = m({ labels: { table: "Tabelle", bulletList: "Aufzählung" } });
     typeAt(x, "/tabelle");
-    expect(options(x)[0].textContent).toBe("Tabelle");
+    expect(label(options(x)[0])).toBe("Tabelle");
   });
 });

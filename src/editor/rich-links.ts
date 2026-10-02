@@ -19,6 +19,7 @@ import type { BlockNode, EmbedProvider, LinkPolicy, LinkPreviewOptions, RenderOp
 import { createLinkPreviewController, type LinkPreviewController } from "../features/link-preview";
 import { createEmbedElement } from "../features/embeds";
 import { matchEmbed } from "../render/embed";
+import { LAZY_LABELS } from "./i18n-lazy";
 
 export type RichLinksLabels = {
   embedActions: string;
@@ -35,7 +36,8 @@ export type RichLinksInit = {
   linkPreview?: LinkPreviewOptions;
   embeds: EmbedProvider[];
   links?: LinkPolicy;
-  labels: RichLinksLabels;
+  /** The editor's labels; the embed and preview strings default here (`lazyLabels`). */
+  labels: Partial<RichLinksLabels> & { openOriginal: string };
   /** The split preview pane (rendered by renderDom with the same options). */
   previewPane: HTMLElement;
   /** Ask the surface to re-serialise after this module changed the DOM. */
@@ -58,7 +60,8 @@ export type RichLinks = {
 };
 
 export function createRichLinks(init: RichLinksInit): RichLinks {
-  const { doc, prefix, labels } = init;
+  const { doc, prefix } = init;
+  const labels = { ...LAZY_LABELS, ...init.labels } as RichLinksLabels;
   const controller: LinkPreviewController | null = init.linkPreview
     ? createLinkPreviewController({ options: init.linkPreview, document: doc, links: init.links, labels: { loading: labels.previewLoading } })
     : null;

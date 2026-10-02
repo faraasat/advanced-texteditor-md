@@ -29,7 +29,7 @@ function blocks(source: string): Record<string, Record<string, string>> {
 
 describe("themes.css", () => {
   const t = blocks(css("themes.css"));
-  const themes = ["light", "dark", "sepia", "slate", "contrast"];
+  const themes = ["light", "dark", "sepia", "slate", "contrast", "ocean", "forest", "rose"];
   it("defines light, dark and the three example themes", () => {
     for (const n of themes) expect(t[n], n).toBeTruthy();
   });
@@ -77,7 +77,7 @@ describe("highlight.css: the single source of every theme's syntax colours", () 
   const th = blocks(css("themes.css"));
   const hl = blocks(css("highlight.css"));
   const TOKENS = ["comment", "string", "number", "keyword", "literal", "function", "type", "operator", "punctuation", "property", "tag", "attr-name", "attr-value", "regex", "variable", "meta"];
-  for (const n of ["light", "dark", "sepia", "slate", "contrast"]) {
+  for (const n of ["light", "dark", "sepia", "slate", "contrast", "ocean", "forest", "rose"]) {
     it(`${n}: every syntax token is defined and passes AA on the background and on the code background`, () => {
       for (const k of TOKENS) {
         const v = hl[n]?.[`--atm-th-${k}`];
@@ -102,7 +102,7 @@ describe("highlight.css: the single source of every theme's syntax colours", () 
 
 describe("themes.css: tokens for the plugins", () => {
   const t = blocks(css("themes.css"));
-  for (const n of ["light", "dark", "sepia", "slate", "contrast"]) {
+  for (const n of ["light", "dark", "sepia", "slate", "contrast", "ocean", "forest", "rose"]) {
     it(`${n}: the mark colours and the callout accents pass`, () => {
       expect(ratio(hex(t[n]["--atm-mark-fg"]), hex(t[n]["--atm-mark-bg"])), "mark").toBeGreaterThanOrEqual(7);
       const bg = hex(t[n]["--atm-bg"]);
@@ -120,7 +120,7 @@ describe("link-preview cards and the hover popover: one palette per theme, in th
   const t = blocks(css("themes.css"));
   const lp = css("link-preview.css").replace(/\/\*[\s\S]*?\*\//g, ""); // rules only, not the header comment
   const COLOURS = ["bg", "border", "fg", "muted", "accent", "skeleton", "skeleton-hi", "embed-bg"];
-  for (const n of ["light", "dark", "sepia", "slate", "contrast"]) {
+  for (const n of ["light", "dark", "sepia", "slate", "contrast", "ocean", "forest", "rose"]) {
     it(`${n}: every card colour is defined, and card text passes AA`, () => {
       for (const k of COLOURS) expect(t[n][`--atm-th-preview-${k}`], `${n} ${k}`).toMatch(/^#[0-9a-f]{6}$/i);
       expect(t[n]["--atm-th-preview-shadow"], `${n} shadow`).toBeTruthy();

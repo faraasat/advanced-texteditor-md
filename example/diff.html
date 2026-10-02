@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md compare and version history</title>
+    <meta name="description" content="Compare two Markdown documents side by side or inline, accept or reject each change, and keep a version history." />
+    <!-- The built library. Run `npm run build` first. -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; }
+      @media (prefers-color-scheme: dark) { :root { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; } }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 1000px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 70ch; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      @media (max-width: 640px) { .two { grid-template-columns: 1fr; } }
+      label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+      textarea { width: 100%; min-height: 9rem; font: 0.85rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: inherit; background: var(--page-bg); border: 1px solid var(--page-border); border-radius: 8px; padding: 8px; }
+      fieldset { border: 0; padding: 0; margin: 12px 0; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+      legend { font-weight: 600; font-size: 0.9rem; padding: 0; margin-bottom: 4px; }
+      fieldset label { display: inline-flex; gap: 6px; align-items: center; margin: 0; font-weight: 400; }
+      select { font: inherit; padding: 2px 6px; color: inherit; background: var(--page-card); border: 1px solid var(--page-border); border-radius: 6px; }
+      button.demo { font: inherit; padding: 4px 12px; border: 1px solid var(--page-border); border-radius: 6px; background: var(--page-card); color: inherit; cursor: pointer; }
+      pre.out { margin: 0; max-height: 240px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      ul.versions { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+      ul.versions li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      ul.versions .name { flex: 1 1 12rem; }
+      kbd { font: 600 0.85em ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--page-border); border-bottom-width: 2px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Compare and version history</h1>
+      <p class="lead">
+        Edit either text and the comparison follows. Move between changes with <kbd>N</kbd> and <kbd>P</kbd> (or <kbd>Alt</kbd>+<kbd>↓</kbd>/<kbd>↑</kbd>),
+        and accept or reject each one. The merged Markdown is computed from the source, never from the page. URL parameters: <code>mode=inline</code>,
+        <code>gran=block</code>, <code>pending=b</code>, <code>a</code>, <code>b</code> (the two texts).
+      </p>
+
+      <section class="card" aria-labelledby="in-h">
+        <h2 id="in-h">The two texts</h2>
+        <div class="two">
+          <div><label for="a-text">Original (A)</label><textarea id="a-text" data-testid="a-text" spellcheck="false"></textarea></div>
+          <div><label for="b-text">Modified (B)</label><textarea id="b-text" data-testid="b-text" spellcheck="false"></textarea></div>
+        </div>
+        <fieldset>
+          <legend>Layout</legend>
+          <label><input type="radio" name="mode" value="split" id="mode-split" /> Side by side</label>
+          <label><input type="radio" name="mode" value="inline" id="mode-inline" /> Inline</label>
+          <label for="gran">Granularity</label>
+          <select id="gran"><option value="word">Words</option><option value="block">Blocks</option></select>
+        </fieldset>
+      </section>
+
+      <section class="card" aria-labelledby="diff-h">
+        <h2 id="diff-h">Comparison</h2>
+        <div id="diff-host" data-testid="diff-host"></div>
+      </section>
+
+      <section class="card" aria-labelledby="md-h">
+        <h2 id="md-h">Merged Markdown (what getMerged() returns)</h2>
+        <pre class="out" id="merged" data-testid="merged" tabindex="0"></pre>
+      </section>
+
+      <section class="card" aria-labelledby="hist-h">
+        <h2 id="hist-h">Version history of an editor</h2>
+        <div id="editor-host" data-testid="editor-host"></div>
+        <p><button class="demo" id="snap" type="button">Save version</button> <button class="demo" id="compare-last" type="button">Compare newest version with the text</button></p>
+        <ul class="versions" id="versions" aria-label="Saved versions"></ul>
+      </section>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import * as D from "../dist/diff.js";
+
+      const q = new URLSearchParams(location.search);
+      const $ = (id) => document.getElementById(id);
+      const aText = $("a-text");
+      const bText = $("b-text");
+      aText.value = q.get("a") ?? "# Release notes\n\nThe quick brown fox jumps over the lazy dog.\n\nThis paragraph will be removed entirely now.\n\n- first item\n- second item\n\nThe end.\n";
+      bText.value = q.get("b") ?? "# Release notes\n\nThe quick red fox jumps over the lazy dog.\n\nA brand new paragraph appears here instead.\n\n- first item\n- second item\n- third item\n\nThe end.\n";
+      let mode = q.get("mode") === "inline" ? "inline" : "split";
+      $(mode === "split" ? "mode-split" : "mode-inline").checked = true;
+      $("gran").value = q.get("gran") === "block" ? "block" : "word";
+
+      const merged = $("merged");
+      let view = null;
+      function build() {
+        view?.destroy();
+        view = D.createDiffView(aText.value, bText.value, {
+          mode,
+          container: $("diff-host"),
+          granularity: $("gran").value,
+          pending: q.get("pending") === "b" ? "b" : "a",
+          onChange: (m) => (merged.textContent = m),
+        });
+        merged.textContent = view.getMerged();
+        window.__view = view;
+      }
+      let timer = 0;
+      const rebuild = () => { clearTimeout(timer); timer = setTimeout(build, 30); };
+      aText.addEventListener("input", rebuild);
+      bText.addEventListener("input", rebuild);
+      $("gran").addEventListener("change", build);
+      for (const r of document.querySelectorAll('input[name="mode"]'))
+        r.addEventListener("change", () => { mode = r.value; view.setMode(mode); });
+      build();
+
+      /* version history with an editor */
+      const store = D.createHistoryStore({ storage: q.get("persist") === "1" ? undefined : null, key: "atm-demo-history", max: 20 });
+      const editor = lib.createEditor($("editor-host"), {
+        value: "# My notes\n\nFirst draft of the text.\n",
+        theme: "light",
+        minHeight: 140,
+        plugins: [D.createHistoryPlugin({ store })],
+      });
+      window.__editor = editor;
+      window.__store = store;
+      const list = $("versions");
+      function renderList() {
+        list.textContent = "";
+        for (const s of store.list()) {
+          const li = document.createElement("li");
+          const name = document.createElement("span");
+          name.className = "name";
+          name.textContent = `${s.label ?? "Version"} (${s.value.length} characters)`;
+          const cmp = document.createElement("button");
+          cmp.type = "button"; cmp.className = "demo"; cmp.textContent = "Compare with text";
+          cmp.setAttribute("aria-label", `Compare ${s.label ?? "version"} with the text`);
+          cmp.addEventListener("click", () => editor.exec("history:compare", { a: s.id }));
+          const res = document.createElement("button");
+          res.type = "button"; res.className = "demo"; res.textContent = "Restore";
+          res.setAttribute("aria-label", `Restore ${s.label ?? "version"}`);
+          res.addEventListener("click", () => { editor.exec("history:restore", { id: s.id }); renderList(); });
+          li.append(name, cmp, res);
+          list.append(li);
+        }
+      }
+      let n = 0;
+      $("snap").addEventListener("click", () => { editor.exec("history:snapshot", `Version ${++n}`); renderList(); });
+      $("compare-last").addEventListener("click", () => editor.exec("history:compare"));
+      editor.on("plugin:history:snapshot", renderList);
+      renderList();
+    </script>
+  </body>
+</html>

@@ -47,33 +47,21 @@ export const DEFAULT_LABELS: Required<EditorLabels> = {
  * merge is key-agnostic); they are English-only until promoted to the type.
  */
 export const EXTRA_LABELS = {
-  apply: "Apply",
-  cancel: "Cancel",
   insert: "Insert",
-  upload: "Upload",
   paragraph: "Paragraph",
   headingN: "Heading {n}",
   codeLanguage: "Code language",
-  language: "Language",
   uploadFailed: "{name} could not be uploaded",
   uploadingN: "Uploading {n}",
-  slashMenu: "Insert block",
   modeSwitch: "Editor mode",
   statusBar: "Status",
   words1: "word",
   characters1: "character",
   lengthLimit: "{count} / {max}",
   submit: "Submit",
-  closeDialog: "Close",
-  paragraphHint: "Paragraph",
   moreItems: "More formatting options",
   previewRegion: "Preview",
-  embedActions: "Embed actions",
-  embedConvert: "Convert to link",
-  embedOpen: "Open",
   openOriginal: "Open original",
-  previewLoading: "Loading preview",
-  unknownShortcut: "your system's emoji shortcut",
   details: "Details",
 };
 

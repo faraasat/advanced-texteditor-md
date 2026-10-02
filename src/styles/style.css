@@ -15,6 +15,26 @@
 
 .atm {
   --atm-r: var(--atm-radius, 8px);
+  /* Private aliases of the public scale (each public variable can be set on the page or the editor):
+     spacing, type, control size, elevation and motion. Density presets (below) move them together. */
+  --_s1: var(--atm-space-1, 2px);
+  --_s2: var(--atm-space-2, 4px);
+  --_s3: var(--atm-space-3, 8px);
+  --_s4: var(--atm-space-4, 12px);
+  --_s5: var(--atm-space-5, 16px);
+  --_s6: var(--atm-space-6, 24px);
+  --_t-xs: var(--atm-text-xs, 0.75rem);
+  --_t-sm: var(--atm-text-sm, 0.8125rem);
+  --_t-md: var(--atm-text-md, 0.875rem);
+  --_ctl: var(--atm-control-size, 32px);
+  --_e1: var(--atm-elevation-1, 0 1px 2px rgb(31 35 40 / 0.06));
+  --_e2: var(--atm-elevation-2, var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16)));
+  --_e3: var(--atm-elevation-3, 0 16px 48px rgb(31 35 40 / 0.22), 0 2px 6px rgb(31 35 40 / 0.12));
+  --_dur: var(--atm-duration, 140ms);
+  --_ease: var(--atm-easing, cubic-bezier(0.2, 0.7, 0.2, 1));
+  --_hover: color-mix(in srgb, var(--atm-fg, #1f2328) 7%, transparent);
+  --_press: color-mix(in srgb, var(--atm-fg, #1f2328) 12%, transparent);
+  --_on: color-mix(in srgb, var(--atm-accent, #2563eb) 15%, transparent);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -27,7 +47,8 @@
   font-family: var(--atm-font-family, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   font-size: var(--atm-font-size, 1rem);
   line-height: var(--atm-line-height, 1.55);
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  transition: border-color var(--_dur) var(--_ease), box-shadow var(--_dur) var(--_ease);
+  scrollbar-color: color-mix(in srgb, var(--atm-fg, #1f2328) 28%, transparent) transparent;
 }
 .atm *,
 .atm *::before,
@@ -122,14 +143,14 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 .atm-mode-split .atm-preview {
-  border-left: 1px solid var(--atm-border, #d0d7de);
+  border-inline-start: 1px solid var(--atm-border, #d0d7de);
 }
 .atm-mode-split.atm-narrow .atm-body,
 .atm-narrow.atm-layout-split .atm-body {
   grid-template-columns: minmax(0, 1fr);
 }
 .atm-mode-split.atm-narrow .atm-preview {
-  border-left: 0;
+  border-inline-start: 0;
   border-top: 1px solid var(--atm-border, #d0d7de);
 }
 @media (max-width: 640px) {
@@ -137,7 +158,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .atm-mode-split .atm-preview {
-    border-left: 0;
+    border-inline-start: 0;
     border-top: 1px solid var(--atm-border, #d0d7de);
   }
 }
@@ -148,9 +169,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--_s3);
   min-width: 0;
-  padding: 4px 6px;
+  padding: var(--_s2) var(--_s3);
   background: var(--atm-surface, #f6f8fa);
   border-bottom: 1px solid var(--atm-border, #d0d7de);
   border-top-left-radius: calc(var(--atm-r) - 1px);
@@ -166,14 +187,14 @@
   flex: 1 1 auto;
   align-items: center;
   gap: 2px;
-  min-width: 0;
+  min-width: var(--_ctl, 32px); /* room for the More button, however crowded the row */
   overflow: hidden;
 }
 .atm-sep {
   flex: none;
   width: 1px;
-  height: 20px;
-  margin: 0 4px;
+  height: calc(var(--_ctl) - 14px);
+  margin: 0 var(--_s2);
   background: var(--atm-border, #d0d7de);
 }
 .atm-btn {
@@ -182,34 +203,66 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 6px;
+  gap: var(--_s1);
+  min-width: var(--_ctl);
+  height: var(--_ctl);
+  padding: 0 calc(var(--_s2) + 2px);
   margin: 0;
   border: 1px solid transparent;
   border-radius: calc(var(--atm-r) - 2px);
   background: transparent;
   color: var(--atm-fg, #1f2328);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: var(--_t-md);
   line-height: 1;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--_dur) var(--_ease), color var(--_dur) var(--_ease), border-color var(--_dur) var(--_ease), transform 80ms var(--_ease);
 }
 .atm-btn:hover {
-  background: color-mix(in srgb, var(--atm-fg, #1f2328) 8%, transparent);
+  background: var(--_hover);
+}
+.atm-btn:active:not([aria-disabled="true"]) {
+  background: var(--_press);
+  transform: scale(0.96);
 }
 .atm-btn[aria-pressed="true"],
 .atm-btn.atm-active {
-  background: color-mix(in srgb, var(--atm-accent, #2563eb) 16%, transparent);
+  background: var(--_on);
   color: var(--atm-accent, #2563eb);
-  border-color: color-mix(in srgb, var(--atm-accent, #2563eb) 35%, transparent);
+  border-color: color-mix(in srgb, var(--atm-accent, #2563eb) 32%, transparent);
 }
 .atm-btn[aria-disabled="true"] {
-  opacity: 0.4;
+  opacity: 0.38;
   cursor: not-allowed;
+}
+/* A visible text label (toolbar.labels: "always", items without an icon). */
+.atm-btn-label {
+  padding: 0 var(--_s1);
+  font-size: var(--_t-sm);
+  white-space: nowrap;
+}
+.atm-btn svg + .atm-btn-label {
+  padding-inline-start: 0;
+}
+/* A split button: the action and its chevron drawn as one control. */
+.atm-btn:has(+ .atm-btn[data-id$=":menu"]) {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+  padding-inline-end: var(--_s1);
+}
+.atm-btn[data-id$=":menu"] {
+  min-width: 18px;
+  padding: 0 var(--_s1);
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  border-inline-start-color: color-mix(in srgb, var(--atm-border, #d0d7de) 70%, transparent);
+}
+.atm-btn[data-id$=":menu"] svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0.75;
 }
 .atm-btn[aria-disabled="true"]:hover {
   background: transparent;
@@ -223,8 +276,8 @@
 }
 @media (pointer: coarse) {
   .atm-btn {
-    min-width: 40px;
-    height: 40px;
+    min-width: max(40px, var(--_ctl));
+    height: max(40px, var(--_ctl));
   }
 }
 
@@ -243,17 +296,20 @@
 }
 
 .atm-tooltip {
-  position: absolute;
-  z-index: 30;
+  position: fixed;
+  z-index: 80;
   max-width: 18rem;
-  padding: 4px 8px;
+  padding: var(--_s2) var(--_s3);
   border-radius: 6px;
-  background: var(--atm-fg, #1f2328);
-  color: var(--atm-bg, #fff);
-  font-size: 0.75rem;
+  background: var(--atm-tooltip-bg, var(--atm-fg, #1f2328));
+  color: var(--atm-tooltip-fg, var(--atm-bg, #fff));
+  box-shadow: var(--_e2);
+  font-size: var(--_t-xs);
+  font-weight: 500;
   line-height: 1.3;
   white-space: nowrap;
   pointer-events: none;
+  animation: atm-pop-in var(--_dur) var(--_ease);
 }
 
 /* ───────────────────────────── block tools ───────────────────────────── */
@@ -379,7 +435,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .atm-tool-menu-item:hover,
@@ -463,7 +519,7 @@
 }
 .atm-lightbox-prev { grid-area: prev; justify-self: center; }
 .atm-lightbox-next { grid-area: next; justify-self: center; }
-.atm-lightbox-close { position: absolute !important; top: 0.75rem; right: 0.75rem; }
+.atm-lightbox-close { position: absolute !important; top: 0.75rem; inset-inline-end: 0.75rem; }
 /* Images that open the lightbox in a read-only view. */
 img[data-atm-zoom] {
   cursor: zoom-in;
@@ -506,7 +562,7 @@ img[data-atm-zoom]:focus-visible {
 .atm-mode-switch-floating {
   position: absolute;
   top: 6px;
-  right: 6px;
+  inset-inline-end: 6px;
   z-index: 5;
 }
 
@@ -519,27 +575,29 @@ img[data-atm-zoom]:focus-visible {
   max-width: min(22rem, calc(100vw - 16px));
   max-height: 18rem;
   overflow: auto;
-  padding: 4px;
+  padding: var(--_s2);
   background: var(--atm-bg, #fff);
   color: var(--atm-fg, #1f2328);
   border: 1px solid var(--atm-border, #d0d7de);
   border-radius: var(--atm-r);
-  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
-  font-size: 0.875rem;
+  box-shadow: var(--_e3);
+  font-size: var(--_t-md);
+  animation: atm-pop-in var(--_dur) var(--_ease);
 }
 .atm-menu-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--_s4);
   width: 100%;
-  padding: 6px 8px;
+  min-height: calc(var(--_ctl) - 2px);
+  padding: var(--_s2) var(--_s3);
   border: 0;
   border-radius: calc(var(--atm-r) - 3px);
   background: transparent;
   color: inherit;
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .atm-menu-item:hover,
@@ -788,7 +846,7 @@ img[data-atm-zoom]:focus-visible {
   border-color: var(--atm-border, #d0d7de);
 }
 .atm-btn-danger {
-  margin-right: auto;
+  margin-inline-end: auto;
   background: transparent;
   color: var(--atm-danger, #b42318);
   border-color: color-mix(in srgb, var(--atm-danger, #b42318) 45%, transparent);
@@ -844,10 +902,10 @@ img[data-atm-zoom]:focus-visible {
   border-radius: 0 0 calc(var(--atm-r) - 1px) calc(var(--atm-r) - 1px);
 }
 .atm-statusbar .atm-mode-switch {
-  margin-right: auto;
+  margin-inline-end: auto;
 }
 .atm-status-mode {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .atm-count-warn {
   color: var(--atm-warn, #9a6700);
@@ -859,7 +917,7 @@ img[data-atm-zoom]:focus-visible {
 }
 .atm-toast {
   position: absolute;
-  right: 10px;
+  inset-inline-end: 10px;
   bottom: 10px;
   z-index: 40;
   max-width: min(24rem, calc(100% - 20px));
@@ -922,7 +980,7 @@ img[data-atm-zoom]:focus-visible {
 }
 .atm-layout-bottom-bar .atm-actions {
   flex: none;
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .atm-layout-bottom-bar .atm-surface-host,
 .atm-layout-bottom-bar .atm-markdown-host,
@@ -983,6 +1041,1352 @@ img[data-atm-zoom]:focus-visible {
   font-weight: 600;
 }
 
+/* ═════════════════════════════ chrome v2 ═════════════════════════════
+ * Density, the reader's settings, the empty state, the new layouts (ribbon, sidebar, focus, tabs,
+ * compact, mobile, auto), the palette, shortcuts sheet, context menu, settings popover, status bar
+ * extras and the slash menu v2. Private aliases (--_*) come from the scale on .atm, so every public
+ * --atm-* variable still wins.
+ */
+
+/* Movement only, no opacity: text inside a menu that is still fading in measures as low contrast
+   (axe run right after a menu opens reports it), and a menu is readable from its first frame. */
+@keyframes atm-pop-in {
+  from { transform: translateY(-4px) scale(0.98); }
+  to { transform: none; }
+}
+@keyframes atm-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes atm-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes atm-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+
+/* ── density ── */
+
+.atm[data-atm-density="compact"] {
+  --_s3: var(--atm-space-3, 6px);
+  --_s4: var(--atm-space-4, 8px);
+  --_s5: var(--atm-space-5, 12px);
+  --_ctl: var(--atm-control-size, 28px);
+  --_t-md: var(--atm-text-md, 0.8125rem);
+  --atm-surface-padding: 0.5rem 0.75rem;
+}
+.atm[data-atm-density="spacious"] {
+  --_s3: var(--atm-space-3, 10px);
+  --_s4: var(--atm-space-4, 14px);
+  --_s5: var(--atm-space-5, 20px);
+  --_s6: var(--atm-space-6, 32px);
+  --_ctl: var(--atm-control-size, 38px);
+  --atm-surface-padding: 1.25rem 1.5rem;
+}
+.atm[data-atm-density="spacious"] .atm-surface-host > * {
+  line-height: 1.7;
+}
+
+/* ── one focus ring for everything v2 draws ── */
+
+.atm-ribbon-tab:focus-visible,
+.atm-ribbon-btn:focus-visible,
+.atm-tabs-tab:focus-visible,
+.atm-side-link:focus-visible,
+.atm-side-toggle:focus-visible,
+.atm-status-btn:focus-visible,
+.atm-segment:has(input:focus-visible),
+.atm-dialog-close:focus-visible,
+.atm-chrome-pop select:focus-visible,
+.atm-chrome-pop input:focus-visible,
+.atm-shortcuts-grid:focus-visible,
+.atm-insp-section summary:focus-visible,
+.atm-preview:focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: 1px;
+}
+
+/* ── the page: caret, selection, zoom, scrollbars ── */
+
+.atm .atm-surface,
+.atm .atm-markdown {
+  caret-color: var(--atm-caret, var(--atm-accent, #2563eb));
+}
+.atm .atm-surface ::selection,
+.atm .atm-markdown::selection,
+.atm .atm-preview ::selection {
+  background: var(--atm-selection, color-mix(in srgb, var(--atm-accent, #2563eb) 26%, transparent));
+}
+.atm .atm-surface {
+  font-size: calc(var(--atm-font-size, 1rem) * var(--atm-zoom, 1));
+}
+.atm .atm-markdown,
+.atm .atm-preview {
+  zoom: var(--atm-zoom, 1);
+}
+.atm ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.atm ::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--atm-fg, #1f2328) 26%, transparent) padding-box;
+}
+.atm ::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--atm-fg, #1f2328) 40%, transparent);
+}
+.atm ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Line width (settings): a measure for prose, on every layout. */
+.atm[data-atm-line-width="narrow"] { --atm-page-width: 36rem; }
+.atm[data-atm-line-width="normal"] { --atm-page-width: 48rem; }
+.atm[data-atm-line-width="wide"] { --atm-page-width: 64rem; }
+.atm[data-atm-line-width="full"] { --atm-page-width: 100%; }
+.atm[data-atm-line-width]:not(.atm-layout-document):not(.atm-layout-sidebar) .atm-surface-host > * > * {
+  max-width: var(--atm-page-width, 48rem);
+}
+.atm[data-atm-line-width="full"] .atm-surface-host > * > * {
+  max-width: none;
+}
+
+/* Line numbers in code (settings): the numbers are an attribute, printed in a gutter. */
+.atm-line-numbers pre[data-atm-ln] {
+  position: relative;
+  padding-inline-start: 3.4em !important;
+  white-space: pre !important;
+}
+.atm-line-numbers pre[data-atm-ln]::before {
+  content: attr(data-atm-ln);
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 2.6em;
+  padding-block: inherit;
+  padding-inline-end: 0.5em;
+  border-inline-end: 1px solid color-mix(in srgb, var(--atm-border, #d0d7de) 80%, transparent);
+  color: var(--atm-muted, #59636e);
+  font: inherit;
+  text-align: end;
+  white-space: pre;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Invisible characters (settings): paragraph marks after blocks; spaces through ::highlight (settings.ts). */
+.atm-show-invisibles .atm-surface :is(p, h1, h2, h3, h4, h5, h6, li > p, blockquote > p)::after {
+  content: "¶";
+  margin-inline-start: 0.15em;
+  color: color-mix(in srgb, var(--atm-muted, #59636e) 70%, transparent);
+  font-weight: 400;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── the empty state: hint chips under the placeholder ── */
+
+.atm-empty:not(.atm-readonly):not(.atm-mode-markdown):not(.atm-mode-split)[data-atm-hints~="slash"] .atm-surface-host {
+  position: relative;
+}
+.atm-empty:not(.atm-readonly):not(.atm-mode-markdown):not(.atm-mode-split)[data-atm-hints~="slash"] .atm-surface-host::after {
+  content: var(--atm-hint-slash, "Type / for blocks");
+  position: absolute;
+  inset-inline-start: var(--atm-hint-x, 1rem);
+  top: calc(0.75rem + 2.1em);
+  padding: 2px 10px;
+  border: 1px dashed color-mix(in srgb, var(--atm-muted, #59636e) 55%, transparent);
+  border-radius: 999px;
+  color: var(--atm-muted, #59636e);
+  font-size: var(--_t-xs);
+  line-height: 1.6;
+  pointer-events: none;
+}
+.atm-empty:not(.atm-readonly):not(.atm-mode-markdown):not(.atm-mode-split)[data-atm-hints~="slash"][data-atm-hints~="mention"] .atm-surface-host::after {
+  content: var(--atm-hint-slash-mention, "Type / for blocks · @ to mention");
+}
+.atm-empty:not(.atm-readonly):not(.atm-mode-markdown):not(.atm-mode-split)[data-atm-hints="mention"] .atm-surface-host::after {
+  content: var(--atm-hint-mention, "Type @ to mention");
+  position: absolute;
+  inset-inline-start: var(--atm-hint-x, 1rem);
+  top: calc(0.75rem + 2.1em);
+  padding: 2px 10px;
+  border: 1px dashed color-mix(in srgb, var(--atm-muted, #59636e) 55%, transparent);
+  border-radius: 999px;
+  color: var(--atm-muted, #59636e);
+  font-size: var(--_t-xs);
+  pointer-events: none;
+}
+.atm-has-handles.atm-empty .atm-surface-host::after {
+  inset-inline-start: var(--atm-hint-x, 1.75rem);
+}
+
+/* ── popovers: an arrow toward what opened them ── */
+
+.atm-popover[data-side]::before,
+.atm-tooltip[data-side]::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 18px;
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  border: inherit;
+  rotate: 45deg;
+}
+.atm-tooltip[data-side]::before {
+  inset-inline-start: calc(50% - 4px);
+  border: 0;
+}
+.atm-popover[data-side="below"]::before,
+.atm-tooltip[data-side="below"]::before {
+  top: -5px;
+  border-inline-end: 0;
+  border-bottom: 0;
+}
+.atm-popover[data-side="above"]::before,
+.atm-tooltip[data-side="above"]::before {
+  bottom: -5px;
+  border-inline-start: 0;
+  border-top: 0;
+}
+.atm-popover {
+  animation: atm-pop-in var(--_dur) var(--_ease);
+  box-shadow: var(--_e3);
+}
+
+/* ── the page's blocks inside the editor: images, tables, code ── */
+
+.atm .atm-surface img:hover {
+  outline: 2px solid color-mix(in srgb, var(--atm-ring, #2563eb) 35%, transparent);
+  outline-offset: 2px;
+}
+.atm .atm-surface table,
+.atm .atm-preview table {
+  border-radius: calc(var(--atm-r) - 2px);
+}
+.atm .atm-surface tbody tr:nth-child(even) > *,
+.atm .atm-preview tbody tr:nth-child(even) > * {
+  background: color-mix(in srgb, var(--atm-fg, #1f2328) 2.5%, transparent);
+}
+.atm .atm-surface pre,
+.atm .atm-preview pre {
+  border: 1px solid color-mix(in srgb, var(--atm-border, #d0d7de) 70%, transparent);
+}
+
+/* ── skeletons while a chunk downloads ── */
+
+.atm-markdown-host [data-atm-loading],
+.atm-layout-ribbon .atm-toolbar:not([data-ribbon])::after {
+  content: "";
+  display: block;
+  min-height: var(--atm-min-height, 8rem);
+  border-radius: calc(var(--atm-r) - 2px);
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--atm-fg, #1f2328) 7%, transparent) 50%, transparent 100%) 0 0 / 200% 100%,
+    color-mix(in srgb, var(--atm-fg, #1f2328) 3%, transparent);
+  animation: atm-shimmer 1.4s linear infinite;
+}
+/* The ribbon: the flat toolbar is drawn at once; while the ribbon chunk is on its way the row is a
+   skeleton of the ribbon's height and the flat buttons are out of sight. A ribbon that never arrives
+   (offline) gives the flat row back after 4 s. */
+.atm-layout-ribbon .atm-toolbar:not([data-ribbon]) {
+  min-height: 92px;
+}
+.atm-layout-ribbon .atm-toolbar:not([data-ribbon]) > * {
+  visibility: hidden;
+  animation: atm-reveal 0s 4s forwards;
+}
+.atm-layout-ribbon .atm-toolbar:not([data-ribbon])::after {
+  position: absolute;
+  inset: 6px 8px;
+  min-height: 0;
+  animation: atm-shimmer 1.4s linear infinite, atm-hide 0s 4s forwards;
+}
+@keyframes atm-reveal { to { visibility: visible; } }
+@keyframes atm-hide { to { visibility: hidden; } }
+
+/* The bubble's row stays hidden until its chunk takes it over. */
+.atm-layout-bubble > .atm-toolbar:not([data-bubble]) {
+  display: none;
+}
+
+/* ── sticky toolbars: a shadow once they are stuck (where the browser can tell) ── */
+
+.atm-layout-document .atm-toolbar,
+.atm-layout-sidebar .atm-toolbar,
+.atm-layout-ribbon .atm-toolbar {
+  position: sticky;
+  top: var(--atm-sticky-top, 0);
+  z-index: 20;
+}
+@supports (container-type: scroll-state) {
+  .atm-layout-document .atm-toolbar,
+  .atm-layout-sidebar .atm-toolbar,
+  .atm-layout-ribbon .atm-toolbar {
+    container-type: scroll-state;
+  }
+  @container scroll-state(stuck: top) {
+    .atm-toolbar-items,
+    .atm-ribbon {
+      box-shadow: 0 6px 12px -8px rgb(0 0 0 / 0.35);
+    }
+  }
+}
+
+/* ── ribbon ── */
+
+/* The tab row shares its line with the mode switch; the open panel spans the whole width. */
+.atm-layout-ribbon .atm-toolbar[data-ribbon] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "tabs mode" "panel panel";
+  align-items: center;
+  row-gap: 0;
+  padding-bottom: 0;
+}
+.atm-layout-ribbon .atm-toolbar > .atm-mode-switch {
+  grid-area: mode;
+}
+.atm-ribbon {
+  display: contents;
+}
+.atm-ribbon-bar {
+  grid-area: tabs;
+  display: flex;
+  align-items: center;
+  gap: var(--_s2);
+  min-width: 0;
+}
+.atm-ribbon-panel {
+  grid-area: panel;
+}
+.atm-ribbon-tabs {
+  display: flex;
+  gap: var(--_s1);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.atm-ribbon-tab {
+  position: relative;
+  padding: 6px 12px 7px;
+  border: 0;
+  border-radius: calc(var(--atm-r) - 2px) calc(var(--atm-r) - 2px) 0 0;
+  background: transparent;
+  color: var(--atm-muted, #59636e);
+  font: inherit;
+  font-size: var(--_t-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.atm-ribbon-tab:hover {
+  color: var(--atm-fg, #1f2328);
+  background: var(--_hover);
+}
+.atm-ribbon-tab[aria-selected="true"] {
+  color: var(--atm-accent, #2563eb);
+}
+.atm-ribbon-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 10px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.atm-ribbon-collapse {
+  margin-inline-start: auto;
+  min-width: 28px;
+  height: 28px;
+}
+.atm-ribbon-panel {
+  padding: var(--_s2) 0 var(--_s2);
+  border-top: 1px solid var(--atm-border, #d0d7de);
+}
+.atm-ribbon-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--_s2) 0;
+}
+.atm-ribbon-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 var(--_s3);
+  border-inline-end: 1px solid color-mix(in srgb, var(--atm-border, #d0d7de) 80%, transparent);
+}
+.atm-ribbon-group:last-child {
+  border-inline-end: 0;
+}
+.atm-ribbon-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--_s1);
+}
+.atm-ribbon-btn {
+  flex-direction: column;
+  gap: 3px;
+  min-width: 52px;
+  height: auto;
+  min-height: 52px;
+  padding: 5px 6px 4px;
+}
+.atm-ribbon-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+}
+.atm-ribbon-glyph {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.atm-ribbon-label {
+  max-width: 9em;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.atm-ribbon-glabel {
+  margin-top: 3px;
+  color: var(--atm-muted, #59636e);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+}
+.atm-ribbon-collapsed .atm-ribbon-bar {
+  padding-bottom: var(--_s2);
+}
+/* Narrow (< 640 px): the mode switch takes its own row, the buttons drop to icons (the label stays
+   as their accessible name) and the group captions go, so a panel is one or two rows, not five. */
+.atm-narrow .atm-toolbar[data-ribbon] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "mode" "tabs" "panel";
+}
+.atm-narrow .atm-toolbar[data-ribbon] > .atm-mode-switch {
+  justify-self: end;
+  margin-bottom: var(--_s1);
+}
+.atm-narrow .atm-ribbon-group {
+  padding: 0 var(--_s1);
+}
+.atm-narrow .atm-ribbon-btn {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 4px;
+}
+.atm-narrow .atm-ribbon-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.atm-narrow .atm-ribbon-glabel {
+  display: none;
+}
+
+/* ── sidebar ── */
+
+.atm-layout-sidebar {
+  background: var(--atm-surface, #f6f8fa);
+  overflow: clip;
+}
+.atm-layout-sidebar .atm-toolbar {
+  background: var(--atm-bg, #fff);
+}
+.atm-layout-sidebar.atm-has-side .atm-body {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--_s5);
+  padding: var(--_s5);
+}
+.atm-layout-sidebar.atm-has-side.atm-mode-split .atm-body {
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+.atm-layout-sidebar .atm-surface-host,
+.atm-layout-sidebar .atm-markdown-host,
+.atm-layout-sidebar .atm-preview {
+  width: min(100%, var(--atm-page-width, 48rem));
+  margin: 0 auto;
+  background: var(--atm-bg, #fff);
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: calc(var(--atm-r) - 2px);
+  box-shadow: var(--_e1);
+}
+.atm-side {
+  position: sticky;
+  top: var(--atm-side-top, 56px);
+  width: var(--atm-side-width, 15rem);
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  padding: var(--_s3) var(--_s2);
+  font-size: var(--_t-sm);
+}
+.atm-side[hidden] {
+  display: none;
+}
+.atm-side-title {
+  margin: 0 var(--_s3) var(--_s3);
+  color: var(--atm-muted, #59636e);
+  font-size: var(--_t-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.atm-outline,
+.atm-insp-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.atm-outline-item {
+  padding-inline-start: calc(var(--atm-depth, 0) * 12px);
+}
+.atm-side-link {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 30px;
+  padding: 5px var(--_s3);
+  border: 0;
+  border-radius: calc(var(--atm-r) - 3px);
+  background: transparent;
+  color: var(--atm-fg, #1f2328);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.atm-side-link:hover {
+  background: var(--_hover);
+}
+/* The current heading: the text keeps the body colour (accent on the accent tint fell under AA in
+   the lighter themes); an accent bar on the start edge marks it. */
+.atm-side-link[aria-current] {
+  background: var(--_on);
+  color: var(--atm-fg, #1f2328);
+  box-shadow: inset 3px 0 0 var(--atm-accent, #2563eb);
+  font-weight: 600;
+}
+[dir="rtl"] .atm-side-link[aria-current] {
+  box-shadow: inset -3px 0 0 var(--atm-accent, #2563eb);
+}
+.atm-outline-item[data-level="1"] > .atm-side-link {
+  font-weight: 600;
+}
+.atm-side-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.atm-side-sub {
+  overflow: hidden;
+  color: var(--atm-muted, #59636e);
+  font-size: var(--_t-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.atm-side-empty {
+  padding: 4px var(--_s3);
+  color: var(--atm-muted, #59636e);
+}
+.atm-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--_s2);
+  margin: 0 0 var(--_s4);
+}
+.atm-stat {
+  padding: var(--_s3);
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: calc(var(--atm-r) - 2px);
+  background: var(--atm-bg, #fff);
+}
+.atm-stat dt {
+  color: var(--atm-muted, #59636e);
+  font-size: var(--_t-xs);
+}
+.atm-stat dd {
+  margin: 2px 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.atm-insp-section {
+  margin-bottom: var(--_s3);
+}
+.atm-insp-section summary {
+  padding: 4px var(--_s3);
+  border-radius: calc(var(--atm-r) - 3px);
+  color: var(--atm-muted, #59636e);
+  font-size: var(--_t-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.atm-side-toggles {
+  display: inline-flex;
+  gap: var(--_s1);
+  margin-inline-start: auto;
+}
+/* Narrow: the panels open over the page, from their side. */
+.atm-side-narrow.atm-has-side .atm-body {
+  grid-template-columns: minmax(0, 1fr);
+  padding: var(--_s3);
+}
+.atm-side-narrow .atm-side {
+  position: absolute;
+  z-index: 30;
+  top: 0;
+  bottom: 0;
+  max-height: none;
+  width: min(18rem, 86%);
+  background: var(--atm-bg, #fff);
+  border: 1px solid var(--atm-border, #d0d7de);
+  box-shadow: var(--_e3);
+  animation: atm-pop-in var(--_dur) var(--_ease);
+}
+.atm-side-narrow .atm-side-outline { inset-inline-start: 0; }
+.atm-side-narrow .atm-side-inspector { inset-inline-end: 0; }
+
+/* ── focus ── */
+
+.atm-layout-focus {
+  border-color: transparent;
+  background: var(--atm-bg, #fff);
+}
+.atm-layout-focus .atm-toolbar,
+.atm-layout-focus .atm-statusbar {
+  background: transparent;
+  border-color: transparent;
+  transition: opacity 0.35s var(--_ease);
+}
+.atm-layout-focus.atm-typing .atm-toolbar,
+.atm-layout-focus.atm-typing .atm-statusbar {
+  opacity: 0;
+}
+.atm-layout-focus.atm-typing .atm-toolbar:focus-within,
+.atm-layout-focus.atm-typing .atm-statusbar:focus-within {
+  opacity: 1;
+}
+.atm-layout-focus .atm-surface-host > *,
+.atm-layout-focus .atm-markdown {
+  max-width: var(--atm-page-width, 42rem);
+  margin-inline: auto;
+}
+.atm-layout-focus .atm-surface-host > * {
+  font-size: calc(1.0625em * var(--atm-zoom, 1));
+  line-height: 1.75;
+}
+.atm-dim .atm-surface > * {
+  transition: opacity 0.25s var(--_ease);
+}
+.atm-focus-toggle {
+  margin-inline-start: auto;
+}
+/* Narrow: the toggle is its icon (its aria-label still names it), so the formatting row keeps room. */
+.atm-narrow .atm-focus-toggle .atm-btn-label {
+  display: none;
+}
+.atm-zen {
+  position: fixed !important;
+  inset: 0;
+  z-index: 900;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+}
+.atm-zen .atm-body {
+  overflow: auto;
+  padding: 6vh var(--_s5) 20vh;
+}
+.atm-zen .atm-surface-host > * {
+  max-height: none;
+}
+
+/* ── tabs ── */
+
+.atm-layout-tabs .atm-toolbar {
+  flex-wrap: wrap;
+  row-gap: 0;
+  padding-bottom: 0;
+  border-bottom: 1px solid var(--atm-border, #d0d7de);
+}
+/* The tabs own the first row; the formatting row sits under them, flush with the start edge.
+   The selected tab joins that row, as a folder tab joins its page. */
+.atm-tabs-bar {
+  display: flex;
+  flex: 0 0 calc(100% + 2 * var(--_s3));
+  gap: var(--_s1);
+  margin: calc(-1 * var(--_s2)) calc(-1 * var(--_s3)) 0;
+  padding: var(--_s1) var(--_s3) 0;
+  border-radius: inherit;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: 1px solid var(--atm-border, #d0d7de);
+  background: color-mix(in srgb, var(--atm-border, #d0d7de) 22%, transparent);
+}
+.atm-tabs-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: calc(var(--atm-r) - 2px) calc(var(--atm-r) - 2px) 0 0;
+  background: transparent;
+  color: var(--atm-muted, #59636e);
+  font: inherit;
+  font-size: var(--_t-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.atm-tabs-tab svg {
+  width: 16px;
+  height: 16px;
+}
+.atm-tabs-tab:hover {
+  color: var(--atm-fg, #1f2328);
+}
+.atm-tabs-tab[aria-selected="true"] {
+  margin-bottom: -1px;
+  background: var(--atm-surface, #f6f8fa);
+  border-color: var(--atm-border, #d0d7de);
+  color: var(--atm-fg, #1f2328);
+}
+.atm-layout-tabs .atm-toolbar-items {
+  padding-block: var(--_s1) var(--_s1);
+}
+.atm-layout-tabs[data-atm-tab="preview"] .atm-preview {
+  min-height: var(--atm-min-height, 8rem);
+  background: transparent;
+}
+.atm-preview-empty {
+  margin: 0;
+  color: var(--atm-muted, #59636e);
+  font-style: italic;
+}
+
+/* ── compact ── */
+
+.atm-layout-compact .atm-surface-host,
+.atm-layout-compact .atm-surface-host > *,
+.atm-layout-compact .atm-markdown-host,
+.atm-layout-compact .atm-markdown {
+  min-height: var(--atm-min-height, 3rem);
+}
+.atm-layout-compact .atm-toolbar {
+  padding-block: var(--_s1);
+}
+.atm-layout-compact.atm-expanded .atm-toolbar-items {
+  flex-wrap: wrap;
+  overflow: visible;
+  row-gap: var(--_s1);
+}
+.atm-layout-compact:not(.atm-focused) .atm-toolbar {
+  background: transparent;
+}
+
+/* ── mobile and auto ── */
+
+.atm-layout-mobile {
+  --_ctl: var(--atm-control-size, 44px);
+}
+.atm-layout-mobile .atm-toolbar {
+  padding: var(--_s2);
+  background: var(--atm-bg, #fff);
+}
+.atm-layout-mobile .atm-statusbar {
+  display: none;
+}
+.atm-layout-mobile .atm-btn {
+  min-width: max(44px, var(--_ctl));
+  height: max(44px, var(--_ctl));
+}
+.atm-kb-open .atm-toolbar {
+  z-index: 950;
+  border-top: 1px solid var(--atm-border, #d0d7de);
+  border-radius: 0;
+  box-shadow: 0 -6px 18px -8px rgb(0 0 0 / 0.3);
+}
+.atm-kb-open .atm-body {
+  padding-bottom: var(--atm-kb-pad, 0);
+}
+/* Sheets: on a phone layout (or any touch screen) menus and chrome popovers come up from the bottom. */
+.atm-layout-mobile :is(.atm-menu, .atm-popover, [data-atm-sheet]):not(.atm-tooltip),
+.atm-layout-auto[data-atm-resolved="mobile"] :is(.atm-menu, .atm-popover, [data-atm-sheet]) {
+  position: fixed !important;
+  inset: auto 0 0 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  max-height: min(70vh, 32rem);
+  padding-top: 18px;
+  border-radius: 14px 14px 0 0;
+  animation: atm-sheet-in 0.22s var(--_ease);
+}
+.atm-layout-mobile :is(.atm-menu, .atm-popover, [data-atm-sheet])::before,
+.atm-layout-auto[data-atm-resolved="mobile"] :is(.atm-menu, .atm-popover, [data-atm-sheet])::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  inset-inline-start: calc(50% - 18px);
+  width: 36px;
+  height: 4px;
+  rotate: none;
+  border: 0;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--atm-fg, #1f2328) 25%, transparent);
+}
+.atm-layout-mobile .atm-menu-item,
+.atm-layout-auto[data-atm-resolved="mobile"] .atm-menu-item {
+  min-height: 44px;
+}
+
+/* ── dialogs: the palette and the shortcuts sheet ── */
+
+.atm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 990;
+  background: rgb(15 18 23 / 0.38);
+  backdrop-filter: blur(2px);
+  animation: atm-fade-in var(--_dur) var(--_ease);
+}
+.atm-dialog {
+  position: fixed;
+  top: min(14vh, 120px);
+  left: 50%;
+  z-index: 991;
+  display: flex;
+  flex-direction: column;
+  width: min(36rem, calc(100vw - 24px));
+  max-height: min(72vh, 40rem);
+  translate: -50% 0;
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: calc(var(--atm-r) + 4px);
+  box-shadow: var(--_e3);
+  font-size: var(--_t-md);
+  animation: atm-pop-in 0.16s var(--_ease);
+}
+.atm-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--_s3);
+  padding: var(--_s3) var(--_s3) 0 var(--_s5);
+}
+.atm-dialog-title {
+  margin: 0;
+  font-size: var(--_t-sm);
+  font-weight: 700;
+  color: var(--atm-muted, #59636e);
+  letter-spacing: 0.02em;
+}
+.atm-dialog-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--_s3) var(--_s3) var(--_s3);
+}
+.atm-palette-search {
+  display: flex;
+  align-items: center;
+  gap: var(--_s3);
+  margin: 0 0 var(--_s3);
+  padding: 0 var(--_s4);
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-r);
+  background: var(--atm-surface, #f6f8fa);
+  color: var(--atm-muted, #59636e);
+}
+.atm-palette-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--atm-fg, #1f2328);
+  font: inherit;
+  font-size: 1rem;
+}
+.atm-palette-search:focus-within {
+  border-color: var(--atm-ring, #2563eb);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--atm-ring, #2563eb) 22%, transparent);
+}
+/* The search box draws the ring for its input (focus-within above), so the input draws none. */
+.atm-palette-search .atm-palette-input:focus-visible {
+  outline: 0;
+}
+.atm-palette-list {
+  position: static;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  min-width: 0;
+  max-width: none;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  box-shadow: none;
+  animation: none;
+}
+@media (pointer: coarse) {
+  .atm-palette-list {
+    overflow-y: auto;
+  }
+}
+.atm-palette-head,
+.atm-menu-head {
+  padding: var(--_s3) var(--_s3) var(--_s2);
+  color: var(--atm-muted, #59636e);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.atm-palette-item {
+  display: flex;
+  align-items: center;
+  gap: var(--_s3);
+  min-height: 36px;
+  padding: var(--_s2) var(--_s3);
+  border-radius: calc(var(--atm-r) - 2px);
+  cursor: pointer;
+}
+.atm-palette-item[aria-selected="true"] {
+  background: var(--_on);
+  box-shadow: inset 2px 0 0 var(--atm-accent, #2563eb);
+}
+.atm-palette-icon {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  width: 20px;
+  color: var(--atm-muted, #59636e);
+}
+.atm-palette-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.atm-palette-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.atm-palette-cat {
+  color: var(--atm-muted, #59636e);
+  font-size: var(--_t-xs);
+}
+.atm-palette-empty {
+  padding: var(--_s5);
+  color: var(--atm-muted, #59636e);
+  text-align: center;
+}
+.atm-palette-foot {
+  padding: var(--_s3) var(--_s2) 0;
+  border-top: 1px solid color-mix(in srgb, var(--atm-border, #d0d7de) 70%, transparent);
+  margin-top: var(--_s2);
+  color: var(--atm-muted, #59636e);
+  font-size: var(--_t-xs);
+}
+.atm-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.atm-kbd {
+  display: inline-flex;
+  flex: none;
+  gap: 3px;
+}
+.atm-kbd kbd {
+  min-width: 1.6em;
+  padding: 1px 5px;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  font: 600 0.6875rem/1.5 var(--atm-font-family, ui-sans-serif, system-ui, sans-serif);
+  text-align: center;
+}
+.atm-shortcuts {
+  width: min(48rem, calc(100vw - 24px));
+}
+.atm-shortcuts-grid {
+  min-height: 0;
+  overflow: auto;
+  columns: 2 18rem;
+  column-gap: var(--_s6);
+  padding: 0 var(--_s2);
+}
+/* Padding, not a heading margin: a margin collapses at the top of one column and not the next,
+   which set the two columns' first headings 3px apart. */
+.atm-shortcuts-section {
+  break-inside: avoid;
+  padding: var(--_s2) 0 var(--_s4);
+}
+.atm-shortcuts-section h3 {
+  margin: 0 0 var(--_s2);
+  color: var(--atm-muted, #59636e);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.atm-shortcuts-list {
+  margin: 0;
+}
+.atm-shortcuts-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--_s3);
+  padding: 5px 0;
+  border-bottom: 1px dashed color-mix(in srgb, var(--atm-border, #d0d7de) 70%, transparent);
+}
+.atm-shortcuts-row dt {
+  min-width: 0;
+}
+.atm-shortcuts-row dd {
+  margin: 0;
+  white-space: nowrap;
+}
+.atm-dialog-close {
+  min-width: 30px;
+  height: 30px;
+}
+
+/* ── context menu ── */
+
+.atm-context-menu {
+  min-width: 14rem;
+  max-height: min(80vh, 34rem);
+}
+.atm-context-menu .atm-menu-item,
+.atm-chrome-pop .atm-menu-item {
+  justify-content: flex-start;
+}
+.atm-menu-item .atm-menu-label {
+  flex: 1 1 auto;
+}
+.atm-menu-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.atm-menu-sep {
+  height: 1px;
+  margin: var(--_s2) var(--_s2);
+  background: color-mix(in srgb, var(--atm-border, #d0d7de) 80%, transparent);
+}
+.atm-menu-danger {
+  color: var(--atm-danger, #b42318);
+}
+.atm-menu-danger .atm-menu-icon {
+  color: inherit;
+}
+.atm-menu-sub {
+  color: var(--atm-muted, #59636e);
+  font-size: 1rem;
+  line-height: 1;
+}
+.atm-menu-item:focus-visible {
+  outline-offset: -2px;
+}
+.atm-menu-item[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* No RTL flip for the "›" submenu mark: it is a bidi-mirrored character, so a right-to-left
+   line already draws it as "‹". Rotating it as well turned it back. */
+.atm-menu-swatch {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid color-mix(in srgb, var(--atm-fg, #1f2328) 25%, transparent);
+  border-radius: 4px;
+}
+
+/* ── settings popover ── */
+
+.atm-chrome-pop {
+  width: min(21rem, calc(100vw - 16px));
+  padding: var(--_s3);
+}
+.atm-chrome-pop .atm-dialog-head {
+  padding: 0 0 var(--_s2) var(--_s2);
+}
+.atm-chrome-pop .atm-dialog-body {
+  padding: var(--_s2);
+}
+.atm-settings-form .atm-check {
+  font-size: var(--_t-md);
+}
+.atm-settings-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--_s3);
+}
+.atm-chrome-pop select {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: calc(var(--atm-r) - 2px);
+  background: var(--atm-bg, #fff);
+  color: inherit;
+  font: inherit;
+}
+/* A rendered legend sits outside the fieldset's grid, so the three segments share one row.
+   The fieldset draws nothing; the segments draw the track. */
+.atm-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.atm-segmented legend {
+  margin-bottom: 4px;
+  padding: 0;
+}
+.atm-segment {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  border: 1px solid var(--atm-border, #d0d7de);
+  background: var(--atm-surface, #f6f8fa);
+  font-size: var(--_t-sm);
+  cursor: pointer;
+}
+.atm-segment + .atm-segment {
+  margin-inline-start: -1px;
+}
+.atm-segment:first-of-type {
+  border-start-start-radius: calc(var(--atm-r) - 2px);
+  border-end-start-radius: calc(var(--atm-r) - 2px);
+}
+.atm-segment:last-of-type {
+  border-start-end-radius: calc(var(--atm-r) - 2px);
+  border-end-end-radius: calc(var(--atm-r) - 2px);
+}
+.atm-segment input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.atm-segment:has(input:checked) {
+  z-index: 1;
+  border-color: var(--atm-accent, #2563eb);
+  background: color-mix(in srgb, var(--atm-accent, #2563eb) 12%, var(--atm-bg, #fff));
+  font-weight: 600;
+}
+
+/* ── status bar v2 ── */
+
+.atm-status-off {
+  display: none !important;
+}
+.atm-status-push {
+  margin-inline-start: auto;
+}
+.atm-status-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.atm-status-zoom-level {
+  min-width: 3.2em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.atm-status-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--_t-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.atm-status-btn:hover {
+  background: var(--_hover);
+  color: var(--atm-fg, #1f2328);
+}
+.atm-status-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.atm-status-save[data-state="saving"]::before,
+.atm-status-save[data-state="unsaved"]::before,
+.atm-status-save[data-state="saved"]::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-inline-end: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 1px;
+}
+.atm-status-save[data-state="unsaved"] {
+  color: var(--atm-warn, #9a6700);
+}
+.atm-statusbar > span {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── slash menu v2 ── */
+
+.atm-slash-pop {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: stretch;
+  max-width: calc(100vw - 16px);
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-r);
+  box-shadow: var(--_e3);
+  animation: atm-pop-in var(--_dur) var(--_ease);
+  overflow: hidden;
+}
+.atm-slash-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 16rem;
+  max-width: 22rem;
+}
+.atm-slash-pop .atm-menu {
+  position: static;
+  max-height: min(24rem, calc(100vh - 120px));
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+}
+.atm-slash-pop .atm-menu-item {
+  gap: var(--_s3);
+}
+.atm-slash-pop .atm-menu-icon {
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: 7px;
+  background: var(--atm-bg, #fff);
+}
+.atm-slash-pop .atm-menu-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.atm-slash-pop .atm-menu-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.atm-slash-crumb {
+  padding: var(--_s3) var(--_s4) 0;
+  color: var(--atm-muted, #59636e);
+  font-size: var(--_t-xs);
+  font-weight: 600;
+}
+.atm-slash-foot {
+  padding: 6px var(--_s4);
+  border-top: 1px solid color-mix(in srgb, var(--atm-border, #d0d7de) 70%, transparent);
+  color: var(--atm-muted, #59636e);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+.atm-slash-preview {
+  width: 15rem;
+  padding: var(--_s4);
+  overflow: hidden;
+  border-inline-start: 1px solid color-mix(in srgb, var(--atm-border, #d0d7de) 70%, transparent);
+  background: var(--atm-surface, #f6f8fa);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  pointer-events: none;
+}
+.atm-slash-preview > :first-child { margin-top: 0; }
+.atm-slash-preview > :last-child { margin-bottom: 0; }
+.atm-slash-preview h1 { font-size: 1.5em; margin: 0; }
+.atm-slash-preview h2 { font-size: 1.25em; margin: 0; }
+.atm-slash-preview h3 { font-size: 1.1em; margin: 0; }
+.atm-slash-preview pre { margin: 0; padding: 8px; border-radius: 6px; background: var(--atm-code-bg, #f6f8fa); font-size: 0.75rem; }
+.atm-slash-preview table { border-collapse: collapse; }
+.atm-slash-preview :is(td, th) { padding: 2px 8px; border: 1px solid var(--atm-border, #d0d7de); }
+.atm-slash-preview blockquote { margin: 0; padding-inline-start: 10px; border-inline-start: 3px solid var(--atm-border, #d0d7de); color: var(--atm-muted, #59636e); }
+.atm-slash-preview ul,
+.atm-slash-preview ol { margin: 0; padding-inline-start: 1.25em; }
+@media (max-width: 640px), (pointer: coarse) {
+  .atm-slash-preview { display: none; }
+}
+
+/* ── right to left: chrome mirrors (logical properties do most of it) ── */
+
+[dir="rtl"] .atm-chevron,
+[dir="rtl"] .atm-btn[data-id="undo"] svg,
+[dir="rtl"] .atm-btn[data-id="redo"] svg {
+  scale: -1 1;
+}
+/* Code reads left to right in every language: in a right-to-left editor it would otherwise
+   right-align and reorder its punctuation (";`!const greet"). */
+[dir="rtl"] .atm-surface pre {
+  direction: ltr;
+  text-align: left;
+}
+/* Markdown source: each line takes the direction of its own first letter. */
+[dir="rtl"] .atm-markdown {
+  unicode-bidi: plaintext;
+}
+/* A key combination reads left to right in every language ("Ctrl+B", never "B+Ctrl"). */
+.atm-kbd,
+.atm-menu-shortcut,
+.atm-tooltip-sc {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+/* A chip takes its direction from its own first letter, so "@Ada" keeps its "@" in front. */
+[dir="rtl"] .atm-surface .atm-chip {
+  unicode-bidi: plaintext;
+}
+[dir="rtl"] .atm-palette-item[aria-selected="true"] {
+  box-shadow: inset -2px 0 0 var(--atm-accent, #2563eb);
+}
+
 /* ───────────────────────────── user preferences ───────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -991,7 +2395,11 @@ img[data-atm-zoom]:focus-visible {
   .atm-popover,
   .atm-popover *,
   .atm-menu,
-  .atm-mention-menu {
+  .atm-mention-menu,
+  .atm-tooltip,
+  .atm-slash-pop,
+  .atm-backdrop,
+  .atm-dialog {
     transition: none !important;
     animation: none !important;
     scroll-behavior: auto !important;
@@ -1006,10 +2414,22 @@ img[data-atm-zoom]:focus-visible {
   .atm-menu,
   .atm-popover,
   .atm-mention-menu,
-  .atm-mode-switch {
+  .atm-mode-switch,
+  .atm-dialog,
+  .atm-slash-pop,
+  .atm-side {
     border-color: CanvasText;
     background: Canvas;
     color: CanvasText;
+  }
+  .atm-palette-item[aria-selected="true"],
+  .atm-side-link[aria-current],
+  .atm-ribbon-tab[aria-selected="true"],
+  .atm-tabs-tab[aria-selected="true"],
+  .atm-segment:has(input:checked) {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
   }
   .atm-btn {
     border-color: ButtonBorder;
@@ -1050,7 +2470,9 @@ img[data-atm-zoom]:focus-visible {
 @media print {
   .atm-toolbar,
   .atm-statusbar,
-  .atm-mode-switch {
+  .atm-mode-switch,
+  .atm-side,
+  .atm-side-toggles {
     display: none !important;
   }
   .atm {

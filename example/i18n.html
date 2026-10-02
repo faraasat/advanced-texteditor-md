@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md i18n</title>
+    <meta name="description" content="Label bundles for 13 languages, right-to-left text and a direction switch." />
+    <!-- The built library. Run `npm run build` first (see example/README.md). -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; }
+      @media (prefers-color-scheme: dark) { :root { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; } }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 64ch; }
+      .controls { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 0 0 12px; align-items: end; }
+      .controls label { display: grid; gap: 2px; font-size: 0.85rem; color: var(--page-muted); }
+      .controls select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--page-border); background: var(--page-card); color: var(--page-fg); min-width: 9rem; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      pre.out { margin: 0; max-height: 240px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Languages and right-to-left text</h1>
+      <p class="lead">
+        Pick a language to load its label bundle (<code>loadLabels</code>) and rebuild the editor with it. The direction
+        select drives <code>setDirection</code>. In <em>auto</em>, every paragraph, list, quote and table follows its own
+        first strong character. Parameters: <code>lang</code>, <code>dir</code> (auto, ltr, rtl), <code>perBlock=0</code>, <code>mode</code>, <code>value</code>.
+      </p>
+      <div class="controls">
+        <label>Language
+          <select id="lang" data-testid="lang"></select>
+        </label>
+        <label>Direction
+          <select id="dir" data-testid="dir">
+            <option value="auto">Auto (each block follows its text)</option>
+            <option value="ltr">Left to right</option>
+            <option value="rtl">Right to left</option>
+          </select>
+        </label>
+      </div>
+      <div id="editor-host" data-testid="editor-host"></div>
+      <section class="card" aria-labelledby="view-h">
+        <h2 id="view-h">Read-only view (renderDom)</h2>
+        <div id="view" data-testid="view"></div>
+      </section>
+      <section class="card" aria-labelledby="md-h">
+        <h2 id="md-h">Markdown (what is stored)</h2>
+        <pre class="out" id="output-md" tabindex="0"></pre>
+      </section>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import * as I from "../dist/i18n.js";
+
+      const q = new URLSearchParams(location.search);
+      const NAMES = { en: "English", es: "Español", fr: "Français", de: "Deutsch", pt: "Português", it: "Italiano", nl: "Nederlands", ru: "Русский", ja: "日本語", zh: "中文", ar: "العربية", hi: "हिन्दी", tr: "Türkçe" };
+      const DIRECTION_NAME = { en: "Text direction", ar: "اتجاه النص" };
+      const DOC = [
+        "# مستند ثنائي الاتجاه",
+        "",
+        "هذه فقرة عربية تتضمن كلمة English في وسطها.",
+        "",
+        "This is an English paragraph with a عربي word.",
+        "",
+        "- عنصر أول",
+        "- عنصر ثان",
+        "",
+        "> اقتباس بالعربية",
+        "",
+        "| Name | الاسم |",
+        "| --- | --- |",
+        "| a | ب |",
+        "",
+        "```js",
+        "const x = 1; // code stays left to right",
+        "```",
+        "",
+      ].join("\n");
+
+      const host = document.getElementById("editor-host");
+      const out = document.getElementById("output-md");
+      const view = document.getElementById("view");
+      const langSel = document.getElementById("lang");
+      const dirSel = document.getElementById("dir");
+      for (const code of I.LOCALES) langSel.add(new Option(`${NAMES[code]} (${code})`, code));
+      const initialLang = I.resolveLocale([q.get("lang") ?? "en"]);
+      langSel.value = initialLang;
+      dirSel.value = ["auto", "ltr", "rtl"].includes(q.get("dir")) ? q.get("dir") : "auto";
+
+      let editor = null;
+      let value = q.get("value") ?? DOC;
+      let plugin = null;
+
+      function paintView(md) {
+        view.textContent = "";
+        view.appendChild(lib.renderDom ? lib.renderDom(md, { postRender: [plugin.postRender] }) : document.createDocumentFragment());
+      }
+
+      async function build() {
+        const lang = langSel.value;
+        const labels = await I.loadLabels(lang);
+        if (editor) {
+          value = editor.getValue();
+          editor.destroy();
+        }
+        plugin = I.createBidiPlugin({ dir: dirSel.value, perBlock: q.get("perBlock") !== "0", labels: { direction: DIRECTION_NAME[lang] ?? DIRECTION_NAME.en } });
+        editor = lib.createEditor(host, {
+          value,
+          mode: q.get("mode") ?? "wysiwyg",
+          theme: "light",
+          labels,
+          plugins: [plugin],
+          minHeight: 220,
+          onChange: (md) => {
+            out.textContent = md;
+            paintView(md);
+          },
+        });
+        editor.on("plugin:i18n:direction", ({ dir }) => (dirSel.value = dir));
+        out.textContent = editor.getValue();
+        paintView(editor.getValue());
+        document.documentElement.lang = lang;
+        window.__editor = editor;
+      }
+      langSel.addEventListener("change", build);
+      dirSel.addEventListener("change", () => editor.exec("setDirection", dirSel.value));
+      window.__i18n = I;
+      window.__lib = lib;
+      await build();
+    </script>
+  </body>
+</html>

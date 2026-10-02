@@ -287,7 +287,7 @@ function codeBlock(b: Extract<BlockNode, { type: "codeBlock" }>, ai: boolean): s
   if (b.fence === "indent" && ai && b.code && lines[0].trim() && lines[lines.length - 1].trim()) {
     return lines.map((l) => (l ? "    " + l : "")).join("\n");
   }
-  const lang = b.lang.replace(/\s+/g, "");
+  const lang = b.lang.replace(/\s+/g, "") + (b.meta ? " " + b.meta.replace(/\s+/g, " ").trim() : "");
   const tilde = b.fence === "~~~" || lang.includes("`");
   let max = 0;
   for (const r of b.code.match(tilde ? /~+/g : /`+/g) ?? []) max = Math.max(max, r.length);

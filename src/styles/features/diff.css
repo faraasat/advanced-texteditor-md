@@ -1,0 +1,365 @@
+/*
+ * Compare view and version history (advanced-texteditor-md/diff).
+ *
+ * Tokens (all optional; each falls back to the editor's own tokens or a fixed value):
+ *   --atm-diff-ins-accent / --atm-diff-del-accent   the green and red of the markers and the tint
+ *   --atm-diff-ins-bg / --atm-diff-del-bg           background of inserted / deleted text and blocks
+ *   --atm-diff-ins-fg / --atm-diff-del-fg           text colour on those backgrounds
+ *   --atm-diff-gap                                  gap between the two columns
+ * The default backgrounds are a 20% tint of the accent over --atm-bg and the default text colour is
+ * --atm-fg, so every theme, light or dark, keeps its own text contrast (tested for each theme).
+ * Colour is never the only signal: insertions are underlined, deletions struck through, and both carry
+ * a hidden "Inserted:" / "Deleted:" prefix and a "+" / "-" marker on whole blocks.
+ */
+.atm-diff {
+  --atm-diff-ins-accent-v: var(--atm-diff-ins-accent, #1a7f37);
+  --atm-diff-del-accent-v: var(--atm-diff-del-accent, #cf222e);
+  --atm-diff-ins-bg-v: var(--atm-diff-ins-bg, color-mix(in srgb, var(--atm-diff-ins-accent-v) 20%, var(--atm-bg, #ffffff)));
+  --atm-diff-del-bg-v: var(--atm-diff-del-bg, color-mix(in srgb, var(--atm-diff-del-accent-v) 20%, var(--atm-bg, #ffffff)));
+  --atm-diff-ins-fg-v: var(--atm-diff-ins-fg, var(--atm-fg, #1f2328));
+  --atm-diff-del-fg-v: var(--atm-diff-del-fg, var(--atm-fg, #1f2328));
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-bg, #ffffff);
+  color: var(--atm-fg, #1f2328);
+  font-family: var(--atm-font-family, inherit);
+}
+.atm-diff *,
+.atm-diff *::before,
+.atm-diff *::after {
+  box-sizing: border-box;
+}
+.atm-diff-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* toolbar */
+.atm-diff-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--atm-border, #d0d7de);
+  background: var(--atm-surface, #f6f8fa);
+  color: var(--atm-fg, #1f2328);
+}
+.atm-diff-summary {
+  margin-inline-end: auto;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.atm-diff-btn {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  min-height: 2rem;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-bg, #ffffff);
+  color: var(--atm-fg, #1f2328);
+  cursor: pointer;
+}
+.atm-diff-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--atm-fg, #1f2328) 8%, var(--atm-bg, #ffffff));
+}
+.atm-diff-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.atm-diff-btn[aria-pressed="true"],
+.atm-diff-btn[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--atm-accent, #0969da);
+  border-color: transparent;
+  color: var(--atm-accent-fg, #ffffff);
+}
+.atm-diff-btn:focus-visible,
+.atm-diff-hunk:focus-visible {
+  outline: 2px solid var(--atm-ring, #0969da);
+  outline-offset: 2px;
+}
+
+/* body */
+.atm-diff-body {
+  padding: 0.5rem 0.75rem 0.75rem;
+  min-width: 0;
+}
+.atm-diff-heads,
+.atm-diff[data-mode="split"] .atm-diff-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: var(--atm-diff-gap, 0.75rem);
+}
+.atm-diff-colhead {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--atm-muted, #59636e);
+}
+.atm-diff-cell {
+  min-width: 0;
+}
+.atm-diff-content.atm-surface {
+  min-height: 0;
+  padding: 0.15rem 0.5rem;
+  background: transparent;
+  overflow-wrap: anywhere;
+}
+.atm-diff-content > :first-child {
+  margin-top: 0;
+}
+.atm-diff-content > :last-child {
+  margin-bottom: 0;
+}
+.atm-diff-empty {
+  margin: 0;
+  color: var(--atm-muted, #59636e);
+}
+
+/* a change */
+.atm-diff-hunk {
+  margin: 0.6rem 0;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-inline-start: 4px solid var(--atm-diff-ins-accent-v);
+  border-radius: var(--atm-radius, 6px);
+  min-width: 0;
+}
+.atm-diff-hunk[data-kind="delete"] {
+  border-inline-start-color: var(--atm-diff-del-accent-v);
+}
+.atm-diff-hunk[data-kind="modify"] {
+  border-inline-start-color: var(--atm-accent, #0969da);
+}
+.atm-diff-hunk[data-state="accepted"],
+.atm-diff-hunk[data-state="rejected"] {
+  border-style: dashed;
+  border-inline-start-style: solid;
+}
+.atm-diff-hunk-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  background: var(--atm-surface, #f6f8fa);
+  border-bottom: 1px solid var(--atm-border, #d0d7de);
+  font-size: 0.8rem;
+}
+.atm-diff-hunk-title {
+  font-weight: 700;
+}
+.atm-diff-state {
+  margin-inline-end: auto;
+  color: var(--atm-muted, #59636e);
+}
+.atm-diff-hunk-head .atm-diff-btn {
+  min-height: 1.75rem;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+}
+.atm-diff-hunk > .atm-diff-row,
+.atm-diff-hunk > .atm-diff-block {
+  padding: 0.25rem 0.5rem;
+}
+
+/* inserted and deleted text and blocks */
+.atm-diff-ins,
+.atm-diff-del {
+  border-radius: 2px;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+.atm-diff-ins {
+  background: var(--atm-diff-ins-bg-v);
+  color: var(--atm-diff-ins-fg-v);
+  text-decoration-line: underline;
+}
+.atm-diff-del {
+  background: var(--atm-diff-del-bg-v);
+  color: var(--atm-diff-del-fg-v);
+  text-decoration-line: line-through;
+}
+.atm-diff .atm-diff-block-ins,
+.atm-diff .atm-diff-block-del {
+  position: relative;
+  padding-inline-start: 1.5rem;
+  border-radius: 2px;
+}
+.atm-diff-block-ins {
+  background: var(--atm-diff-ins-bg-v);
+  color: var(--atm-diff-ins-fg-v);
+  border-inline-start: 3px solid var(--atm-diff-ins-accent-v);
+}
+.atm-diff-block-del {
+  background: var(--atm-diff-del-bg-v);
+  color: var(--atm-diff-del-fg-v);
+  border-inline-start: 3px solid var(--atm-diff-del-accent-v);
+  text-decoration-line: line-through;
+}
+.atm-diff-block-ins::before,
+.atm-diff-block-del::before {
+  position: absolute;
+  inset-inline-start: 0.4rem;
+  top: 0.2rem;
+  font-weight: 700;
+  font-family: var(--atm-font-mono, ui-monospace, monospace);
+  text-decoration: none;
+}
+.atm-diff-block-ins::before {
+  content: "+";
+  content: "+" / "";
+}
+.atm-diff-block-del::before {
+  content: "\2212";
+  content: "\2212" / "";
+}
+
+/* narrow: the two columns stack and name themselves */
+@media (max-width: 640px) {
+  .atm-diff-heads {
+    display: none;
+  }
+  .atm-diff[data-mode="split"] .atm-diff-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .atm-diff[data-mode="split"] .atm-diff-cell[role="group"]::before {
+    content: attr(aria-label);
+    display: block;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--atm-muted, #59636e);
+  }
+  .atm-diff[data-mode="split"] .atm-diff-cell[aria-hidden="true"] {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-diff,
+  .atm-diff * {
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* forced colours: backgrounds disappear, so the underline, strike-through, border and marker carry it */
+@media (forced-colors: active) {
+  .atm-diff-ins,
+  .atm-diff-del,
+  .atm-diff-block-ins,
+  .atm-diff-block-del {
+    background: transparent;
+    color: CanvasText;
+    forced-color-adjust: auto;
+  }
+  .atm-diff-ins {
+    text-decoration-line: underline;
+  }
+  .atm-diff-del {
+    text-decoration-line: line-through;
+  }
+  .atm-diff-block-ins,
+  .atm-diff-block-del {
+    border-inline-start-color: Highlight;
+  }
+  .atm-diff-hunk {
+    border-color: CanvasText;
+    border-inline-start-color: Highlight;
+  }
+  .atm-diff-btn {
+    border-color: ButtonText;
+  }
+  .atm-diff-btn[aria-pressed="true"] {
+    background: Highlight;
+    color: HighlightText;
+  }
+  .atm-diff-btn:focus-visible,
+  .atm-diff-hunk:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+/* print: no controls, no tinted backgrounds, the marks stay */
+@media print {
+  .atm-diff {
+    border-color: #000;
+    color: #000;
+    background: #fff;
+  }
+  .atm-diff-bar,
+  .atm-diff-hunk-head .atm-diff-btn,
+  .atm-history-head .atm-diff-btn {
+    display: none;
+  }
+  .atm-diff-ins,
+  .atm-diff-del,
+  .atm-diff-block-ins,
+  .atm-diff-block-del {
+    background: transparent;
+    color: #000;
+  }
+  .atm-diff-ins {
+    text-decoration-line: underline;
+  }
+  .atm-diff-del,
+  .atm-diff-block-del {
+    text-decoration-line: line-through;
+  }
+  .atm-diff-hunk,
+  .atm-diff-row {
+    break-inside: avoid;
+  }
+}
+
+/* version history panel */
+.atm-history-panel {
+  margin: 0.5rem 0 0;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-bg, #ffffff);
+  color: var(--atm-fg, #1f2328);
+  max-height: 70vh;
+  overflow: auto;
+}
+.atm-history-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--atm-surface, #f6f8fa);
+  border-bottom: 1px solid var(--atm-border, #d0d7de);
+}
+.atm-history-title {
+  margin-inline-end: auto;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.atm-history-panel > .atm-diff {
+  border: 0;
+  border-radius: 0;
+}
+@media print {
+  .atm-history-panel {
+    max-height: none;
+    overflow: visible;
+    border-color: #000;
+  }
+}

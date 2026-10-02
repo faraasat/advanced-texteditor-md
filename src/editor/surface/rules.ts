@@ -261,10 +261,10 @@ export function enterRule(ctx: Ctx): boolean {
   const text = inlineToText(domInline(leaf.childNodes, ctx.dtd));
   const raw = leaf.textContent ?? "";
   let m: RegExpExecArray | null;
-  if ((m = /^(```|~~~)[ \t]*([^`\s]*)[ \t]*$/.exec(raw)) && ctx.feature("codeBlocks")) {
+  if ((m = /^(```|~~~)[ \t]*([^`\s]*)([^`]*)$/.exec(raw)) && ctx.feature("codeBlocks")) {
     ctx.begin();
     ctx.snapshot();
-    const [pre] = ctx.blocks([{ type: "codeBlock", lang: m[2], code: "", fence: m[1] === "~~~" ? "~~~" : "```" }]);
+    const [pre] = ctx.blocks([{ type: "codeBlock", lang: m[2], code: "", fence: m[1] === "~~~" ? "~~~" : "```", meta: m[3].trim() || undefined }]);
     leaf.replaceWith(pre);
     caretAt(ctx, pre, 0);
     ctx.commit("rule");

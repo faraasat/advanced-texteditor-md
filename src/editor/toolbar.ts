@@ -2,11 +2,11 @@
  * Toolbar: built-in items, the ARIA toolbar widget (roving tabindex, menus,
  * overflow) and the Write/Markdown/Split mode switch.
  */
-import type { EditorInstance, EditorMode, EditorOptions, Slot, ToolbarItem } from "../types";
+import type { EditorInstance, EditorMode, EditorOptions, Slot, ToolbarGroupName, ToolbarItem } from "../types";
 import type { Labels } from "./i18n";
 import { DEFAULT_KEYMAP } from "./keymap";
 import { chunks } from "./lazy-chunks";
-import { coalesce, cx, detectPlatform, fmt, formatShortcut, h, iconFromString, uid, type Platform } from "./dom";
+import { coalesce, cx, detectPlatform, fmt, formatShortcut, h, iconFromString, type Platform } from "./dom";
 
 /* ───────────────────────────── icons ───────────────────────────── */
 
@@ -40,7 +40,8 @@ export const ICONS: Record<string, string> = {
 
 /* ───────────────────────────── items ───────────────────────────── */
 
-export type MenuEntry = { id: string; label: string; command: string; shortcut?: string };
+/** `args` is passed to `exec(command, args)`; `color` draws a swatch (colour items). */
+export type MenuEntry = { id: string; label: string; command: string; shortcut?: string; args?: unknown; color?: string };
 /** `host` is set for a custom-drawn item (`ToolbarItem.render`): the menu shows its live element instead of a button. */
 export type MenuRow = MenuEntry & { item?: ToolbarEntryItem; host?: HTMLElement };
 
@@ -50,6 +51,8 @@ export type ToolbarEntryItem = ToolbarItem & {
   toggle?: boolean;
   /** A dropdown of commands instead of a single action. */
   menu?: MenuEntry[];
+  /** The chevron half of a split button (drawn joined to the button before it). */
+  split?: boolean;
 };
 
 export type BuiltinOptions = {
@@ -58,17 +61,31 @@ export type BuiltinOptions = {
   upload?: { picker: boolean; enabled: boolean } | null;
   emoji?: boolean;
   keymap?: Record<string, string>;
+  /** `EditorOptions.icons`: replaces any built-in icon by id. */
+  icons?: Record<string, string>;
 };
 
-export const DEFAULT_ITEM_ORDER: string[] = [
-  "bold", "italic", "strike", "code", "|",
-  "heading", "|",
-  "bulletList", "orderedList", "taskList", "blockquote", "|",
-  "link", "image", "attach", "|",
-  "table", "codeBlock", "math", "rule", "|",
-  "emoji", "|",
-  "undo", "redo",
-];
+/**
+ * The named groups. A group name in `toolbar.items` expands to its ids; `toolbar.groups` (or a
+ * layout's preset) lists groups, with a separator between each. Plugin items go to the group named
+ * by their `group` field, or to "plugins".
+ */
+export const TOOLBAR_GROUPS: Record<ToolbarGroupName, string[]> = {
+  history: ["undo", "redo"],
+  text: ["bold", "italic", "strike", "code"],
+  blocks: ["heading", "|", "bulletList", "orderedList", "taskList", "blockquote"],
+  insert: ["link", "image", "attach", "|", "table", "codeBlock", "math", "rule", "|", "emoji"],
+  table: ["table"],
+  // Items whose `group` is "view" (palette, shortcuts and settings buttons are host or layout items).
+  view: [],
+  plugins: [],
+};
+
+/** `toolbar.groups` (or a layout preset) as an item order: each group's ids, a separator between groups. */
+export const groupOrder = (groups?: string[]): string[] | undefined => groups?.flatMap((g) => ["|", g]);
+
+/** The default toolbar: text | blocks | insert | history, then plugin items. */
+export const DEFAULT_GROUPS: ToolbarGroupName[] = ["text", "blocks", "insert", "history", "plugins"];
 
 /** Which feature flag removes a built-in. */
 const FEATURE_OF: Record<string, keyof NonNullable<EditorOptions["features"]>> = {
@@ -102,7 +119,7 @@ export function builtinToolbarItems(labels: Labels | Partial<Labels> = {}, opts:
   const item = (id: string, command = id, extra: Partial<ToolbarEntryItem> = {}): ToolbarEntryItem => ({
     id,
     label: label(id as keyof Labels, id),
-    icon: ICONS[id],
+    icon: opts.icons?.[id] ?? ICONS[id],
     shortcut: shortcutFor(command),
     command,
     ...extra,
@@ -149,28 +166,40 @@ export function defineToolbarItem<T extends ToolbarItem>(item: T): T {
   return item;
 }
 
-/** Resolve `ToolbarConfig.items` (or the default order) against the available items. */
+/**
+ * Resolve `ToolbarConfig.items` (or the default order) against the available items. Group names
+ * expand in place; inline definitions (objects) are used as they are; a "split" item becomes its
+ * button plus a chevron that opens its menu, and "dropdown" / "color" items get their menu rows.
+ */
 export function resolveToolbarItems(
-  order: (string | "|")[] | undefined,
+  order: (string | "|" | ToolbarItem)[] | undefined,
   available: ToolbarEntryItem[],
   extras: ToolbarEntryItem[],
+  more = "More",
 ): (ToolbarEntryItem | "|")[] {
   const byId = new Map<string, ToolbarEntryItem>();
   for (const it of [...available, ...extras]) byId.set(it.id, it);
-  const seq: string[] = order ?? [...DEFAULT_ITEM_ORDER, ...(extras.length ? ["|", ...extras.map((e) => e.id)] : [])];
+  const known = (g: string) => (TOOLBAR_GROUPS as Record<string, string[]>)[g];
+  const seq = (order ?? groupOrder(DEFAULT_GROUPS)!).flatMap((x) =>
+    typeof x === "string" && known(x)
+      ? [...known(x), ...extras.filter((e) => (e.group && known(e.group) ? e.group : "plugins") === x).map((e) => e.id)]
+      : [x],
+  );
   const out: (ToolbarEntryItem | "|")[] = [];
-  for (const id of seq) {
-    if (id === "|") {
+  for (const x of seq) {
+    if (x === "|") {
       if (out.length && out[out.length - 1] !== "|") out.push("|");
       continue;
     }
-    const it = byId.get(id);
-    if (it) {
-      out.push(it);
-      byId.delete(id); // an id appears once
-    }
+    const it = typeof x === "string" ? byId.get(x) : (x as ToolbarEntryItem);
+    if (!it) continue;
+    byId.delete(it.id); // an id appears once
+    const menu = (it.items ?? it.colors?.map((c) => (typeof c === "string" ? { label: c, value: c } : c)).map((c) => ({ label: c.label, command: it.command as string, args: c.value, color: c.value })))?.map((r, i) => ({ id: `${it.id}:${i}`, ...r }));
+    if (it.type === "split") out.push({ ...it, menu: undefined }, { ...it, id: `${it.id}:menu`, label: `${it.label} (${more})`, icon: ICONS.chevron, menu, split: true });
+    else out.push(menu && it.type !== "button" ? { ...it, menu } : it);
   }
   while (out[out.length - 1] === "|") out.pop();
+  while (out[0] === "|") out.shift();
   return out;
 }
 
@@ -193,6 +222,24 @@ export function computeOverflow(widths: number[], available: number, moreWidth: 
   return n;
 }
 
+/**
+ * Which entries go to the "more" menu when `widths` do not fit in `available`: the lowest
+ * `priorities` first and, among equals, the last first (so with no priorities the row is cut from
+ * its end, as `computeOverflow` does). Room for the "more" button is reserved once anything goes.
+ */
+export function overflowHidden(widths: number[], priorities: number[], available: number, moreWidth: number): boolean[] {
+  const hide = widths.map(() => false);
+  let total = widths.reduce((a, w) => a + w, 0);
+  if (total <= available) return hide;
+  total += moreWidth;
+  for (const i of widths.map((_, i) => i).sort((a, b) => priorities[a] - priorities[b] || b - a)) {
+    if (total <= available) break;
+    hide[i] = true;
+    total -= widths[i];
+  }
+  return hide;
+}
+
 /* ───────────────────────────── the widget ───────────────────────────── */
 
 export type ToolbarContext = {
@@ -208,9 +255,13 @@ export type ToolbarContext = {
   isReadOnly(): boolean;
   /** Does focus sit inside the editor? A pane without a selection reports `can() === false` for everything. */
   hasFocus(): boolean;
-  /** Run an item; `anchor` is the element to place popovers next to. */
-  run(item: ToolbarEntryItem, anchor: HTMLElement, command?: string): void;
+  /** Run an item; `anchor` is the element to place popovers next to; `args` go to `exec`. */
+  run(item: ToolbarEntryItem, anchor: HTMLElement, command?: string, args?: unknown): void;
   overflow: boolean;
+  /** `toolbar.labels`. */
+  labelMode?: "hover" | "always" | "never";
+  /** `EditorOptions.icons` (the More and chevron icons are looked up here too). */
+  icons?: Record<string, string>;
 };
 
 export type ToolbarHandle = {
@@ -243,9 +294,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     "aria-orientation": "horizontal",
     class: cx(`${p}-toolbar-items`, ctx.classes.toolbarGroup),
   });
-  const tooltip = h("div", { document: doc, class: `${p}-tooltip`, role: "tooltip", id: uid(`${p}-tip`), hidden: true });
   row.insertBefore(bar, row.firstChild);
-  row.appendChild(tooltip);
 
   const entries: Entry[] = [];
   const offs: (() => void)[] = [];
@@ -272,21 +321,24 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
       class: cx(cls("btn", "toolbarButton"), `${p}-btn-${it.id.replace(/[^a-z0-9_-]/gi, "-")}`),
       "data-id": it.id,
       "aria-label": it.label,
-      title: sc ? `${it.label} (${sc})` : it.label,
       tabindex: "-1",
     });
-    if (sc) btn.setAttribute("aria-keyshortcuts", shortcutToAria(it.shortcut!, platform));
+    if (sc) {
+      btn.setAttribute("aria-keyshortcuts", shortcutToAria(it.shortcut!, platform));
+      btn.setAttribute("data-sc", sc); // the tooltip's hint
+    }
     if (it.icon) btn.appendChild(iconFromString(doc, it.icon));
-    else btn.appendChild(doc.createTextNode(it.label));
+    if (!it.icon || ctx.labelMode === "always") btn.appendChild(h("span", { document: doc, class: `${p}-btn-label` }, it.label));
     if (it.menu) {
       btn.setAttribute("aria-haspopup", "menu");
       btn.setAttribute("aria-expanded", "false");
-      const chev = iconFromString(doc, ICONS.chevron);
+      if (it.split) return btn;
+      const chev = iconFromString(doc, ctx.icons?.chevron ?? ICONS.chevron);
       (chev as Element).setAttribute("class", `${p}-chevron`);
       (chev as Element).setAttribute("width", "12");
       (chev as Element).setAttribute("height", "12");
       btn.appendChild(chev);
-    } else if (it.toggle || it.isActive) {
+    } else if (it.toggle || it.isActive || it.type === "toggle") {
       btn.setAttribute("aria-pressed", "false");
     }
     return btn;
@@ -311,13 +363,12 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     class: cx(cls("btn", "toolbarButton"), `${p}-btn-more`),
     "data-id": "more",
     "aria-label": labels.moreItems,
-    title: labels.more,
     "aria-haspopup": "menu",
     "aria-expanded": "false",
     tabindex: "-1",
     hidden: true,
   });
-  moreBtn.appendChild(iconFromString(doc, ICONS.more));
+  moreBtn.appendChild(iconFromString(doc, ctx.icons?.more ?? ICONS.more));
   bar.appendChild(moreBtn);
 
   /* ── roving tabindex ── */
@@ -340,11 +391,13 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     const i = list.indexOf(t);
     if (i < 0) return;
     let n = -1;
-    if (e.key === "ArrowRight") n = (i + 1) % list.length;
-    else if (e.key === "ArrowLeft") n = (i - 1 + list.length) % list.length;
+    // Arrow keys follow the visual direction: in a right-to-left editor ArrowLeft moves forward.
+    const fwd = win?.getComputedStyle(bar).direction === "rtl" ? "ArrowLeft" : "ArrowRight";
+    if (e.key === fwd) n = (i + 1) % list.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowRight") n = (i - 1 + list.length) % list.length;
     else if (e.key === "Home") n = 0;
     else if (e.key === "End") n = list.length - 1;
-    else if (e.key === "Escape") hideTip();
+    else if (e.key === "Escape") tip(e);
     if (n >= 0) {
       e.preventDefault();
       list[n].focus();
@@ -352,29 +405,14 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
   });
   on(bar, "focusin", (e: FocusEvent) => {
     const t = e.target as HTMLElement;
-    if (buttons().includes(t)) {
-      setRover(t);
-      showTip(t);
-    }
+    if (buttons().includes(t)) setRover(t);
   });
-  on(bar, "focusout", () => hideTip());
+  // Tooltips (on focus at once, after 500 ms of a resting mouse) are the menu chunk's: these events
+  // only forward to it, and fetch it the first time one arrives.
+  for (const type of ["focusin", "focusout", "pointerover", "pointerout"]) on(bar, type, tip);
 
-  /* ── tooltips (keyboard focus; the native title covers hover) ── */
-
-  function showTip(btn: HTMLElement) {
-    const id = btn.getAttribute("data-id");
-    if (!id) return;
-    const entry = entries.find((e) => e.el === btn);
-    const it = entry?.item;
-    const sc = it ? shortcutText(it) : "";
-    tooltip.textContent = (btn.getAttribute("aria-label") ?? "") + (sc ? ` (${sc})` : "");
-    tooltip.hidden = false;
-    const left = btn.offsetLeft - bar.scrollLeft;
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${btn.offsetTop + btn.offsetHeight + 4}px`;
-  }
-  function hideTip() {
-    tooltip.hidden = true;
+  function tip(e: Event) {
+    if (ctx.labelMode !== "never") chunks.menu.use((m) => m.tipEvent(e, row, bar, p, buttons()));
   }
 
   /* ── clicks: never steal the editor selection ── */
@@ -385,7 +423,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
   on(bar, "click", (e: MouseEvent) => {
     const btn = (e.target as HTMLElement).closest("button") as HTMLElement | null;
     if (!btn || !bar.contains(btn)) return;
-    hideTip();
+    tip(e);
     if (btn === moreBtn) {
       toggleMenu(btn, overflowEntries(), true);
       return;
@@ -432,9 +470,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
       const handle = m.openToolbarMenu({ doc, row, anchor, rows, isMore, p, platform, ctx, cls, onClose: () => openMenuHandle === handle && (openMenuHandle = null) });
       openMenuHandle = handle;
     };
-    const c = chunks.menu.get();
-    if (c) go(c);
-    else chunks.menu.load().then(go, () => undefined);
+    chunks.menu.use(go);
   }
 
   /* ── refresh ── */
@@ -472,30 +508,39 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
   /* ── overflow ── */
 
   function relayoutNow() {
-    if (!ctx.overflow) return;
     for (const e of entries) {
       e.overflowed = false;
       e.el.hidden = false;
     }
     moreBtn.hidden = true;
+    // Read per call: a layout may turn overflow off while the editor has focus (compact).
+    if (!ctx.overflow) return setRover(rover);
     const avail = bar.clientWidth;
     if (!avail) {
       setRover(rover);
       return;
     }
-    const widths = entries.map((e) => e.el.offsetWidth);
-    const gap = 0;
+    // Each entry takes its box, its margins (separators have some) and the row's gap.
+    const px = (v?: string) => parseFloat(v ?? "") || 0;
+    const gap = px(win?.getComputedStyle(bar).columnGap);
+    const room = (el: HTMLElement) => {
+      const st = win?.getComputedStyle(el);
+      return el.offsetWidth + gap + px(st?.marginLeft) + px(st?.marginRight);
+    };
+    const widths = entries.map((e) => room(e.el));
     moreBtn.hidden = false;
-    const moreW = moreBtn.offsetWidth || 32;
+    const moreW = room(moreBtn) || 32;
     moreBtn.hidden = true;
-    let n = computeOverflow(widths, avail, moreW, gap);
-    if (n >= entries.length) {
+    // A separator shares the priority of the item before it, so a group's divider goes with it.
+    let last = 0;
+    const hide = overflowHidden(widths, entries.map((e) => (last = e.item ? (e.item.priority ?? 0) : last)), avail, moreW);
+    if (!hide.includes(true)) {
       setRover(rover);
       return;
     }
-    while (n > 0 && entries[n - 1].kind === "sep") n--;
     entries.forEach((e, i) => {
-      if (i >= n) {
+      // The chevron of a split button goes with its button.
+      if (hide[i] || (e.item?.split && entries[i - 1]?.overflowed)) {
         e.overflowed = true;
         e.el.hidden = true;
       }
@@ -504,7 +549,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     // Drop separators that now touch each other or the edges of the visible run.
     const vis = entries.filter((e) => !e.overflowed);
     vis.forEach((e, i) => {
-      if (e.kind === "sep" && (i === 0 || vis[i - 1].kind === "sep")) {
+      if (e.kind === "sep" && (i === 0 || i === vis.length - 1 || vis[i - 1].kind === "sep")) {
         e.el.hidden = true;
       }
     });
@@ -515,12 +560,16 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
   let ro: ResizeObserver | null = null;
   if (ctx.overflow && win && typeof win.ResizeObserver === "function") {
     ro = new win.ResizeObserver(() => relayoutCo.run());
-    ro.observe(row);
+    // The items box, not the row: a layout that adds a control beside it (focus, sidebar)
+    // narrows the box without resizing the row.
+    ro.observe(bar);
   }
 
   setRover(null);
   refreshNow();
-  relayoutNow();
+  // In the next frame (before it paints): the row's other controls (the mode switch, a layout's
+  // buttons) are added after the toolbar, and measuring now would count their room as free.
+  relayoutCo.run();
 
   return {
     el: bar,
@@ -535,7 +584,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
       for (const off of offs) off();
       offs.length = 0;
       bar.remove();
-      tooltip.remove();
+      row.querySelector(`.${p}-tooltip`)?.remove();
     },
   };
 }

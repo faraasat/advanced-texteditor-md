@@ -1,0 +1,10 @@
+export { diffArrays, diffArraysDetailed, DEFAULT_MAX_EDITS, DEFAULT_MAX_WORK } from "./myers";
+export type { DiffOp, DiffLimits, DiffResult } from "./myers";
+export { diffWords, tokenizeWords } from "./words";
+export type { WordDiff } from "./words";
+export { diffBlocks, mergeBlocks, normalizeMarkdown, splitBlocks, joinBlocks } from "./blocks";
+export type { BlockDiff, BlockRow, Hunk, Segment, Decision, DiffBlocksOptions, SplitDoc } from "./blocks";
+export { createDiffView, DEFAULT_DIFF_LABELS } from "./view";
+export type { DiffView, DiffViewOptions, DiffLabels, DiffSummary } from "./view";
+export { createHistoryStore, createHistoryPlugin, decodeHistory, encodeHistory, renderOptionsOf } from "./history";
+export type { HistoryStore, HistoryStoreOptions, HistoryStorage, HistoryPluginOptions, HistoryLabels, HistoryError, HistoryEnvelope, Snapshot, CompareOptions } from "./history";

@@ -1,0 +1,46 @@
+/*
+ * Bidirectional text (createBidiPlugin in advanced-texteditor-md/i18n).
+ *
+ * The plugin writes `data-atm-bidi` on the editing areas: "blocks" (every block follows its own
+ * first strong character), "auto", "ltr" or "rtl". In "blocks" mode the leaf blocks follow their
+ * text through the rule below; the plugin adds `dir="auto"` on top-level blocks and on the outermost
+ * list, quote or table so the BOX of a container (marker side, quote bar, column order) switches
+ * sides with its first strong character too.
+ *
+ * Without the plugin, put `data-atm-bidi="blocks"` on any rendered view (`.atm-preview`, a
+ * `renderHtml` wrapper) to get the same per-block direction from CSS alone.
+ */
+
+[data-atm-bidi="blocks"] :is(p, li, h1, h2, h3, h4, h5, h6, td, th, summary, dt, dd, figcaption) {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
+/* Code is always left to right, wherever the document's own direction points. */
+[data-atm-bidi] pre {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+[data-atm-bidi] :is(code, kbd, samp) {
+  unicode-bidi: isolate;
+}
+
+/*
+ * Right-to-left fixes for rules the editor writes with a physical side. `:dir()` follows the
+ * resolved direction of the element, including `dir="auto"`.
+ */
+[data-atm-bidi] blockquote:dir(rtl) {
+  padding-inline: 1em 0;
+}
+[data-atm-bidi] .atm-details > .atm-summary:dir(rtl) {
+  padding-inline: 1.5em 0;
+}
+[data-atm-bidi] .atm-details > .atm-summary:dir(rtl)::before {
+  left: auto;
+  right: 0.3em;
+  transform: rotate(135deg);
+}
+[data-atm-bidi] .atm-details[open] > .atm-summary:dir(rtl)::before {
+  transform: rotate(45deg);
+}

@@ -1,24 +1,10 @@
 import type { ThemeTokens } from "../types";
 
-export type ThemeInput = "light" | "dark" | "auto" | ThemeTokens;
+export type ThemeInput = "light" | "dark" | "auto" | (string & {}) | ThemeTokens;
 
-const TOKEN_VARS: Record<string, string> = {
-  bg: "--atm-bg",
-  fg: "--atm-fg",
-  muted: "--atm-muted",
-  border: "--atm-border",
-  ring: "--atm-ring",
-  accent: "--atm-accent",
-  accentFg: "--atm-accent-fg",
-  surface: "--atm-surface",
-  codeBg: "--atm-code-bg",
-  codeFg: "--atm-code-fg",
-  radius: "--atm-radius",
-  fontFamily: "--atm-font-family",
-  fontMono: "--atm-font-mono",
-  fontSize: "--atm-font-size",
-  lineHeight: "--atm-line-height",
-};
+/** The token names `ThemeTokens` allows; each maps to `--atm-<kebab-case>` (accentFg -> --atm-accent-fg). */
+const TOKENS = /* @__PURE__ */ "bg fg muted border ring accent accentFg surface codeBg codeFg radius fontFamily fontMono fontSize lineHeight".split(" ");
+const varOf = (k: string) => "--atm-" + k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
 
 /** A value that can sit inside a CSS custom property without ending the declaration. */
 function safeValue(v: string): boolean {
@@ -29,9 +15,7 @@ function safeValue(v: string): boolean {
 export function tokensToVars(tokens: ThemeTokens): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(tokens)) {
-    if (k === "palette" || typeof v !== "string" || !safeValue(v)) continue;
-    const name = TOKEN_VARS[k];
-    if (name) out[name] = v;
+    if (TOKENS.includes(k) && typeof v === "string" && safeValue(v)) out[varOf(k)] = v;
   }
   (tokens.palette ?? []).slice(0, 8).forEach((c, i) => {
     if (typeof c === "string" && safeValue(c)) out[`--atm-chip-${i + 1}`] = c;
@@ -40,7 +24,7 @@ export function tokensToVars(tokens: ThemeTokens): Record<string, string> {
 }
 
 // A function, not a constant built at load: a top-level expression with calls cannot be tree-shaken.
-const allVars = (): string[] => [...Object.values(TOKEN_VARS), ...Array.from({ length: 8 }, (_, i) => `--atm-chip-${i + 1}`)];
+const allVars = (): string[] => [...TOKENS.map(varOf), ...Array.from({ length: 8 }, (_, i) => `--atm-chip-${i + 1}`)];
 
 /**
  * Apply a theme to the editor root.

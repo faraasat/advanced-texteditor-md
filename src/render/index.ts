@@ -266,7 +266,7 @@ function toVN(doc: Doc, o: RenderOptions): VN[] {
         return [
           // A scrollable region must be keyboard-focusable (axe: scrollable-region-focusable), and a
           // focusable region needs a name.
-          el("pre", { class: k("pre", "codeBlock"), tabindex: "0", role: "region", "aria-label": (o.labels?.code || "Code") + (lang ? ` (${lang})` : "") }, [
+          el("pre", { class: k("pre", "codeBlock"), tabindex: "0", role: "region", "aria-label": (o.labels?.code || "Code") + (lang ? ` (${lang})` : ""), "data-meta": b.meta }, [
             el("code", { class: k("code") + (lang ? " language-" + lang : ""), "data-lang": lang || undefined }, [body]),
           ]),
         ];

@@ -1,0 +1,107 @@
+/*
+ * Diagrams (advanced-texteditor-md/diagrams): the diagram of a fenced block, in the editor (a
+ * not-content preview under the code) and in read-only views (instead of, or above, the code).
+ * Custom properties, each with a fallback:
+ *   --atm-diagrams-bg, --atm-diagrams-border, --atm-diagrams-fg, --atm-diagrams-muted,
+ *   --atm-diagrams-error, --atm-diagrams-radius, --atm-diagrams-pad, --atm-diagrams-gap,
+ *   --atm-diagrams-min-height, --atm-diagrams-ring, --atm-diagrams-preview-max-height
+ */
+.atm-diagram {
+  --_bg: var(--atm-diagrams-bg, var(--atm-surface, transparent));
+  --_border: var(--atm-diagrams-border, var(--atm-border, #d0d7de));
+  --_fg: var(--atm-diagrams-fg, var(--atm-fg, inherit));
+  --_muted: var(--atm-diagrams-muted, var(--atm-muted, #59636e));
+  --_error: var(--atm-diagrams-error, #b42318);
+  --_ring: var(--atm-diagrams-ring, var(--atm-accent, #0969da));
+  box-sizing: border-box;
+  margin: var(--atm-diagrams-gap, 0.75em) 0;
+  padding: var(--atm-diagrams-pad, 0.75rem);
+  border: 1px solid var(--_border);
+  border-radius: var(--atm-diagrams-radius, var(--atm-radius, 8px));
+  background: var(--_bg);
+  color: var(--_fg);
+  position: relative;
+}
+/*
+ * In the editor the previews live in a layer laid over the surface (never inside it), positioned
+ * under their code block by script; the block gets `--atm-diagram-reserve` of bottom margin to make
+ * room. The layer ignores the pointer; a preview takes it (links, tooltips) but not the focus.
+ */
+.atm-diagram-layer {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+  /* No z-index and no containment: with either, Chrome on Android no longer moves the caret on Home. */
+}
+.atm-diagram.atm-diagram--preview {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: 0;
+  max-height: var(--atm-diagrams-preview-max-height, 60vh);
+  overflow: auto;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+  will-change: transform;
+}
+.atm-surface pre.atm-diagram-host { margin-bottom: var(--atm-diagram-reserve, 0); }
+.atm-diagram__canvas {
+  min-height: var(--atm-diagrams-min-height, 2.5rem);
+  overflow: auto;
+  max-width: 100%;
+  text-align: center;
+}
+.atm-diagram__canvas[hidden] { display: none; }
+.atm-diagram__canvas > svg,
+.atm-diagram__canvas > img { max-width: 100%; height: auto; }
+.atm-diagram__frame { display: block; width: 100%; height: 240px; border: 0; background: transparent; }
+.atm-diagram__markup { display: inline-block; max-width: 100%; }
+.atm-diagram__status { margin: 0; font-size: 0.85em; color: var(--_muted); }
+.atm-diagram__status:empty { display: none; }
+.atm-diagram[data-state="error"] .atm-diagram__status { color: var(--_error); margin-top: 0.5em; white-space: pre-wrap; overflow-wrap: anywhere; }
+.atm-diagram[data-stale="true"] .atm-diagram__canvas { opacity: 0.55; filter: grayscale(0.6); }
+/* A loading state that needs no markup: a slim moving bar along the top edge. */
+.atm-diagram[data-state="loading"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--_ring), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: atm-diagram-load 1s linear infinite;
+}
+@keyframes atm-diagram-load { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+.atm-diagram__toggle {
+  margin-top: 0.5em;
+  font: inherit;
+  font-size: 0.85em;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--_border);
+  border-radius: 6px;
+  padding: 0.2em 0.6em;
+  cursor: pointer;
+}
+.atm-diagram__toggle:hover { background: color-mix(in srgb, var(--_ring) 10%, transparent); }
+.atm-diagram__toggle:focus-visible { outline: 2px solid var(--_ring); outline-offset: 2px; }
+pre[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-diagram[data-state="loading"]::before { animation: none; background-size: 100% 100%; opacity: 0.5; }
+}
+@media (forced-colors: active) {
+  .atm-diagram { border-color: CanvasText; background: Canvas; color: CanvasText; forced-color-adjust: none; }
+  .atm-diagram__toggle { border-color: ButtonText; color: ButtonText; background: ButtonFace; }
+  .atm-diagram__toggle:focus-visible { outline-color: Highlight; }
+  .atm-diagram[data-state="error"] .atm-diagram__status { color: CanvasText; }
+  .atm-diagram[data-state="loading"]::before { background: Highlight; animation: none; }
+}
+@media print {
+  .atm-diagram { break-inside: avoid; border-color: #999; background: #fff; color: #000; }
+  .atm-diagram__toggle { display: none; }
+  .atm-diagram-layer { display: none; }
+  .atm-surface pre.atm-diagram-host { margin-bottom: 0.75em !important; }
+}

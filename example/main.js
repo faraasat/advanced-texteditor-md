@@ -170,10 +170,25 @@ const highlighter = createHighlighter([javascript, python, sql, css, json]);
 const state = {
   layout: params.get("layout") || "classic",
   theme: params.get("theme") || "light",
+  density: params.get("density") || "comfortable",
+  labels: params.get("labels") || "hover",
+  rtl: params.get("dir") === "rtl",
+  richStatus: params.get("status") === "rich",
   readOnly: false,
   value: SAMPLE,
   mode: params.get("mode") || undefined,
 };
+// Settings and recent palette commands persist across reloads of the demo (the library's storage adapter).
+const storage = (() => {
+  try {
+    const k = "__atm_probe";
+    localStorage.setItem(k, "1");
+    localStorage.removeItem(k);
+    return localStorage;
+  } catch {
+    return undefined;
+  }
+})();
 let editor = null;
 
 const list = (s) => s.split(/[,\s]+/).map((x) => x.replace(/^\./, "").toLowerCase()).filter(Boolean);
@@ -201,15 +216,21 @@ function build() {
   $("layout-note").textContent = `Layout "${state.layout}", theme "${state.theme}".`;
   const maxKb = Number($("max-kb").value) || 2048;
 
+  $("editor-host").dir = state.rtl ? "rtl" : "";
   editor = createEditor($("editor-host"), {
     value: state.value,
     mode: state.mode,
     layout: state.layout,
     theme: state.theme,
+    density: state.density,
+    toolbar: { labels: state.labels },
+    statusBar: state.richStatus ? { items: ["words", "characters", "readingTime", "selection", "cursor", "count", "upload", "save", "zoom", "direction", "mode"] } : undefined,
+    settings: { storage, key: "atm-demo" },
+    layoutOptions: { sidebar: { outline: true, inspector: true }, focus: { typewriter: true } }, // dim: true fades the other paragraphs while typing (below AA by design, so off here)
     readOnly: state.readOnly,
     placeholder: "Write something, or type @ to mention and / for blocks…",
     minHeight: 220,
-    maxHeight: state.layout === "document" ? undefined : 520,
+    maxHeight: ["document", "sidebar", "focus", "ribbon"].includes(state.layout) ? undefined : 520,
     highlight: highlighter,
     plugins: [highlightMark, callout, kbd, subSup, today],
     // Declared up front so chips already in the document are coloured on load.
@@ -257,6 +278,31 @@ function build() {
 
 $("layout").value = state.layout;
 $("theme").value = state.theme;
+$("density").value = state.density;
+$("labels").value = state.labels;
+$("rtl").checked = state.rtl;
+$("rich-status").checked = state.richStatus;
+for (const [id, key] of [["density", "density"], ["labels", "labels"]])
+  $(id).addEventListener("change", (e) => {
+    state[key] = e.target.value;
+    build();
+  });
+$("rtl").addEventListener("change", (e) => {
+  state.rtl = e.target.checked;
+  build();
+});
+$("rich-status").addEventListener("change", (e) => {
+  state.richStatus = e.target.checked;
+  build();
+});
+// The palette, the shortcuts sheet, the settings popover and the context menu are commands.
+$("open-palette").addEventListener("click", () => editor.exec("palette"));
+$("open-shortcuts").addEventListener("click", () => editor.exec("shortcuts"));
+$("open-settings").addEventListener("click", (e) => editor.exec("settings", e.currentTarget));
+$("open-context").addEventListener("click", () => {
+  editor.focus();
+  editor.exec("contextMenu");
+});
 $("layout").addEventListener("change", (e) => {
   state.layout = e.target.value;
   state.mode = undefined;

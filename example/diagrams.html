@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md diagrams</title>
+    <meta name="description" content="Fenced blocks drawn by renderers the host registers: live preview, read-only views, sandboxed strings." />
+    <!-- The built library. Run `node scripts/build-example.mjs` first (see example/README.md). -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; }
+      @media (prefers-color-scheme: dark) { :root { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; } }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 64ch; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      pre.out { margin: 0; max-height: 240px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      kbd { font: 600 0.85em ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--page-border); border-bottom-width: 2px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Diagrams</h1>
+      <p class="lead">
+        <code>```mermaid</code>, <code>```chart</code> and <code>```tex</code> blocks are drawn by renderers this page registers (a tiny fake that
+        builds an SVG with <code>createElementNS</code>; no library, no network). Type <code>ERROR</code> in a block to make the renderer throw,
+        <code>SLOW</code> to make it take a second. URL parameters: <code>value</code>, <code>mode=replace|below</code>, <code>trust=1</code>,
+        <code>debounce</code>, <code>view=0</code>.
+      </p>
+      <div id="editor-host" data-testid="editor-host"></div>
+      <section class="card" aria-labelledby="md-h">
+        <h2 id="md-h">Markdown (what is stored)</h2>
+        <pre class="out" id="output-md" tabindex="0"></pre>
+      </section>
+      <section class="card" aria-labelledby="view-h">
+        <h2 id="view-h">Read-only view (renderDom + renderDiagrams)</h2>
+        <div id="view" data-testid="view"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import { createDiagramsPlugin, renderDiagrams } from "../dist/diagrams.js";
+
+      const q = new URLSearchParams(location.search);
+      const out = document.getElementById("output-md");
+      const NS = "http://www.w3.org/2000/svg";
+      window.__calls = [];
+
+      /** "A-->B" lines become two boxes and an arrow. Every box carries the text it was given. */
+      function draw(code, ctx, log = true) {
+        if (log) window.__calls.push({ lang: ctx.lang, code, theme: ctx.theme });
+        if (code.includes("ERROR")) throw new Error("Parse error on line 1: <b>unexpected</b> token");
+        const run = () => {
+          const names = [...new Set(code.split(/\n|-->/).map((s) => s.trim()).filter((s) => s && s !== "graph TD"))];
+          const svg = document.createElementNS(NS, "svg");
+          svg.setAttribute("viewBox", `0 0 ${Math.max(1, names.length) * 90} 50`);
+          svg.setAttribute("width", String(Math.max(1, names.length) * 90));
+          svg.setAttribute("height", "50");
+          names.forEach((n, i) => {
+            const r = document.createElementNS(NS, "rect");
+            r.setAttribute("x", String(i * 90 + 5)); r.setAttribute("y", "5"); r.setAttribute("width", "70"); r.setAttribute("height", "40"); r.setAttribute("rx", "6");
+            r.setAttribute("fill", ctx.theme === "dark" ? "#334155" : "#dbeafe"); r.setAttribute("stroke", "#2563eb");
+            const t = document.createElementNS(NS, "text");
+            t.setAttribute("x", String(i * 90 + 40)); t.setAttribute("y", "30"); t.setAttribute("text-anchor", "middle"); t.setAttribute("font-size", "12");
+            t.setAttribute("fill", ctx.theme === "dark" ? "#e6edf3" : "#1f2328");
+            t.textContent = n;
+            svg.append(r, t);
+          });
+          return svg;
+        };
+        return code.includes("SLOW") ? new Promise((res, rej) => {
+          const id = setTimeout(() => res(run()), 1000);
+          ctx.signal.addEventListener("abort", () => { clearTimeout(id); rej(new DOMException("aborted", "AbortError")); });
+        }) : run();
+      }
+
+      const plugin = createDiagramsPlugin({
+        renderers: {
+          mermaid: draw,
+          // A string: untrusted, so it is shown inside <iframe sandbox="">. With ?trust=1 it is parsed and stripped instead.
+          chart: (code) => `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" onload="window.__xss=1"><script>window.__xss=2<\/script><text x="4" y="24" font-size="14">chart: ${code.replace(/[<&]/g, "")}</text></svg>`,
+          tex: draw,
+        },
+        trust: q.get("trust") === "1" ? { chart: true } : false,
+        debounceMs: Number(q.get("debounce") ?? 120),
+        mode: q.get("mode") === "below" ? "below" : "replace",
+        frame: { height: 60 },
+      });
+
+      const initial = q.get("value") ?? "# Diagrams\n\nBefore.\n\n```mermaid title=\"Login flow\"\nUser-->Server-->DB\n```\n\nAfter the diagram.\n";
+      const view = document.getElementById("view");
+      const refreshView = (md) => {
+        if (q.get("view") === "0") return;
+        view.replaceChildren(lib.renderDom(md));
+        window.__view = renderDiagrams(view, { renderers: { mermaid: (c, x) => draw(c, x, false), chart: () => "<svg xmlns='http://www.w3.org/2000/svg' onload='window.__xss=3'></svg>", tex: (c, x) => draw(c, x, false) }, mode: q.get("mode") === "below" ? "below" : "replace", debounceMs: 0 });
+      };
+      const editor = lib.createEditor(document.getElementById("editor-host"), {
+        value: initial,
+        mode: q.get("mode2") ?? "wysiwyg",
+        theme: "light",
+        plugins: q.get("plugin") === "0" ? [] : [plugin],
+        minHeight: 220,
+        onChange: (md) => { out.textContent = md; refreshView(md); },
+      });
+      out.textContent = editor.getValue();
+      refreshView(editor.getValue());
+      window.__editor = editor;
+    </script>
+  </body>
+</html>

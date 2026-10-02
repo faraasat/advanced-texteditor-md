@@ -17,7 +17,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 const q = (root: HTMLElement, sel: string) => root.querySelector<HTMLElement>(sel);
-const names: LayoutName[] = ["classic", "minimal", "bubble", "bottom-bar", "split", "document"];
+const names: LayoutName[] = ["classic", "minimal", "bubble", "bottom-bar", "split", "document", "ribbon", "sidebar", "focus", "tabs", "compact", "mobile", "auto"];
 
 describe("layouts: shell", () => {
   for (const name of names) {

@@ -17,10 +17,10 @@ const nav = process.platform === "darwin" ? "Meta" : "Control";
 const wordLeft = process.platform === "darwin" ? "Shift+Alt+ArrowLeft" : "Shift+Control+ArrowLeft";
 /**
  * App shortcuts ("Mod-k"): which key is Mod depends on what the PAGE decided at load, and a device
- * profile can change navigator after that. The toolbar tooltips were built with the same detection
- * the keymap used, so ask them.
+ * profile can change navigator after that. The toolbar's aria-keyshortcuts were built with the same
+ * detection the keymap used, so ask them.
  */
-const appMod = async (page: Page) => ((await page.locator('#editor-host button[data-id="link"]').getAttribute("title"))?.includes("⌘") ? "Meta" : "Control");
+const appMod = async (page: Page) => ((await page.locator('#editor-host button[data-id="link"]').getAttribute("aria-keyshortcuts"))?.startsWith("Meta") ? "Meta" : "Control");
 
 async function open(page: Page, query = "") {
   const errors: string[] = [];
@@ -28,6 +28,8 @@ async function open(page: Page, query = "") {
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   await page.goto(`${URL}${query}`);
   await page.waitForFunction(() => !!(window as unknown as { __editor?: unknown }).__editor);
+  // The toolbar settles its overflow in the first frame; "is this button visible?" is asked after it.
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   return { errors };
 }
 const editable = (page: Page) => page.locator("#editor-host [contenteditable]").first();

@@ -4,7 +4,7 @@
  * Light is the default (on :root). The editor sets data-atm-theme on its root:
  *   light | dark   - fixed
  *   auto           - JS resolves prefers-color-scheme to light or dark
- * sepia, slate and contrast are examples of named themes: copy one, rename it,
+ * sepia, slate, contrast, ocean, forest and rose are named themes: copy one, rename it,
  * change the values. Any --atm-* variable can also be set on the page, on an
  * ancestor, or on the editor element; the closest declaration wins.
  *
@@ -218,6 +218,129 @@
   --atm-th-preview-embed-bg: #000000;
   --atm-th-preview-shadow: 0 0 0 2px #ffffff;
   color-scheme: dark;
+}
+
+/* ── added in chrome v2: ocean (dark), forest and rose (light). Each passes the same AA checks as the
+   themes above (test/editor/chrome-theme.test.ts). ── */
+
+/* ocean: deep navy and teal (dark) */
+[data-atm-theme="ocean"][data-atm-theme] {
+  --atm-bg: #0b1d2a;
+  --atm-fg: #e3f1f8;
+  --atm-muted: #9fbccc;
+  --atm-border: #24445a;
+  --atm-ring: #5ed1e8;
+  --atm-accent: #38c5df;
+  --atm-accent-fg: #04222b;
+  --atm-surface: #10283a;
+  --atm-code-bg: #081722;
+  --atm-code-fg: #e3f1f8;
+  --atm-danger: #ff9b9b;
+  --atm-warn: #ffd479;
+  --atm-shadow: 0 8px 24px rgb(0 10 20 / 0.55), 0 1px 3px rgb(0 10 20 / 0.45);
+  --atm-chip-1: #8ec5ff;
+  --atm-chip-2: #7fe3b0;
+  --atm-chip-3: #ffd479;
+  --atm-chip-4: #c9b5ff;
+  --atm-chip-5: #ff9fcf;
+  --atm-chip-6: #6fe7e0;
+  --atm-chip-7: #ff9e9e;
+  --atm-chip-8: #c6d4df;
+  --atm-mark-bg: #5c4b00;
+  --atm-mark-fg: #fff3c4;
+  --atm-callout-note: #8ec5ff;
+  --atm-callout-tip: #7fe3b0;
+  --atm-callout-warning: #ffd479;
+  --atm-th-preview-bg: #10283a;
+  --atm-th-preview-border: #24445a;
+  --atm-th-preview-fg: #e3f1f8;
+  --atm-th-preview-muted: #9fbccc;
+  --atm-th-preview-accent: #5ed1e8;
+  --atm-th-preview-skeleton: #1a3448;
+  --atm-th-preview-skeleton-hi: #234259;
+  --atm-th-preview-embed-bg: #081722;
+  --atm-th-preview-shadow: 0 8px 24px rgb(0 10 20 / 0.55);
+  color-scheme: dark;
+}
+
+/* forest: pale green paper (light) */
+[data-atm-theme="forest"][data-atm-theme] {
+  --atm-bg: #f5f8f3;
+  --atm-fg: #1c2a1f;
+  --atm-muted: #4c604f;
+  --atm-border: #c4d3c1;
+  --atm-ring: #2f6f3e;
+  --atm-accent: #2f6f3e;
+  --atm-accent-fg: #ffffff;
+  --atm-surface: #e8efe5;
+  --atm-code-bg: #e6eee3;
+  --atm-code-fg: #1c2a1f;
+  --atm-danger: #9b1c1c;
+  --atm-warn: #7a4a00;
+  --atm-shadow: 0 8px 24px rgb(28 42 31 / 0.16), 0 1px 3px rgb(28 42 31 / 0.12);
+  --atm-chip-1: #1a43c2;
+  --atm-chip-2: #166534;
+  --atm-chip-3: #92400e;
+  --atm-chip-4: #6d28d9;
+  --atm-chip-5: #9d174d;
+  --atm-chip-6: #115e59;
+  --atm-chip-7: #991b1b;
+  --atm-chip-8: #475569;
+  --atm-mark-bg: #f3e38a;
+  --atm-mark-fg: #1c2a1f;
+  --atm-callout-note: #1d4ed8;
+  --atm-callout-tip: #166534;
+  --atm-callout-warning: #92400e;
+  --atm-th-preview-bg: #fbfdfa;
+  --atm-th-preview-border: #c4d3c1;
+  --atm-th-preview-fg: #1c2a1f;
+  --atm-th-preview-muted: #4c604f;
+  --atm-th-preview-accent: #2f6f3e;
+  --atm-th-preview-skeleton: #e3ebe0;
+  --atm-th-preview-skeleton-hi: #f0f5ee;
+  --atm-th-preview-embed-bg: #e8efe5;
+  --atm-th-preview-shadow: 0 8px 24px rgb(28 42 31 / 0.16);
+  color-scheme: light;
+}
+
+/* rose: warm rose paper (light) */
+[data-atm-theme="rose"][data-atm-theme] {
+  --atm-bg: #fff7f8;
+  --atm-fg: #2d1b20;
+  --atm-muted: #6b4a53;
+  --atm-border: #ecd0d7;
+  --atm-ring: #b0305a;
+  --atm-accent: #b0305a;
+  --atm-accent-fg: #ffffff;
+  --atm-surface: #fbeaee;
+  --atm-code-bg: #f9e7eb;
+  --atm-code-fg: #2d1b20;
+  --atm-danger: #a11d1d;
+  --atm-warn: #7a4a00;
+  --atm-shadow: 0 8px 24px rgb(45 27 32 / 0.16), 0 1px 3px rgb(45 27 32 / 0.12);
+  --atm-chip-1: #1d4ed8;
+  --atm-chip-2: #166534;
+  --atm-chip-3: #92400e;
+  --atm-chip-4: #6d28d9;
+  --atm-chip-5: #9d174d;
+  --atm-chip-6: #115e59;
+  --atm-chip-7: #991b1b;
+  --atm-chip-8: #475569;
+  --atm-mark-bg: #ffe08a;
+  --atm-mark-fg: #2d1b20;
+  --atm-callout-note: #1d4ed8;
+  --atm-callout-tip: #166534;
+  --atm-callout-warning: #92400e;
+  --atm-th-preview-bg: #fffbfc;
+  --atm-th-preview-border: #ecd0d7;
+  --atm-th-preview-fg: #2d1b20;
+  --atm-th-preview-muted: #6b4a53;
+  --atm-th-preview-accent: #b0305a;
+  --atm-th-preview-skeleton: #f6dfe5;
+  --atm-th-preview-skeleton-hi: #fbeef1;
+  --atm-th-preview-embed-bg: #fbeaee;
+  --atm-th-preview-shadow: 0 8px 24px rgb(45 27 32 / 0.16);
+  color-scheme: light;
 }
 
 /* A bare surface (no chrome, no data-atm-theme anywhere) on a dark OS: the chrome resolves

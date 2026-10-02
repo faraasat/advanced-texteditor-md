@@ -1,0 +1,227 @@
+/*
+ * Code blocks v2 (advanced-texteditor-md/code-blocks). Everything here is presentation keyed on
+ * attributes the extension sets on <pre> (dom-to-doc reads none of them):
+ *   data-atm-code    a decorated block (fixed line height, so line bands and numbers line up)
+ *   data-atm-title   the file name (editor: drawn by ::after in the block's top strip)
+ *   data-atm-lines   "1\n2\n3": the line-number gutter, drawn by ::before (a float)
+ *   data-atm-bands   highlighted / diff lines: a background from --atm-code-bands (lh units)
+ *   .atm-code-wrapped  long lines wrap (gutter and bands are hidden: they cannot follow a wrap)
+ */
+pre[data-atm-code] {
+  --atm-code-pt: 0.75em;
+  padding-top: var(--atm-code-pt);
+  line-height: var(--atm-code-line-height, 1.45em);
+  tab-size: var(--atm-code-tab-size, 2);
+  -moz-tab-size: var(--atm-code-tab-size, 2);
+}
+pre[data-atm-code] > code {
+  line-height: inherit;
+}
+pre[data-atm-bands] {
+  background-image: var(--atm-code-bands);
+  background-attachment: local;
+  background-repeat: no-repeat;
+}
+pre[data-atm-lines]::before {
+  content: attr(data-atm-lines);
+  float: left;
+  min-width: 2ch;
+  margin-inline-end: 0.9em;
+  padding-inline-end: 0.6em;
+  border-inline-end: 1px solid var(--atm-code-gutter-border, var(--atm-border, #d0d7de));
+  color: var(--atm-code-gutter-fg, var(--atm-muted, #59636e));
+  font-family: var(--atm-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.875em;
+  text-align: right;
+  white-space: pre;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+pre.atm-code-wrapped,
+pre.atm-code-wrapped > code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+pre.atm-code-wrapped::before {
+  display: none;
+}
+pre.atm-code-wrapped[data-atm-bands] {
+  background-image: none;
+}
+
+/* The editor: the file name in a strip at the top of the block (the language badge moves into it). */
+.atm-surface pre[data-atm-title] {
+  --atm-code-pt: 2.3em;
+}
+.atm-surface pre[data-atm-title]::after {
+  content: attr(data-atm-title);
+  position: absolute;
+  top: 0.55em;
+  inset-inline-start: 1em;
+  inset-inline-end: 1em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 0.78em/1.3 var(--atm-font-mono, ui-monospace, monospace);
+  color: var(--atm-code-title-fg, var(--atm-fg, inherit));
+  pointer-events: none;
+  user-select: none;
+}
+.atm-surface pre[data-atm-title][data-lang]::after {
+  content: attr(data-atm-title) " \00B7 " attr(data-lang);
+}
+
+/* Views: a header row with the title, the language and a Copy button. */
+.atm-code {
+  margin: 0 0 0.75em;
+}
+.atm-code > pre {
+  margin: 0;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+.atm-code-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  min-height: 2.2em;
+  padding: 0.25em 0.5em 0.25em 1em;
+  border-start-start-radius: var(--atm-radius, 6px);
+  border-start-end-radius: var(--atm-radius, 6px);
+  border-bottom: 1px solid var(--atm-code-header-border, var(--atm-border, #d0d7de));
+  background: var(--atm-code-header-bg, var(--atm-code-bg, #f6f8fa));
+  color: var(--atm-code-header-fg, var(--atm-muted, #59636e));
+  font: 0.78em/1.3 var(--atm-font-mono, ui-monospace, monospace);
+}
+.atm-code-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--atm-code-title-fg, var(--atm-fg, #1f2328));
+  font-weight: 600;
+}
+.atm-code-lang {
+  margin-inline-start: auto;
+}
+.atm-code-title + .atm-code-lang {
+  margin-inline-start: 0;
+}
+.atm-code-title + .atm-code-lang::before {
+  content: "\00B7 ";
+}
+.atm-code-copy,
+.atm-code-bar-btn {
+  min-height: 1.9rem;
+  padding: 0.15em 0.6em;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: calc(var(--atm-radius, 6px) - 2px);
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  font: 0.85rem/1.2 var(--atm-font-family, inherit);
+  cursor: pointer;
+}
+.atm-code-copy {
+  margin-inline-start: auto;
+}
+.atm-code-lang + .atm-code-copy {
+  margin-inline-start: 0.4em;
+}
+.atm-code-copy:hover,
+.atm-code-bar-btn:hover {
+  background: var(--atm-surface, #f6f8fa);
+}
+.atm-code-copy:focus-visible,
+.atm-code-bar-btn:focus-visible,
+.atm-code-bar input:focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: 1px;
+}
+.atm-code-copy[data-state="copied"] {
+  color: var(--atm-code-ins-fg, var(--atm-callout-tip, #15803d));
+}
+.atm-code-bar-btn[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--atm-accent, #2563eb) 14%, var(--atm-bg, #fff));
+  border-color: var(--atm-accent, #2563eb);
+}
+
+/* The code bar (editor only): fixed above the block that holds the caret. */
+.atm-code-bar {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: calc(100vw - 16px);
+  padding: 0.3rem;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  box-shadow: var(--atm-shadow, 0 8px 24px rgb(31 35 40 / 0.16));
+}
+.atm-code-bar[hidden],
+.atm-code-bar [hidden] {
+  display: none;
+}
+.atm-code-bar input {
+  min-height: 1.9rem;
+  padding: 0.15em 0.45em;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: calc(var(--atm-radius, 6px) - 2px);
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  font: 0.85rem/1.2 var(--atm-font-mono, ui-monospace, monospace);
+}
+.atm-code-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ```diff: token colours (the line bands come from data-atm-bands). */
+.atm-tok-inserted {
+  color: var(--atm-code-ins-fg, var(--atm-callout-tip, #116329));
+}
+.atm-tok-deleted {
+  color: var(--atm-code-del-fg, var(--atm-danger, #b42318));
+}
+.atm-tok-meta {
+  color: var(--atm-code-meta-fg, var(--atm-accent, #2563eb));
+}
+.atm-tok-header {
+  font-weight: 600;
+}
+
+@media (forced-colors: active) {
+  pre[data-atm-bands] {
+    background-image: none;
+  }
+  .atm-code-bar,
+  .atm-code-header {
+    border: 1px solid CanvasText;
+  }
+}
+@media print {
+  .atm-code-bar,
+  .atm-code-copy {
+    display: none;
+  }
+  pre[data-atm-code] {
+    break-inside: avoid;
+  }
+  pre[data-atm-code],
+  pre[data-atm-code] > code {
+    white-space: pre-wrap;
+  }
+  pre[data-atm-code]::before {
+    display: none;
+  }
+}

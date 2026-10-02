@@ -114,3 +114,86 @@ const o = { syntax: { inline: [spoiler] } };
 const once = stringify(parse("a ||b|| c", o), o);
 console.assert(stringify(parse(once, o), o) === once);   // the fixed point
 ```
+
+## Syntax added by the feature subpaths
+
+What each feature subpath reads and writes. All of it is ordinary Markdown: a renderer that does not know a feature shows the text (or, for GitHub alerts, renders them itself).
+
+<!-- feature:alerts -->
+### GitHub alerts (`advanced-texteditor-md/alerts`)
+
+```md
+> [!NOTE]
+> Useful information.
+```
+
+The marker `[!KIND]` must start a quote's first line and be alone on it (GitHub's rule); `KIND` is matched case-insensitively and written back upper-case. It is the inline pattern syntax `alertSyntax(names)` (a `custom` node named `alert`, data `{ kind }`) with `serialize`, so its brackets are never escaped. A blockquote whose first paragraph begins with it is the alert. Unknown kinds stay literal text (and are escaped on save, like any `[...]`). GitHub renders the same Markdown as an alert; other renderers show a quote that begins with `[!NOTE]`.
+
+<!-- feature:code-blocks -->
+### Code-block info strings (`advanced-texteditor-md/code-blocks`)
+
+The core keeps everything after a fence's language as `codeBlock.meta` (verbatim; whitespace collapsed on save; a backtick in it makes the fence `~~~`). The code-blocks extension reads `title="x.ts"` / `title=x.ts` / `filename=`, `{1,3-5}`, `showLineNumbers[=N]` and `wrap`, and keeps every other token in order. A `{2}` written straight after the fence with no language is read as a range. Other renderers ignore the metadata (most use only the first word as the language).
+
+<!-- feature:tables -->
+### Tables (`advanced-texteditor-md/tables`)
+
+No new syntax: tables stay GFM pipe tables. Two conventions only. A table whose header row is empty (`|  |  |` above the delimiter row) is a headerless table (the "header off" state); GitHub and other GFM viewers show it with an empty header row, plain CommonMark shows the pipe text. Imported and pasted values are backslash-escaped (`\|`, `\*`, `\<`, `\[`, `\$`, `\&`, ...) so they read literally everywhere. Column widths and sort order are never stored.
+
+
+<!-- feature:diagrams -->
+### Diagrams (fenced code, no new syntax)
+
+The diagrams entry adds no syntax. A diagram is a plain fenced code block whose language the host registered a renderer for; the info string after the language is kept verbatim as the block's `meta` and read as `key="value"` pairs (`parseDiagramMeta`):
+
+````md
+```mermaid title="Login flow"
+graph TD
+  A --> B
+```
+````
+
+`title` names the diagram region for assistive technology. Other keys are passed to the renderer as `ctx.meta`. Everything round-trips unchanged (`stringify(parse(x))`), and any other Markdown renderer shows the code.
+
+
+<!-- feature:diff -->
+
+<!-- feature:export -->
+
+<!-- feature:chips -->
+### Chips written by `advanced-texteditor-md/chips`
+
+No new syntax: every chip the chips subpath writes is the core chip link, `[trigger+label](scheme:kind/id?k=v)`. Group
+mentions are chips of kind `group` (`[@team](mention:group/team)`); the presets use the schemes `tag`
+(`[#design](tag:design)`) and `channel` (`[\~general](channel:c1)`: the tilde is escaped because `~~` is strikethrough).
+Text written straight into the Markdown pane (a typeahead pick, a picker pick, a tag created on space) escapes the label
+exactly as `stringify` does: `\`, `[`, `]`, backtick, `*`, `~`, autolink-shaped `<`, entity-shaped `&`, `_` outside a word,
+`|` in a table row, `$` when the line holds another dollar, `http://` / `www.`, the openers of custom inline syntaxes, and a
+`!` right before the chip becomes `\!` so it is never an image. `stringify(parse(x)) === x` for that text.
+
+
+<!-- feature:blocks -->
+### Content blocks (`advanced-texteditor-md/blocks`)
+
+- **Columns**: two registered block syntaxes, `columns` and `col` (`COLUMNS_SYNTAX`). Optional data on the opener: `n=<1-6>` and `widths="<1 to 6 numbers up to 12>"` (other keys are kept and ignored). Canonical form (what `stringify` writes; the second column is empty):
+
+  ```md
+  ::: columns
+  ::: col
+  Left
+  :::
+
+  ::: col
+  :::
+  :::
+  ```
+
+  Every `:::` closes the nearest open container, which is why both names must be registered (an unregistered `::: col` would not be counted).
+- **Footnotes**: GFM's `[^label]` / `[^label]: text`, unchanged. Continuation paragraphs are indented four spaces.
+- **Date chips**: a chip link with the scheme `date` and an ISO calendar date as its id: `[2026-10-02](date:2026-10-02)`. The text in brackets is the label (the ISO date unless the author wrote another).
+- **File cards**: a plain link whose title is the file size: `[report.pdf](https://x/report.pdf "2.4 MB")`.
+- **Galleries** and **rule styles** add no syntax (a paragraph of images; `---`).
+
+<!-- feature:writing -->
+
+<!-- feature:i18n -->
+

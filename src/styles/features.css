@@ -1,0 +1,20 @@
+/*
+ * Stylesheets of the feature subpaths (alerts, code blocks, tables, diagrams, diff, export, chips,
+ * content blocks, writing aids, bidi). Each lives in ./features/<name>.css and is inlined into
+ * dist/style.css by scripts/copy-css.mjs, so a page that loads style.css styles every feature
+ * whether or not it uses it (the rules only match the classes those features emit).
+ *
+ * Rules for these files: colours are `var(--atm-<feature>-*, var(--atm-*, <fallback>))`, never a
+ * theme selector; nothing is keyed on a host class; print and forced-colors rules live beside the
+ * rule they adapt.
+ */
+@import "./features/alerts.css";
+@import "./features/code-blocks.css";
+@import "./features/tables.css";
+@import "./features/diagrams.css";
+@import "./features/diff.css";
+@import "./features/export.css";
+@import "./features/chips.css";
+@import "./features/blocks.css";
+@import "./features/writing.css";
+@import "./features/i18n.css";

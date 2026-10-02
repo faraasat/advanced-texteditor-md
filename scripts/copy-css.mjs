@@ -2,7 +2,7 @@
 //
 // style.css is ONE file with no @import: the entry (src/styles/style.css) says
 // what it needs, and this script inlines every `@import "./x.css"` it finds,
-// recursively, once per file. Order of the result: themes, surface, highlight,
+// recursively, once per file. Order of the result: themes, surface, highlight, link-preview, features,
 // chrome (the order of the @imports at the top of the entry). A file that does
 // not exist yet is skipped with a warning, so a partial checkout still builds.
 import { existsSync, mkdirSync, readFileSync, writeFileSync, cpSync } from "node:fs";
@@ -27,7 +27,7 @@ function inline(file) {
 }
 
 // The guaranteed order, even if the entry's @imports are edited: themes, surface, highlight first.
-const ordered = ["themes.css", "surface.css", "highlight.css", "link-preview.css"].map((f) => resolve(root, "src/styles", f));
+const ordered = ["themes.css", "surface.css", "highlight.css", "link-preview.css", "features.css"].map((f) => resolve(root, "src/styles", f));
 let out = "";
 for (const f of ordered) out += inline(f);
 out += inline(entry);

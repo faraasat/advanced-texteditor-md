@@ -1,0 +1,193 @@
+/* Writing aids (advanced-texteditor-md/writing): ghost text, selection actions, word goal, lint. */
+
+.atm-writing-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Ghost text: an overlay at the caret, never content. */
+.atm-ghost {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  color: var(--atm-writing-ghost, var(--atm-muted, #59636e));
+  /* The overlay sits over empty space after the caret; painting the surface colour keeps its contrast
+     defined whatever lies under it (a toolbar, a tinted block). */
+  background: var(--atm-writing-ghost-bg, var(--atm-bg, #fff));
+  user-select: none;
+}
+/* No fade-in: a half-transparent suggestion has no defined contrast while it fades (axe measured it). */
+
+/* Buttons of the panels, the menu and the lint popover. */
+.atm-writing-btn {
+  min-height: 2rem;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-bg, #fff);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.atm-writing-btn:hover {
+  border-color: var(--atm-writing-accent, var(--atm-accent, #2563eb));
+}
+.atm-writing-btn:focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: 1px;
+}
+
+/* Selection actions: the busy / result panel and the floating menu. */
+.atm-writing-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-top: 1px solid var(--atm-border, #d0d7de);
+  background: var(--atm-writing-panel-bg, var(--atm-surface, #f6f8fa));
+  color: var(--atm-fg, inherit);
+  font-size: 0.875rem;
+}
+.atm-writing-panel-msg {
+  flex: 1 1 12rem;
+}
+.atm-writing-panel[data-state="error"] .atm-writing-panel-msg {
+  color: var(--atm-writing-lint-error, #cf222e);
+}
+.atm-writing-result {
+  flex: 1 1 100%;
+  min-height: 3.5rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-bg, #fff);
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+.atm-writing-menu {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, inherit);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  font-size: 0.875rem;
+}
+
+/* Word goal. */
+.atm-writing-goal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+.atm-writing-goal-bar {
+  width: 5rem;
+  height: 0.5rem;
+  accent-color: var(--atm-writing-goal, var(--atm-accent, #2563eb));
+}
+.atm-writing-goal[data-reached="true"] .atm-writing-goal-bar {
+  accent-color: var(--atm-writing-goal-reached, #1a7f37);
+}
+.atm-writing-goal-badge {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 2;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: 999px;
+  background: var(--atm-bg, #fff);
+  color: var(--atm-muted, #59636e);
+  font-size: 0.75rem;
+}
+
+/* Lint: overlay squiggles (when the Highlight API is missing), the popover, the status item. */
+.atm-lint-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+.atm-lint-mark {
+  position: absolute;
+  border-bottom: 2px dotted var(--atm-writing-lint-warning, #bf8700);
+}
+.atm-lint-mark.atm-lint-error {
+  border-bottom-color: var(--atm-writing-lint-error, #cf222e);
+}
+.atm-lint-mark.atm-lint-info {
+  border-bottom-color: var(--atm-writing-lint-info, var(--atm-accent, #0969da));
+}
+.atm-lint-popover {
+  position: absolute;
+  z-index: 6;
+  max-width: min(22rem, calc(100% - 1rem));
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-left: 3px solid var(--atm-writing-lint-warning, #bf8700);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-bg, #fff);
+  color: var(--atm-fg, #1f2328);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  font-size: 0.875rem;
+}
+.atm-lint-popover.atm-lint-error {
+  border-left-color: var(--atm-writing-lint-error, #cf222e);
+}
+.atm-lint-popover.atm-lint-info {
+  border-left-color: var(--atm-writing-lint-info, var(--atm-accent, #0969da));
+}
+.atm-lint-msg {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.atm-lint-fixes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+.atm-writing-lint-status {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (forced-colors: active) {
+  .atm-ghost {
+    color: GrayText;
+  }
+  .atm-lint-mark {
+    border-bottom-color: Highlight;
+  }
+  .atm-lint-popover,
+  .atm-writing-menu {
+    border-color: CanvasText;
+  }
+}
+
+@media print {
+  .atm-ghost,
+  .atm-writing-menu,
+  .atm-writing-panel,
+  .atm-lint-overlay,
+  .atm-lint-popover,
+  .atm-writing-goal-badge {
+    display: none !important;
+  }
+}

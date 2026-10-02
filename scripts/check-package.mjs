@@ -38,12 +38,12 @@ const targets = [];
 const walk = (v) => (typeof v === "string" ? targets.push(v) : v && Object.values(v).forEach(walk));
 walk(pkg.exports);
 for (const e of entries) {
-  const base = e.startsWith("highlight/") ? "./highlight/*" : e === "index" ? "." : "./" + e;
+  const base = e.startsWith("highlight/") ? "./highlight/*" : e.startsWith("i18n/") ? "./i18n/*" : e === "index" ? "." : "./" + e;
   if (!pkg.exports[base]) fail(`tsup entry "${e}" has no "exports" key ${base}`);
 }
 for (const t of targets) {
   if (t.includes("*")) {
-    const sample = t.replace("*", "javascript");
+    const sample = t.replace("*", t.includes("/i18n/") ? "en" : "javascript");
     if (!existsSync(join(root, sample))) fail(`export target ${t} (checked ${sample}) is missing`);
   } else if (!existsSync(join(root, t))) fail(`export target ${t} is missing`);
 }
@@ -59,7 +59,7 @@ for (const cfg of ["tsconfig.bundler.json", "tsconfig.node16.json"]) {
 
 /* ── 3. load every JS subpath, ESM and CJS, with no DOM ── */
 const jsSubpaths = Object.keys(pkg.exports).filter((k) => !k.includes("*") && !/\.(css|json)$/.test(k));
-jsSubpaths.push("./highlight/javascript", "./highlight/python");
+jsSubpaths.push("./highlight/javascript", "./highlight/python", "./highlight/diff", "./i18n/en", "./i18n/ar");
 for (const sub of jsSubpaths) {
   const spec = pkg.name + sub.slice(1);
   const code = `

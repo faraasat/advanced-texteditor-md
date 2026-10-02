@@ -106,6 +106,16 @@ else is a subpath so you only pay for what you import.
 | `/embeds` | `BUILTIN_EMBEDS`, `defineEmbed`, `matchEmbed`, `createEmbedElement` |
 | `/lightbox` | `attachLightbox`, `LIGHTBOX_LABELS`: the accessible image viewer, for read-only pages rendered with `renderHtml` / `renderDom` |
 | `/plugins` | ready-made plugins: `highlightMark`, `callout`, `kbd`, `subSup`, and the feature plugins `createFindReplacePlugin`, `createDraftsPlugin`, `createTocPlugin`, `createTextStylePlugin`, `createSmartTypographyPlugin`, `createShortcodesPlugin`; `hydrateAll`; the `define*` helpers |
+| `/alerts` | `createAlertsPlugin`: GitHub alerts `> [!NOTE]` … `[!CAUTION]` and custom kinds, a `[!` completion list, slash items, a type switcher; `alertSyntax`, `findAlerts` |
+| `/code-blocks` | `createCodeBlocksPlugin`: `title="x.ts"`, `{1,3-5}`, `showLineNumbers`, `wrap` from the info string, a code bar (language, file name, Copy, Wrap, Format JSON), auto-indent, Tab indent, bracket pairing, view headers; `decorateCodeBlocks`, `parseCodeInfo`. `/highlight/diff` colours diffs |
+| `/tables` | `createTablesPlugin`: column resize (view only), sortable read-only tables, spreadsheet paste (TSV/HTML), CSV/TSV import, row and column moves, header toggle, alignment keys; `csvToTable` |
+| `/diagrams` | `createDiagramsPlugin`, `renderDiagrams`: fenced `mermaid` / `chart` / `tex` blocks drawn by YOUR renderers (none bundled), live preview, sandboxed string output |
+| `/diff` | `createDiffView`, `diffBlocks`, `diffWords`, `diffArrays`, `createHistoryStore`, `createHistoryPlugin`: compare two documents side by side or inline, accept / reject per change, version snapshots |
+| `/export` | `createExportPlugin`, `exportHtml` (fragment or standalone document): copy as Markdown / HTML / text / rich text, download `.md` / `.html`, print, import `.md` / `.txt` / `.html`, drop a Markdown file |
+| `/chips` | mentions and chips v2: hover cards, group mentions, `#tag` / channel / command presets, recent-and-frequent ranking, mentions in the Markdown pane, chip icons, removable and editable chips, a chip picker |
+| `/blocks` | `createContentBlocksPlugins`: `::: columns`, a footnote editor and back links, rule styles, `createShortcodes`, date chips `[2026-10-02](date:2026-10-02)`, file-attachment cards, image galleries |
+| `/writing` | host-driven writing aids: ghost-text suggestions, selection actions, spellcheck and language, a word goal and `readingStats`, lint squiggles with fixes |
+| `/i18n`, `/i18n/<lang>` | `loadLabels`, `resolveLocale`, `isRtl`, `createBidiPlugin`; label bundles for en, es, fr, de, pt, it, nl, ru, ja, zh, ar, hi, tr (each at most 1.5 kB gzip) |
 | `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
 
 Server-only use never needs the editor:
@@ -126,7 +136,8 @@ createEditor(el, {
   value: "",
   mode: "wysiwyg",              // "wysiwyg" | "markdown" | "split"
   allowModeSwitch: true,
-  layout: "classic",            // classic | minimal | bubble | bottom-bar | split | document, or a LayoutDefinition
+  layout: "classic",            // classic | minimal | bubble | bottom-bar | split | document | ribbon | sidebar
+                                // | focus | tabs | compact | mobile | auto, or a LayoutDefinition
   readOnly: false, disabled: false, autofocus: false,
   maxLength: 5000, minHeight: 160, maxHeight: 480,
   name: "body",                 // adds a hidden <input> so it works in a plain <form>
@@ -145,6 +156,20 @@ const e = createEditor(el, { layout: "bottom-bar", onSubmit: (md) => send(md) })
 
 A custom layout is `defineLayout({ name, build({ classes, mode }) { return regions; } })` (exported from the main entry).
 
+The layouts added in 0.x (each is a lazy chunk; the editor works, with the flat toolbar, while it downloads):
+
+| Layout | What it is | Options (`layoutOptions`) |
+|---|---|---|
+| `ribbon` | Office-style tabs (Home, Insert, Format, View) over grouped, labelled buttons; collapsible; icon-only under 640 px | `ribbon: { collapsed }` |
+| `sidebar` | A document page between an outline (headings, current one marked) and an inspector (stats, mentions, links, images); panels overlay under 720 px | `sidebar: { outline, inspector, side }` |
+| `focus` | Distraction-free: the chrome fades while you type, a Focus mode button (and `exec("focusMode")`) fills the window, Escape leaves, typewriter scrolling | `focus: { typewriter, dim }` |
+| `tabs` | Write / Preview / Markdown tabs over one pane | — |
+| `compact` | One short row; extra buttons sit in More until the editor has focus | — |
+| `mobile` | Toolbar pinned above the on-screen keyboard, menus as bottom sheets (swipe down to close) | — |
+| `auto` | `mobile` below a container width, `classic` above it | `auto: { breakpoint }` (640) |
+
+Every layout takes `classNames`, every theme, `dir="rtl"` and `prefers-reduced-motion`.
+
 ### Toolbar
 
 ```ts
@@ -158,6 +183,44 @@ createEditor(el, {
 `position: "none"` removes the toolbar; `"floating"` is the bubble. Add your own button through a plugin
 (`toolbar: [{ id, label, icon, command }]`) or `defineToolbarItem`. `builtinToolbarItems()` lists the defaults.
 
+The toolbar model: `items` mixes ids, `"|"`, **group names** and inline item objects; `groups` is a list of group names
+(`TOOLBAR_GROUPS`: `history`, `text`, `blocks`, `insert`, `table`, `view`, `plugins`; a plugin item joins its `group`).
+
+```ts
+createEditor(el, {
+  toolbar: {
+    groups: ["text", "blocks", "insert", "history"],   // or items: ["text", "|", "link", { id: "x", ... }]
+    labels: "hover",                                   // "hover" (tooltip) | "always" (text under icons) | "never"
+  },
+  icons: { bold: "<svg …>", more: "<svg …>" },          // override any built-in icon
+});
+defineToolbarItem({ id: "colour", label: "Colour", type: "color", command: "myColour", colors: ["#e11d48", "#2563eb"] });
+defineToolbarItem({ id: "h", label: "Heading", type: "split", command: "heading", items: [{ label: "H2", command: "heading", args: 2 }] });
+```
+
+Item `type`: `button` (default), `toggle`, `dropdown` (a menu of `items`), `split` (the button runs `command`, its chevron opens
+the menu) or `color` (swatches from `colors`; each swatch runs `command` with the colour as its argument); an item with
+`render` draws its own element. `priority` decides what goes to More first when the row is
+too narrow (lowest first, then the last). Tooltips show on focus at once and after 500 ms of hover, with the shortcut.
+
+### Command palette, context menu, shortcuts, settings, status bar
+
+- **Command palette** (Mod-Shift-P, `exec("palette")`): every command (toolbar, blocks, plugins, view) in categories, fuzzy
+  search over names and keywords, recent commands first (`commandPalette: { recent: 5 }`; `false` turns it off).
+- **Shortcuts sheet** (Mod-/, `exec("shortcuts")`): the live keymap, including yours and the plugins', with a filter.
+- **Context menu** (right-click, Shift+F10 or the ContextMenu key; Shift+right-click keeps the browser's): clipboard and
+  formatting for text, and the matching actions on a link, image, table cell, code block or chip, with a "Turn into"
+  submenu. `contextMenu: false` turns it off.
+- **Settings** (`exec("settings")`): density, text size, line width, spelling, line numbers in code, typewriter scrolling
+  and visible whitespace. `settings: { storage: localStorage, key: "atm-settings", defaults }` keeps them (and the
+  palette's recent list) between visits; any object with `getItem`/`setItem` works. Emits `settings:change`.
+- **Density**: `density: "compact" | "comfortable" | "spacious"` (also a setting).
+- **Status bar**: `statusBar: { items: ["words", "readingTime", "selection", "cursor", "save", "zoom", "direction", "modeSwitch"], wordsPerMinute: 230 }`
+  orders and picks the items; `exec("setSaveStatus", { state: "saving", text: "Saving…" })` fills the save slot.
+- **Slash menu**: sections, recently used items, descriptions and shortcuts, a preview column and nested choices (table size,
+  embed provider; ArrowRight opens, ArrowLeft goes back). Plugin slash items may set `group`, `description`, `shortcut`,
+  `preview` and `children`.
+
 ### Themes, tokens, Tailwind, classNames
 
 ```ts
@@ -169,8 +232,8 @@ createEditor(el, {
 editor.setTheme("dark");
 ```
 
-See [docs/THEMING.md](docs/THEMING.md) for every variable, the Tailwind bridge and the extra themes (`sepia`,
-`slate`, `contrast` through `data-atm-theme`).
+See [docs/THEMING.md](docs/THEMING.md) for every variable, the Tailwind bridge, density and the extra themes (`sepia`,
+`slate`, `contrast`, `ocean`, `forest` and `rose`, by name: `theme: "ocean"`), all checked against WCAG AA.
 
 ### Plugins and custom syntax
 
@@ -396,13 +459,18 @@ Gzip, after minification, measured 2026-10-02 (`npm run size`; the enforced figu
 | `render` | 13.1 kB | 14 kB |
 | `math` | 5.0 kB | 5 kB |
 | each `highlight/<lang>` | under 2 kB | 2 kB |
+| feature subpaths (`/alerts`, `/code-blocks`, `/tables`, `/diagrams`, `/chips`, `/blocks`, `/writing`, `/i18n`) | 2.8–13 kB each | 15 kB |
+| `/diff`, `/export` (they include the parser and renderer an editor page already loads) | about 25 kB | 28 kB |
+| each `i18n/<lang>` | 1.1–1.5 kB | 1.5 kB |
 
 Lazy chunks, downloaded on first use: `popovers` 5.1 kB (link, image, table and code-language dialogs), `slash` 2.9 kB,
 `mentions` 5.5 kB, `uploads` 3.1 kB, `markdown-pane` 7.0 kB (Markdown and split modes), `math` 5.0 kB, `paste` 7.0 kB
 (HTML paste conversion), `rich-links` 8.0 kB (only when `linkPreview` or `embeds` is set), `image-tools` 5.1 kB (when an
 image is selected), `table-tools` 2.9 kB (when the caret enters a table), `block-handles` 5.1 kB (on the first pointer move or
-Alt+Shift+H), `zoom` 2.1 kB (the lightbox, when read-only), `bubble` 0.5 kB and `toolbar-menu` 1.2 kB. Each of the last six has a
-12 kB budget. `/lightbox` on its own is 3.4 kB.
+Alt+Shift+H), `zoom` 2.1 kB (the lightbox, when read-only), `bubble` 0.5 kB and `toolbar-menu` 1.7 kB (dropdowns and
+tooltips). The chrome and layouts: `palette` 9.0 kB (palette and shortcuts sheet), `context-menu` 7.8 kB, `settings` 7.1 kB,
+`status-extra` 6.0 kB (only with `statusBar.items`), `ribbon` 10.5 kB, `sidebar` 8.7 kB, `focus` 7.2 kB, `tabs` 5.5 kB and
+`mobile` 1.3 kB (compact, mobile and auto). Each of these has a 12 kB budget. `/lightbox` on its own is 3.4 kB.
 
 Your bundler needs `import()` support (ESM builds split into chunks; CJS builds also use `import()`). A failed download
 leaves the editor working and is retried on the next use. To fetch everything up front (tests, kiosk screens, offline
@@ -437,6 +505,9 @@ what you do not import.
   keyboard-only pass (Tab in, type, slash menu, Tab out) in every theme and layout combination.
 - Image tools, block handles and the table toolbar are reachable from the keyboard (Alt+F10, Alt+Shift+H, Alt+Arrow), and
   task-list checkboxes have an accessible name in rendered output too.
+- The command palette is an ARIA combobox in a modal dialog; the context menu is `role="menu"` with arrow keys, typeahead and
+  a submenu; the ribbon is a `tablist` whose open panel is one `role="toolbar"` with a roving tab stop; the sidebar outline is a
+  `nav` whose current heading has `aria-current`. The axe matrix covers all of these, in every theme.
 
 ## FAQ
 

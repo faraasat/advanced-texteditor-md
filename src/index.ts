@@ -13,7 +13,7 @@ export { preloadChunks } from "./editor/lazy-chunks";
 export { DEFAULT_LABELS } from "./editor/i18n";
 export { defineLayout, LAYOUTS } from "./editor/layouts";
 export type { RuntimeLayout, LayoutHost, LayoutBuildContext } from "./editor/layouts";
-export { builtinToolbarItems, defineToolbarItem } from "./editor/toolbar";
+export { builtinToolbarItems, defineToolbarItem, TOOLBAR_GROUPS } from "./editor/toolbar";
 
 export { parse, stringify, walk, docToText } from "./parser";
 export type { StringifyOptions } from "./parser";

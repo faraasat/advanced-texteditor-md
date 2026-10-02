@@ -6,3 +6,6 @@ import { highlightMark } from "advanced-texteditor-md/plugins";
 import { htmlToMarkdown } from "advanced-texteditor-md/paste";
 import javascript from "advanced-texteditor-md/highlight/javascript";
 export const used = [createEditor, parse, texToMathML, BUILTIN_EMBEDS, highlightMark, htmlToMarkdown, javascript];
+import { createAlertsPlugin } from "advanced-texteditor-md/alerts";
+import en from "advanced-texteditor-md/i18n/en";
+export const usedFeatures = [createAlertsPlugin, en];

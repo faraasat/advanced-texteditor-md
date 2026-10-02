@@ -359,7 +359,10 @@ function blockOf(e: HTMLElement, x: X, out: BlockNode[], defs?: Map<string, Bloc
       const lang = e.getAttribute("data-lang") ?? code?.getAttribute("data-lang") ?? /(?:^|\s)language-(\S+)/.exec(code?.className ?? "")?.[1] ?? "";
       const f = e.getAttribute("data-fence");
       const fence = f === "~~~" || f === "indent" ? f : "```";
-      out.push({ type: "codeBlock", lang, code: codeText(e), fence });
+      const cb: Extract<BlockNode, { type: "codeBlock" }> = { type: "codeBlock", lang, code: codeText(e), fence };
+      const meta = e.getAttribute("data-meta");
+      if (meta) cb.meta = meta;
+      out.push(cb);
       return;
     }
     case "TABLE": {

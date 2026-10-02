@@ -318,7 +318,8 @@ function setCodeLanguage(s: MdState, lang: string): MdState | null {
   const f = fenceAround(lines, lineIndexAt(s.value, s.start));
   if (!f) return null;
   const m = FENCE_RE.exec(lines[f.open])!;
-  lines[f.open] = m[1] + m[2] + lang;
+  // Keep the info string's metadata (`title="a.ts" {1,3}`): only the language word is replaced.
+  lines[f.open] = m[1] + m[2] + lang + (/\s.*$/.exec(m[3].trim())?.[0] ?? "");
   return mk(lines.join("\n"), s.start, s.end);
 }
 
@@ -1097,3 +1098,6 @@ function rect(left: number, top: number, width: number, height: number, doc: Doc
   if (R) return new R(left, top, width, height);
   return { x: left, y: top, left, top, width, height, right: left + width, bottom: top + height, toJSON: () => ({}) } as DOMRect;
 }
+
+// The split preview's chip clicks: a split editor always has this chunk.
+export { previewChipClick } from "./chip-el";

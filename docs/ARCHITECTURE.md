@@ -62,7 +62,12 @@ src/
     history.ts        undo/redo
     keymap.ts toolbar.ts layouts.ts markdown-pane.ts status-bar.ts slash.ts
     lazy-chunks.ts markdown-proxy.ts lazy-math.ts uploads.ts rich-links.ts platform.ts
-    bubble.ts toolbar-menu.ts i18n-lazy.ts
+    bubble.ts toolbar-menu.ts i18n-lazy.ts mention-glue.ts chip-el.ts
+    chrome/           lazy chrome: palette (+ shortcuts sheet), context-menu, settings, status-extra, typewriter;
+                      catalogue.ts (every command, ranked by score/rankCommands), kit.ts (dialog, popover, kbd, storage)
+    layouts/          lazy layout chunks: ribbon, sidebar, focus, tabs, mobile (compact, mobile, auto)
+                      rule (chrome/ and layouts/): import only ../dom, ../render, ../i18n-lazy, ../../parser and each other;
+                      everything else (the editor, toolbar context, keymap, icons, commands) arrives through LayoutHost
     tools/            lazy editing tools: image-tools, table-tools, block-handles, zoom; kit.ts (buttons, menus, forms), types.ts (ToolHost)
                       rule: import only ../dom, ./kit and features/lightbox; surface internals arrive through ToolHost / surface.ctx.lib
   plugins/            definePlugin + ready-made plugins (highlightMark, callout, kbd, subSup, find-replace, drafts, toc, text-style, smart-typography, shortcodes, hydrateAll)
@@ -73,9 +78,12 @@ src/
 Subpath bundles (tree-shaking): `.` (editor) · `./parser` · `./render` · `./math` ·
 `./highlight` + `./highlight/<lang>` · `./uploaders` · `./plugins` · `./mentions` · `./paste` ·
 `./link-preview` · `./embeds` · `./lightbox` · `./style.css` · `./style.min.css` · `./plugins.css` · `./tailwind.css`.
+Feature subpaths (2026-10-02, `src/extensions/<name>/`, never imported by the editor entry; a test enforces it): `./alerts` · `./code-blocks` · `./tables` · `./diagrams` · `./diff` · `./export` · `./chips` · `./blocks` · `./writing` · `./i18n` + `./i18n/<lang>`, plus `./highlight/diff`. Their CSS is `src/styles/features/*.css`, inlined into `style.css`.
 
 Lazy chunks (`src/editor/lazy-chunks.ts`, loaded with `import()` on first use): popovers, slash, mentions,
-uploads, markdown-pane, math, paste, rich-links, image-tools, table-tools, block-handles, zoom, bubble, toolbar-menu. `preloadChunks()` loads them all. The editor entry loads none of
+uploads, markdown-pane, math, paste, rich-links, image-tools, table-tools, block-handles, zoom, bubble, toolbar-menu, and the
+chrome v2 chunks: palette, context-menu, settings, status-extra, ribbon, sidebar, focus, tabs, mobile. `chunks.<name>.use(fn)` runs
+`fn` now when the chunk is loaded and once it arrives otherwise (never, when it cannot load). `preloadChunks()` loads them all. The editor entry loads none of
 them statically (`scripts/size.mjs` checks it). See DECISIONS.md, "Size budget and lazy chunks".
 `./parser`, `./render`, `./math` and `./highlight` import NO DOM globals at module
 load and are server-safe. The editor reads `document` only when `createEditor` runs.

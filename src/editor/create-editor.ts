@@ -17,7 +17,6 @@ import type {
   InlineNode,
   InlineSyntax,
   LinkPolicy,
-  MentionItem,
   MentionOptions,
   Plugin,
   PostRenderContext,
@@ -31,22 +30,23 @@ import { parse, walk, docToText } from "../parser";
 import { renderDom, renderHtml } from "../render";
 import { createHighlighter } from "../highlight";
 import { chipHref } from "../parser/chip";
-import { chipDefOf, chipTable } from "../parser/util";
+import { chipTable } from "../parser/util";
 import type { MentionController } from "../features/mentions";
 import { createSurface as realCreateSurface } from "./surface";
 import { LazyMarkdownPane, warmMarkdownPane } from "./markdown-proxy";
 import { chunks } from "./lazy-chunks";
 import { createLazyMath } from "./lazy-math";
 import { detectSlash } from "./slash-detect";
-import { createKeymap, type Keymap } from "./keymap";
+import { DEFAULT_KEYMAP, createKeymap, type Keymap } from "./keymap";
 import { DEFAULT_LABELS, fmt, resolveLabels, type Labels } from "./i18n";
 import { applyTheme } from "./theme";
-import { fullClasses, resolveLayout, type LayoutHost, type RuntimeLayout } from "./layouts";
+import { fullClasses, lazyAttach, resolveLayout, type LayoutHost, type RuntimeLayout } from "./layouts";
 import {
   ICONS,
   builtinToolbarItems,
   createModeSwitch,
   createToolbar,
+  groupOrder,
   resolveToolbarItems,
   type ModeSwitchHandle,
   type ToolbarEntryItem,
@@ -54,9 +54,9 @@ import {
 } from "./toolbar";
 import { createStatusBar, type StatusBarHandle } from "./status-bar";
 import type { SlashMenu } from "./slash";
-import type { PopoverHandle, PopoverHost } from "./popovers";
+import type { PopoverEnv as PopEnv, PopoverHandle, PopoverHost } from "./popovers";
 import type { Tool, ToolHost } from "./tools/types";
-import { Emitter, SR_ONLY, coalesce, cx, detectPlatform, emojiShortcut, h, schedule } from "./dom";
+import { Emitter, SR_ONLY, coalesce, cx, detectPlatform, h, schedule } from "./dom";
 
 export { DEFAULT_LABELS };
 
@@ -297,8 +297,6 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   // Live region + toast
   const live = h("div", { document: doc, class: `${PREFIX}-live`, role: "status", "aria-live": "polite", "aria-atomic": "true", style: SR_ONLY });
   root.appendChild(live);
-  let toastEl: HTMLElement | null = null;
-  let toastTimer: ReturnType<typeof setTimeout> | null = null;
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const later = (fn: () => void, ms: number): ReturnType<typeof setTimeout> => {
     const id = setTimeout(() => {
@@ -315,21 +313,13 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       if (!destroyed) live.textContent = msg;
     }, 30);
   };
+  // The toast is drawn by the popovers chunk (a toolbar click or an upload has usually fetched it);
+  // when it cannot load, the message is still announced.
   const toast = (msg: string, kind: "info" | "error" = "info") => {
-    if (!toastEl) {
-      toastEl = h("div", { document: doc, class: `${PREFIX}-toast`, role: "status", "aria-live": "polite" });
-      root.appendChild(toastEl);
-    }
-    toastEl.textContent = msg;
-    toastEl.setAttribute("data-kind", kind);
-    toastEl.hidden = false;
-    if (toastTimer) {
-      clearTimeout(toastTimer);
-      timers.delete(toastTimer);
-    }
-    toastTimer = later(() => {
-      if (toastEl) toastEl.hidden = true;
-    }, 5000);
+    const go = (m: typeof import("./popovers")) => void (destroyed || m.toast(root, PREFIX, msg, kind, later));
+    const m = chunks.popovers.get();
+    if (m) go(m);
+    else chunks.popovers.load().then(go, () => announce(msg));
   };
 
   // Hidden form field
@@ -362,13 +352,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
         linkPreview: options.linkPreview,
         embeds: options.embeds ?? [],
         links: options.links,
-        labels: {
-          embedActions: labels.embedActions,
-          embedConvert: labels.embedConvert,
-          embedOpen: labels.embedOpen,
-          openOriginal: labels.openOriginal,
-          previewLoading: labels.previewLoading,
-        },
+        labels,
         previewPane: regions.previewPane,
         renderBlocks: (b) => surface!.ctx!.blocks(b),
         notifyEdit: () => surface?.editable.dispatchEvent(new (win.InputEvent ?? win.Event)("input", { bubbles: true, inputType: "insertReplacementText" } as InputEventInit)),
@@ -376,12 +360,8 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       if (surface) rich.attachSurface(surface.editable);
       if (mode === "split") rich.previewRendered();
     };
-    const cached = chunks.rich.get();
-    if (cached) make(cached);
-    else
-      chunks.rich.load().then(make, () => {
-        /* offline or blocked chunk: cards and embed toolbars are an enhancement, the text is intact */
-      });
+    // Offline or blocked chunk: cards and embed toolbars are an enhancement, the text is intact.
+    chunks.rich.use(make);
   }
 
   /* ── panes ── */
@@ -404,7 +384,8 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     for (const cb of Array.from(layoutUpdates)) cb();
   };
 
-  const keymap: Record<string, string> = { ...pluginKeymap, ...(options.keymap ?? {}) };
+  // The palette and the shortcuts sheet sit under every other binding (plugins and the host win).
+  const keymap: Record<string, string> = { ...(options.commandPalette !== false && { "Mod-Shift-p": "palette", "Mod-/": "shortcuts" }), ...pluginKeymap, ...(options.keymap ?? {}) };
 
   // Shortcuts that resolve to a command the chrome owns (the link/math popovers, plugin and host
   // commands) are run here, because a surface would otherwise run its own built-in of the same name.
@@ -434,6 +415,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     handlesOn && ev.altKey && ev.shiftKey && ev.code === "KeyH" ? (quiet(tool("handles").then((t) => t.focus?.())), true) : false;
   const onKeyDown = (ev: KeyboardEvent): boolean =>
     (ev.key === "Escape" && slashLoading && (slashDismissed = true), false) ||
+    ((ev.key === "ContextMenu" || (ev.shiftKey && ev.key === "F10")) && openChrome("contextMenu")) ||
     !!mentionCtl?.handleKeyDown(ev) || !!slash?.handleKeyDown(ev) || !!layout.onKeyDown?.(ev, layoutHost) || pluginKeydown(ev) || handleKey(ev) || routeShortcut(ev);
   // Plugin hooks do not re-enter: an edit a hook makes does not call the hooks again.
   let inAfterInput = false;
@@ -505,49 +487,14 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   }
 
   function attachSurfaceMenus(s: Surface) {
-    if (mentionOpts.length) {
-      const wrapped = mentionOpts.map((o) => ({
-        ...o,
-        search: (q: string, ctx: { signal: AbortSignal }) => {
-          const r = o.search(q, ctx);
-          if (r && typeof (r as Promise<MentionItem[]>).then === "function") return (r as Promise<MentionItem[]>).then((items) => (learn(o, items), items));
-          learn(o, r as MentionItem[]);
-          return r;
-        },
-      }));
-      // The typeahead is a lazy chunk, fetched when the editor is created with `mentions`.
-      const make = (m: typeof import("../features/mentions")) => {
-          if (destroyed || surface !== s || mentionCtl) return;
-          mentionCtl = m.createMentionController({
-            root: s.editable,
-            options: wrapped,
-            document: doc,
-            labels: { noResults: labels.noResults, searching: labels.searching },
-            classes: { menu: classes.menu, menuItem: classes.menuItem, menuItemActive: classes.menuItemActive },
-            getRect: () => s.getCaretRect() ?? zeroRect(),
-            onPick: (item, index, range) => {
-              const o = mentionOpts[index];
-              learn(o, [item]);
-              const chip: Omit<Chip, "type"> = {
-                scheme: o.scheme ?? "mention",
-                kind: item.kind ?? "",
-                id: item.id,
-                label: item.label,
-                trigger: o.trigger ?? "@",
-              };
-              if (item.refs && Object.keys(item.refs).length) chip.attrs = { ...item.refs };
-              s.replaceRangeWithChip(range, chip);
-            },
-          });
-          mentionCtl.notifyInput(); // the user may already have typed the trigger
-      };
-      const cached = chunks.mentions.get();
-      if (cached) make(cached);
-      else
-        chunks.mentions.load().then(make, () => {
-          /* offline: no typeahead, typing and every chip already in the text are unaffected */
-        });
-    }
+    if (!mentionOpts.length) return;
+    // The typeahead is a lazy chunk, fetched when the editor is created with `mentions`.
+    const make = (m: typeof import("./mention-glue")) => {
+      if (destroyed || surface !== s || mentionCtl) return;
+      mentionCtl = m.attachMentions({ doc, surface: s, options: mentionOpts, labels: { noResults: labels.noResults, searching: labels.searching }, classes, chipDefs, hostKinds });
+    };
+    // Offline: no typeahead; typing and every chip already in the text are unaffected.
+    chunks.mentions.use(make);
   }
 
   /**
@@ -565,23 +512,16 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     if (!detectSlash((n as Text).data.slice(0, sel!.anchorOffset))) return;
     const s = surface;
     const make = (m: typeof import("./slash")) => {
-        if (destroyed || surface !== s || slash) return;
-        slashItems = [...m.builtinSlashItems(labels, features, { images: true, icons: ICONS }), ...pluginSlash];
-        slash = m.createSlashMenu({
-          doc,
-          editable: s.editable,
-          root,
-          prefix: PREFIX,
-          labels,
-          classes,
-          editor: api,
-          getItems: () => slashItems,
-          getRect: () => s.getCaretRect(),
-          notifyEdit: () => s.editable.dispatchEvent(new (win.InputEvent ?? win.Event)("input", { bubbles: true, inputType: "deleteContentBackward" } as InputEventInit)),
-          detect: detectSlash,
-        });
-        if (!slashDismissed) slash.notifyInput();
-        slashDismissed = false;
+      if (destroyed || surface !== s || slash) return;
+      slash = m.createSlashMenu({
+        host: layoutHost,
+        editable: s.editable,
+        extra: pluginSlash,
+        notifyEdit: () => s.editable.dispatchEvent(new (win.InputEvent ?? win.Event)("input", { bubbles: true, inputType: "deleteContentBackward" } as InputEventInit)),
+        detect: detectSlash,
+      });
+      if (!slashDismissed) slash.notifyInput();
+      slashDismissed = false;
     };
     const cached = chunks.slash.get();
     if (cached) return make(cached);
@@ -589,24 +529,6 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     chunks.slash.load().then(make, () => {
       slashLoading = false; // offline: "/" stays text; the next "/" tries again
     });
-  }
-
-  /**
-   * Chip colour and badge are per (scheme, kind): the chip definition's `kinds`
-   * entry. A mention item that carries `color`/`badge` teaches the editor that
-   * style the first time it is seen, unless the host declared that kind itself.
-   */
-  function learn(o: MentionOptions, items: MentionItem[]) {
-    const scheme = o.scheme ?? "mention";
-    for (const it of items ?? []) {
-      if (it.color === undefined && !it.badge) continue;
-      const kind = it.kind ?? "";
-      const key = `${scheme}\0${kind}`;
-      if (hostKinds.has(key)) continue;
-      const def = (chipDefs[scheme] ??= { scheme });
-      def.kinds ??= {};
-      if (!def.kinds[kind]) def.kinds[kind] = { color: it.color, label: it.badge };
-    }
   }
 
   function ensureMd(): LazyMarkdownPane {
@@ -680,37 +602,19 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   const previewCo = coalesce(renderPreview, win);
   function renderPreview() {
     if (destroyed || mode !== "split") return;
-    const frag = renderDom(getDoc(), render, doc);
-    regions.previewPane.textContent = "";
-    regions.previewPane.appendChild(frag);
-    runPostRender(regions.previewPane, getDoc(), "view");
+    paint(regions.previewPane);
     rich?.previewRendered();
+  }
+  function paint(el: HTMLElement) {
+    el.textContent = "";
+    el.appendChild(renderDom(getDoc(), render, doc));
+    runPostRender(el, getDoc(), "view");
   }
 
   // Chips in the split preview are plain rendered DOM: one delegated listener gives them the same
   // ChipDefinition.onClick the surface and the read-only view call.
-  const onPreviewClick = (ev: MouseEvent) => {
-    const t = ev.target as Element | null;
-    const el = t && typeof t.closest === "function" ? (t.closest(`.${PREFIX}-chip`) as HTMLElement | null) : null;
-    if (!el || !regions.previewPane.contains(el)) return;
-    const scheme = el.getAttribute("data-scheme") ?? "";
-    const def = chipDefOf(chipDefs, scheme, el.getAttribute("data-kind") ?? "");
-    if (!def?.onClick) return;
-    const trigger = el.getAttribute("data-trigger") ?? "";
-    const badge = el.querySelector(`.${PREFIX}-chip-badge`)?.textContent ?? "";
-    let text = el.textContent ?? "";
-    if (badge && text.endsWith(badge)) text = text.slice(0, -badge.length);
-    if (trigger && text.startsWith(trigger)) text = text.slice(trigger.length);
-    const chip: Chip = { type: "chip", scheme, kind: el.getAttribute("data-kind") ?? "", id: el.getAttribute("data-id") ?? "", label: text };
-    if (trigger) chip.trigger = trigger;
-    try {
-      const refs = JSON.parse(el.getAttribute("data-refs") ?? "null");
-      if (refs && typeof refs === "object") chip.attrs = refs as Record<string, string>;
-    } catch {
-      /* no refs */
-    }
-    def.onClick(chip, ev);
-  };
+  // Chips in the split preview are plain rendered DOM; split mode always has the Markdown pane chunk.
+  const onPreviewClick = (ev: MouseEvent) => chunks.markdown.get()?.previewChipClick(ev, regions.previewPane, PREFIX, chipDefs);
   regions.previewPane.addEventListener("click", onPreviewClick);
   offs.push(() => regions.previewPane.removeEventListener("click", onPreviewClick));
 
@@ -720,7 +624,9 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     return { words: trimmed ? trimmed.split(/\s+/).length : 0, characters: Array.from(text.replace(/\n/g, "")).length };
   }
 
+  // Runs at boot and after every value change, so it also marks an empty document (the CSS hint).
   function updateStatus() {
+    root.classList.toggle(`${PREFIX}-empty`, !value.trim());
     if (!status) return;
     const s = statsOf();
     status.update({ ...s, length: value.length, maxLength: options.maxLength, uploading, mode });
@@ -736,7 +642,8 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     const key = mentionKey(list);
     const mentionsChanged = key !== lastMentionKey;
     lastMentionKey = key;
-    if (!fire) return;
+    // setValue() fires no "change"; the layouts still hear of it (the sidebar redraws its outline).
+    if (!fire) return pingLayout();
     events.emit("change", value);
     options.onChange?.(value, api);
     if (mentionsChanged) {
@@ -839,7 +746,26 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     submit() {
       if (root.dispatchEvent(new (win.CustomEvent ?? CustomEvent)("atm:submit", { bubbles: true, cancelable: true, detail: { value, editor: api } }))) options.onSubmit?.(value, api);
     },
-  };
+    // For the lazily loaded chrome (layouts, palette, context menu, settings, status extras).
+    get editor() {
+      return api;
+    },
+    get ctx() {
+      return toolbarCtx;
+    },
+    items: [],
+    available: [],
+    icons: ICONS,
+    keymap,
+    defaultKeymap: DEFAULT_KEYMAP,
+    commands,
+    statusItems: options.statusBar?.items,
+    renderInto: paint,
+    announce,
+    toast: (m) => toast(m),
+    toolbar: () => toolbar,
+    setToolbar: (t) => (toolbar = t),
+  } as LayoutHost;
 
   const toolHost = {
     doc,
@@ -865,7 +791,6 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     zoomImage: (img: HTMLImageElement) => quiet(tool("zoom").then((t) => t.open?.(img))),
   } as unknown as ToolHost;
 
-  let slashItems: SlashItem[] = [...pluginSlash];
 
   const uploadEnabled = !!options.upload?.handler;
   let toolbar: ToolbarHandle | null = null;
@@ -897,14 +822,14 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     },
     isReadOnly: () => readOnly,
     hasFocus: () => root.contains(doc.activeElement),
-    run(item: ToolbarEntryItem, anchor: HTMLElement, command?: string) {
+    run(item: ToolbarEntryItem, anchor: HTMLElement, command?: string, args?: unknown) {
       pendingAnchor = anchor;
       // A surface can only run a command against a selection, so make sure the editor has one.
       if (!root.contains(doc.activeElement)) activePane().focus();
       const cmd = command ?? item.command;
       try {
         if (typeof cmd === "function") cmd(api);
-        else exec(cmd);
+        else exec(cmd, args);
       } finally {
         pendingAnchor = null;
       }
@@ -912,6 +837,8 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       toolbar?.refresh();
     },
     overflow: options.toolbar?.overflow !== false,
+    labelMode: options.toolbar?.labels,
+    icons: options.icons,
   };
 
   let ro: ResizeObserver | null = null;
@@ -924,8 +851,12 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       upload: options.upload ? { picker: options.upload.picker !== false, enabled: uploadEnabled } : null,
       emoji: options.emoji !== false,
       keymap,
+      icons: options.icons,
     });
-    const items = resolveToolbarItems(options.toolbar?.items, available, pluginToolbar);
+    const t = options.toolbar;
+    const items = resolveToolbarItems(t?.items ?? groupOrder(t?.groups ?? layout.defaults?.groups), available, pluginToolbar, labels.more);
+    layoutHost.items = items;
+    layoutHost.available = [...available, ...pluginToolbar];
     toolbar = createToolbar(regions.toolbar, items, toolbarCtx as Parameters<typeof createToolbar>[2]);
   }
 
@@ -950,7 +881,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       controls: regionIds,
       onSelect: (m) => setMode(m),
     });
-    const row = regions.toolbar && toolbarPos !== "floating" ? regions.toolbar : null;
+    const row = regions.toolbar && toolbarPos !== "floating" && !layoutHost.statusItems?.includes("modeSwitch") ? regions.toolbar : null;
     if (row) {
       if (regions.actions && regions.actions.parentElement === row) row.insertBefore(modeSwitch.el, regions.actions);
       else row.appendChild(modeSwitch.el);
@@ -976,6 +907,14 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     listen(regions.toolbar, "pointerover", warmPop);
     listen(regions.toolbar, "focusin", warmPop);
   }
+
+  // Right-click (and a touch long-press, which fires the same event) on the page opens the context
+  // menu; Shift+right-click keeps the browser's own (spelling suggestions).
+  // A touch long-press on plain text stays the platform's own (text selection).
+  listen(regions.surface, "contextmenu", (e: PointerEvent) => !e.shiftKey && (e.pointerType !== "touch" || (e.target as Element).closest("img,a,pre,td,th,[data-scheme]")) && openChrome("contextMenu", e) && e.preventDefault());
+  if (options.density) root.setAttribute("data-atm-density", options.density);
+  // Which hints the empty state shows (style.css draws them under the placeholder).
+  root.setAttribute("data-atm-hints", [features.slashMenu !== false && "slash", mentionOpts.length && "mention"].filter(Boolean).join(" "));
 
   /* ── focus / narrow tracking ── */
 
@@ -1013,7 +952,15 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     ro.observe(root);
   }
 
-  detachLayout = layout.attach?.(layoutHost) ?? (() => undefined);
+  const offLayout = layout.attach?.(layoutHost);
+  // Status bar extras and stored settings are chunks of their own, fetched only when asked for.
+  const offStatus = regions.statusBar && layoutHost.statusItems ? lazyAttach(chunks.status)(layoutHost) : undefined;
+  const offSettings = options.settings && options.settings.storage ? lazyAttach(chunks.settings)(layoutHost) : undefined;
+  detachLayout = () => {
+    offLayout?.();
+    offStatus?.();
+    offSettings?.();
+  };
 
   }
 
@@ -1044,10 +991,6 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     }
   }
 
-  function anchorRect(): DOMRect | null {
-    return activePane().getCaretRect();
-  }
-
   // The popovers (link, image, table, math, code language) are one lazy chunk. The arguments a
   // popover needs (caret rectangle, selected text) are read when the command runs; only the
   // opening waits for the chunk. A toolbar button warms it on pointer or keyboard intent.
@@ -1055,19 +998,38 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   const loadPopovers = (): Promise<PopMod> => chunks.popovers.load();
   let popToken = 0;
 
-  function withPopover(build: (done: (restoreFocus: boolean) => void, saved: Saved) => (m: PopMod) => PopoverHandle): boolean {
+  function withPopover(kind: PopEnv["kind"]): boolean {
     if (readOnly || destroyed) return false;
     popover?.close(false);
     const saved = saveSelection();
-    const done = (restore: boolean) => {
-      popover = null;
-      if (restore) restoreSelection(saved);
+    const pane = activePane();
+    // Read now: the selection is what the popover acts on, even if its chunk is still on the way.
+    const env: PopEnv = {
+      kind,
+      host: popHost,
+      anchor: pane.getCaretRect(),
+      fallback: pendingAnchor,
+      selection: pane.getSelectionText(),
+      inLink: pane.isActive("link"),
+      options,
+      math: render.mathRenderer,
+      highlighter,
+      accept: imageAccept(),
+      upload: uploadEnabled ? (files) => void api.uploadFiles(files) : undefined,
+      apply(command, args) {
+        restoreSelection(saved);
+        activePane().exec(command, args);
+        toolbar?.refresh();
+      },
+      done(restore) {
+        popover = null;
+        if (restore) restoreSelection(saved);
+      },
     };
-    const open = build(done, saved);
     const token = ++popToken;
     const cached = chunks.popovers.get();
     if (cached) {
-      popover = open(cached); // already downloaded: opens at once
+      popover = cached.openFor(env); // already downloaded: opens at once
       return true;
     }
     // Cold start: the chunk is on its way. Characters typed meanwhile would replace the selection
@@ -1086,7 +1048,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       (m) => {
         release();
         if (destroyed || token !== popToken) return;
-        popover = open(m);
+        popover = m.openFor(env);
         const f = doc.activeElement as HTMLInputElement | HTMLTextAreaElement | null;
         if (held.length && f && root.contains(f) && typeof f.value === "string") {
           f.value += held.join("");
@@ -1095,7 +1057,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       },
       () => {
         release();
-        done(true); // offline: nothing opened, the selection is where it was
+        env.done(true); // offline: nothing opened, the selection is where it was
         if (held.length && !destroyed) activePane().insertText(held.join(""));
       },
     );
@@ -1109,72 +1071,8 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
     return parts.join(",");
   };
 
-  function applyToPane(saved: Saved, command: string, args: unknown) {
-    restoreSelection(saved);
-    activePane().exec(command, args);
-    toolbar?.refresh();
-  }
-
+  // A popover command with arguments applies them directly; without, it opens its popover.
   const chromeCommands: Record<string, Command> = {
-    link(_ed, args) {
-      if (args !== undefined) return activePane().exec("link", args);
-      return withPopover((done, saved) => {
-        const a = {
-          anchor: anchorRect(),
-          fallback: pendingAnchor,
-          selection: activePane().getSelectionText(),
-          canRemove: activePane().isActive("link"),
-          links: options.links,
-          onApply: (v: { href: string; text?: string }) => applyToPane(saved, "link", { url: v.href, text: v.text }),
-          onRemove: () => applyToPane(saved, "unlink", undefined),
-          onClose: done,
-        };
-        return (m) => m.openLinkPopover(popHost, a);
-      });
-    },
-    image(_ed, args) {
-      if (args !== undefined) return activePane().exec("image", args);
-      return withPopover((done, saved) => {
-        const a = {
-          anchor: anchorRect(),
-          fallback: pendingAnchor,
-          selection: activePane().getSelectionText(),
-          links: options.upload?.urls ?? options.links,
-          upload: uploadEnabled ? { accept: imageAccept(), urls: options.upload?.urls, onFiles: (files: File[]) => void api.uploadFiles(files) } : undefined,
-          onApply: (v: { src: string; alt: string }) => applyToPane(saved, "image", { url: v.src, alt: v.alt }),
-          onClose: done,
-        };
-        return (m) => m.openImagePopover(popHost, a);
-      });
-    },
-    table(_ed, args) {
-      if (args !== undefined) return activePane().exec("table", args);
-      return withPopover((done, saved) => {
-        const a = { anchor: anchorRect(), fallback: pendingAnchor, onPick: (size: unknown) => applyToPane(saved, "table", size), onClose: done };
-        return (m) => m.openTablePopover(popHost, a);
-      });
-    },
-    math(_ed, args) {
-      if (args !== undefined) return activePane().exec("math", args);
-      return withPopover((done, saved) => {
-        const a = {
-          anchor: anchorRect(),
-          fallback: pendingAnchor,
-          tex: activePane().getSelectionText(),
-          preview: render.mathRenderer ?? undefined,
-          onApply: (v: { tex: string; display: boolean }) => applyToPane(saved, v.display ? "mathBlock" : "math", v.tex),
-          onClose: done,
-        };
-        return (m) => m.openMathPopover(popHost, a);
-      });
-    },
-    codeLanguage(_ed, args) {
-      if (args !== undefined) return activePane().exec("codeBlockLang", args);
-      return withPopover((done, saved) => {
-        const a = { anchor: anchorRect(), fallback: pendingAnchor, onApply: (lang: string) => applyToPane(saved, "codeBlockLang", lang), onClose: done };
-        return (m) => m.openCodeLanguagePopover(popHost, { ...a, languages: highlighter ? m.COMMON_LANGUAGES.filter((l) => highlighter!.has(l)) : [] });
-      });
-    },
     submit: () => (layoutHost.submit(), true),
     attach() {
       if (readOnly || !uploadEnabled) return false;
@@ -1189,15 +1087,28 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
         if (r !== false) return true;
       }
       activePane().focus();
-      const sc = emojiShortcut(detectPlatform()) ?? labels.unknownShortcut;
-      const msg = labels.emojiHint.includes("{shortcut}") ? fmt(labels.emojiHint, { shortcut: sc }) : `${labels.emojiHint} ${sc}`;
-      toast(msg);
+      // The hint's wording lives with the popovers (a lazy chunk a toolbar click has usually warmed).
+      chunks.popovers.use((m) => void (destroyed || toast(m.emojiHint(labels))));
       return true;
     },
   };
+  // The palette, the shortcuts sheet, the settings popover and the context menu are commands too, so
+  // a host button, a plugin and the palette itself can open them.
+  for (const k of ["link", "image", "table", "math", "codeLanguage"] as const)
+    chromeCommands[k] = (_e, args) => (args !== undefined ? activePane().exec(k === "codeLanguage" ? "codeBlockLang" : k, args) : withPopover(k));
+  for (const k of ["palette", "shortcuts", "settings", "contextMenu"] as const) chromeCommands[k] = (_e, a) => openChrome(k, a);
   for (const [id, fn] of Object.entries(chromeCommands)) if (!commands.has(id)) commands.set(id, fn);
   // Plugin syntax commands reach the active pane through this hook.
   const paneHook = () => activePane();
+
+  const CHROME = { palette: "palette", shortcuts: "palette", settings: "settings", contextMenu: "context" } as const;
+  /** Fetch a chrome chunk and `open` it for `kind`. */
+  function openChrome(kind: keyof typeof CHROME, arg?: unknown): boolean {
+    const flag = kind === "settings" ? options.settings : kind === "contextMenu" ? options.contextMenu : options.commandPalette;
+    if (destroyed || flag === false || (kind === "contextMenu" && mode !== "wysiwyg")) return false;
+    (chunks[CHROME[kind]] as { use(go: (m: { open(h: LayoutHost, k: string, a?: unknown): void }) => void): void }).use((m) => destroyed || m.open(layoutHost, kind, arg));
+    return true;
+  }
 
   /* ── file picker + uploads ── */
 
@@ -1298,9 +1209,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       if (mode === "wysiwyg") m.caretToSurface(surface.editable, value, c);
       else md?.setSelection(...m.caretToMarkdown(surface.editable.textContent ?? "", value, c));
     };
-    const cached = chunks.markdown.get();
-    if (cached) go(cached);
-    else chunks.markdown.load().then(go, () => undefined);
+    chunks.markdown.use(go);
   }
 
   function setMode(next: EditorMode) {
@@ -1556,10 +1465,6 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   if (options.autofocus) schedule(() => !destroyed && activePane().focus(), win);
   options.onReady?.(api);
   return api;
-}
-
-function zeroRect(): DOMRect {
-  return { x: 0, y: 0, left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON: () => ({}) } as DOMRect;
 }
 
 export type { Chip as ChipNode, ToolbarItem, LinkPolicy };

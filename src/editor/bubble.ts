@@ -1,12 +1,17 @@
 /**
  * The bubble layout's floating toolbar: shown above the selection (flipped below its end when there
  * is no room), kept while focus is inside it, hidden by Escape until the selection changes. A lazy
- * chunk: layouts.ts hides the row at once and loads this when the bubble layout is attached.
+ * chunk, attached by layouts.ts; the stylesheet hides the row until it has arrived.
  */
 import type { LayoutHost } from "./layouts";
 import { placeNear } from "./dom";
 
-export function attachBubble(host: LayoutHost, row: HTMLElement): () => void {
+export function attach(host: LayoutHost): () => void {
+  const row = host.regions.toolbar;
+  if (!row) return () => undefined;
+  // Until this chunk arrives the stylesheet keeps a floating row without data-bubble out of sight.
+  row.hidden = true;
+  row.setAttribute("data-bubble", "");
   const win = host.doc.defaultView as Window;
   // Escape hides the bubble until the selection changes, so it does not pop straight back.
   let dismissed = false;

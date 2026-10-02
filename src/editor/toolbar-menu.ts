@@ -4,7 +4,7 @@
  */
 import type { Slot } from "../types";
 import type { MenuRow, ToolbarContext } from "./toolbar";
-import { cx, formatShortcut, h, placeNear, type Platform } from "./dom";
+import { cx, formatShortcut, h, placeNear, uid, type Platform } from "./dom";
 
 const OPEN = '[aria-expanded="true"]';
 const FOCUSABLE = "button,select,input,textarea,a[href],[tabindex]";
@@ -48,25 +48,29 @@ export function openToolbarMenu(o: MenuOptions): { close(restoreFocus?: boolean)
       continue;
     }
     const sc = r.shortcut ? formatShortcut(r.shortcut, platform) : "";
-    const active = !isMore && ctx.isActive(r.command);
+    // A plain dropdown row is a radio only when it names a state (the heading menu); action rows are menu items.
+    const radio = !isMore && !r.args && !r.item?.items;
+    const active = radio && ctx.isActive(r.command);
     const b = h(
       "button",
       {
         document: doc,
         type: "button",
-        role: isMore ? "menuitem" : "menuitemradio",
+        role: radio ? "menuitemradio" : "menuitem",
         class: cx(cls("menu-item", "menuItem"), active && cx(`${p}-menu-item-active`, ctx.classes.menuItemActive)),
         tabindex: "-1",
-        "aria-checked": isMore ? undefined : String(active),
+        "aria-checked": radio ? String(active) : undefined,
         "data-command": r.command,
       },
+      // A colour row draws its swatch; the value comes from the host's own item definition.
+      r.color ? h("span", { document: doc, class: `${p}-menu-swatch`, style: `background:${r.color.replace(/[;{}<>]/g, "")}`, "aria-hidden": "true" }) : null,
       h("span", { document: doc, class: `${p}-menu-label` }, r.label),
       sc ? h("span", { document: doc, class: `${p}-menu-shortcut` }, sc) : null,
     );
     b.addEventListener("mousedown", (e) => e.preventDefault());
     b.addEventListener("click", () => {
       close(false);
-      if (r.item) ctx.run(r.item, anchor, r.command || undefined); // a function command has no name: run the item's own
+      if (r.item) ctx.run(r.item, anchor, r.command || undefined, r.args); // a function command has no name: run the item's own
     });
     els.push(b);
     menu.appendChild(b);
@@ -123,4 +127,43 @@ export function openToolbarMenu(o: MenuOptions): { close(restoreFocus?: boolean)
   }
   (els.find((b) => b.getAttribute("aria-checked") === "true") ?? els[0]).focus();
   return { close };
+}
+
+/**
+ * The toolbar's tooltip (one per row, `role="tooltip"`): the button's name and its shortcut, placed
+ * beside it with `position: fixed` (the row may clip or scroll; the tooltip must not), or hidden
+ * when `btn` is null. The button is described by it while it shows.
+ */
+const timers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
+
+/**
+ * The toolbar forwards its focus, pointer, click and Escape events here. Focus on a button shows its
+ * tooltip at once; a mouse resting on one for 500 ms shows it too; leaving, clicking or Escape hides it.
+ */
+export function tipEvent(e: Event, row: HTMLElement, bar: HTMLElement, p: string, buttons: HTMLElement[]): void {
+  clearTimeout(timers.get(bar));
+  const b = (e.target as HTMLElement).closest?.("button") as HTMLElement | null;
+  const on = b && buttons.includes(b) ? b : null;
+  if (e.type === "focusin") tip(row, on, p);
+  else if (e.type === "pointerover") {
+    if (on && (e as PointerEvent).pointerType === "mouse") timers.set(bar, setTimeout(() => on.isConnected && on.matches(":hover") && tip(row, on, p), 500));
+  } else if (e.type !== "pointerout" || !bar.contains(row.ownerDocument.activeElement)) tip(row, null, p);
+}
+
+export function tip(row: HTMLElement, btn: HTMLElement | null, p: string): void {
+  const doc = row.ownerDocument;
+  let t = row.querySelector<HTMLElement>(`.${p}-tooltip`);
+  row.querySelector(`[aria-describedby="${t?.id}"]`)?.removeAttribute("aria-describedby");
+  if (!btn) {
+    if (t) t.hidden = true;
+    return;
+  }
+  if (!t) row.appendChild((t = h("div", { document: doc, class: `${p}-tooltip`, role: "tooltip", id: uid(`${p}-tip`) })));
+  const sc = btn.getAttribute("data-sc");
+  // The shortcut sits in its own left-to-right box so a right-to-left page keeps "Ctrl+B" in order.
+  t.replaceChildren(btn.getAttribute("aria-label") ?? "", ...(sc ? [" ", h("span", { document: doc, class: `${p}-tooltip-sc` }, `(${sc})`)] : []));
+  t.hidden = false;
+  btn.setAttribute("aria-describedby", t.id);
+  const win = doc.defaultView;
+  if (win) placeNear(t, btn.getBoundingClientRect(), win, { gap: 6, centre: true });
 }

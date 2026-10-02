@@ -11,7 +11,7 @@
 function lazy<T>(load: () => Promise<T>) {
   let mod: T | null = null;
   let pending: Promise<T> | null = null;
-  return {
+  const c = {
     get: (): T | null => mod,
     load: (): Promise<T> =>
       (pending ??= load().then(
@@ -21,7 +21,13 @@ function lazy<T>(load: () => Promise<T>) {
           throw e;
         },
       )),
+    /** Run `go` with the module: now if it is loaded, else once it arrives (never, if it cannot). */
+    use(go: (m: T) => void): void {
+      if (mod) go(mod);
+      else c.load().then(go, () => undefined);
+    },
   };
+  return c;
 }
 
 export const chunks = {
@@ -29,8 +35,8 @@ export const chunks = {
   popovers: /* @__PURE__ */ lazy(() => import("./popovers")),
   /** The "/" block menu. */
   slash: /* @__PURE__ */ lazy(() => import("./slash")),
-  /** The "@" typeahead. */
-  mentions: /* @__PURE__ */ lazy(() => import("../features/mentions")),
+  /** The "@" typeahead (the controller and the editor's glue). */
+  mentions: /* @__PURE__ */ lazy(() => import("./mention-glue")),
   /** Upload policy and pipeline. */
   uploads: /* @__PURE__ */ lazy(() => import("./uploads")),
   /** The Markdown textarea pane (Markdown and Split modes). */
@@ -53,6 +59,20 @@ export const chunks = {
   menu: /* @__PURE__ */ lazy(() => import("./toolbar-menu")),
   /** The image lightbox (read-only views). */
   zoom: /* @__PURE__ */ lazy(() => import("./tools/zoom")),
+  /** Layout behaviours (layouts.ts): the ribbon toolbar, sidebar panels, focus mode, tabs, and compact/mobile/auto (one chunk). */
+  ribbon: /* @__PURE__ */ lazy(() => import("./layouts/ribbon")),
+  sidebar: /* @__PURE__ */ lazy(() => import("./layouts/sidebar")),
+  focus: /* @__PURE__ */ lazy(() => import("./layouts/focus")),
+  tabs: /* @__PURE__ */ lazy(() => import("./layouts/tabs")),
+  mobile: /* @__PURE__ */ lazy(() => import("./layouts/mobile")),
+  /** The command palette and the shortcuts sheet. */
+  palette: /* @__PURE__ */ lazy(() => import("./chrome/palette")),
+  /** The context menu (right-click, long-press, Shift+F10). */
+  context: /* @__PURE__ */ lazy(() => import("./chrome/context-menu")),
+  /** The settings popover and stored settings. */
+  settings: /* @__PURE__ */ lazy(() => import("./chrome/settings")),
+  /** Status bar extras (reading time, selection, cursor, save, zoom, direction). */
+  status: /* @__PURE__ */ lazy(() => import("./chrome/status-extra")),
 };
 
 /** Fetch every lazy chunk now. Resolves when all have arrived (rejects if one cannot). */

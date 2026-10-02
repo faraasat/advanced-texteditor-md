@@ -18,6 +18,11 @@ afterEach(() => {
 
 const bar = (root: HTMLElement) => root.querySelector<HTMLElement>('[role="toolbar"]')!;
 const btn = (root: HTMLElement, id: string) => root.querySelector<HTMLButtonElement>(`button[data-id="${id}"]`)!;
+/** The tooltip a button shows on keyboard focus. */
+const tipOf = (root: HTMLElement, id: string) => {
+  btn(root, id).focus();
+  return root.querySelector<HTMLElement>(".atm-tooltip")!.textContent ?? "";
+};
 const key = (el: HTMLElement, k: string, init: KeyboardEventInit = {}) => el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...init }));
 const ids = (root: HTMLElement) => Array.from(bar(root).querySelectorAll<HTMLElement>("button[data-id]")).filter((b) => !b.hidden).map((b) => b.dataset.id);
 
@@ -128,9 +133,9 @@ describe("toolbar: state", () => {
     const { DEFAULT_KEYMAP } = await import("../../src/editor/keymap");
     const x = m();
     expect(DEFAULT_KEYMAP["Mod-Shift-m"]).toBe("math");
-    expect(btn(x.root, "math").title).toMatch(/Shift\+M|⇧M/);
-    expect(btn(x.root, "codeBlock").title).toMatch(/Alt\+C|⌥C/);
-    expect(btn(x.root, "taskList").title).toMatch(/Shift\+L|⇧L/);
+    expect(tipOf(x.root, "math")).toMatch(/Shift\+M|⇧M/);
+    expect(tipOf(x.root, "codeBlock")).toMatch(/Alt\+C|⌥C/);
+    expect(tipOf(x.root, "taskList")).toMatch(/Shift\+L|⇧L/);
   });
   it("undo is disabled until there is something to undo", async () => {
     vi.useFakeTimers();
@@ -303,15 +308,17 @@ describe("toolbar: configuration", () => {
     expect(btn(m({ upload: up }).root, "attach")).not.toBeNull();
     expect(btn(m({ upload: { ...up, picker: false } }).root, "attach")).toBeNull();
   });
-  it("tooltips: title carries the label and platform shortcut; aria-keyshortcuts is set", () => {
+  it("tooltips: the tooltip carries the label and platform shortcut (no native title); aria-keyshortcuts is set", () => {
     const x = m();
     const b = btn(x.root, "bold");
-    expect(b.title).toMatch(/^Bold \((⌘B|Ctrl\+B)\)$/);
+    expect(b.hasAttribute("title")).toBe(false); // a native title would show a second tooltip on hover
+    expect(tipOf(x.root, "bold")).toMatch(/^Bold \((⌘B|Ctrl\+B)\)$/);
+    expect(b.getAttribute("aria-describedby")).toBe(x.root.querySelector(".atm-tooltip")!.id);
     expect(b.getAttribute("aria-keyshortcuts")).toMatch(/^(Meta|Control)\+B$/);
   });
   it("host keymap changes the shown shortcut", () => {
     const x = m({ keymap: { "Mod-Shift-b": "bold" } });
-    expect(btn(x.root, "bold").title).toMatch(/Shift\+B|⇧B/);
+    expect(tipOf(x.root, "bold")).toMatch(/Shift\+B|⇧B/);
   });
   it("a visible tooltip appears on keyboard focus", () => {
     const x = m();

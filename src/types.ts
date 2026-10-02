@@ -59,7 +59,11 @@ export type BlockNode = (
       tight: boolean;
       items: ListItem[];
     }
-  | { type: "codeBlock"; lang: string; code: string; fence: "```" | "~~~" | "indent" }
+  /**
+   * `meta` is the rest of the fence's info string after the language (`title="a.ts" {1,3-5}`), kept
+   * verbatim so it survives an edit; omitted when empty. The library itself never interprets it.
+   */
+  | { type: "codeBlock"; lang: string; code: string; fence: "```" | "~~~" | "indent"; meta?: string }
   | { type: "math"; tex: string } // block $$…$$
   | {
       type: "table";
@@ -408,7 +412,43 @@ export type LayoutName =
   | "bubble" // floating toolbar on selection, no fixed chrome
   | "bottom-bar" // toolbar under the surface, with an actions slot (chat/comment style)
   | "split" // markdown source and live preview side by side
-  | "document"; // sticky toolbar, page-width surface
+  | "document" // sticky toolbar, page-width surface
+  | "ribbon" // tabbed command ribbon (Home / Insert / Format / View) with labelled groups
+  | "sidebar" // document page with an outline panel and an inspector panel
+  | "focus" // distraction-free: chrome fades while typing, typewriter scrolling, optional dimming
+  | "tabs" // Write | Preview | Markdown tabs above the editor (comment-box style)
+  | "compact" // one toolbar row that wraps to several lines while the editor has focus
+  | "mobile" // toolbar pinned above the on-screen keyboard, large touch targets, sheet menus
+  | "auto"; // "mobile" in a narrow container, "classic" otherwise (decided by a ResizeObserver)
+
+/** Named toolbar groups. A group name inside `toolbar.items` expands to its items. */
+export type ToolbarGroupName = "history" | "text" | "blocks" | "insert" | "table" | "view" | "plugins";
+
+/** What a status bar can show, in the order given (`statusBar.items`). */
+export type StatusBarItem =
+  | "words" | "characters" | "readingTime" | "selection" | "cursor" | "count" | "upload"
+  | "save" | "zoom" | "direction" | "mode" | "modeSwitch";
+
+/** The reader's preferences the settings popover edits (and `settings.storage` keeps). */
+export type EditorSettings = {
+  density: "compact" | "comfortable" | "spacious";
+  spellcheck: boolean;
+  lineNumbers: boolean;
+  typewriter: boolean;
+  invisibles: boolean;
+  /** CSS length, e.g. "17px". "" = the theme's. */
+  fontSize: string;
+  lineWidth: "narrow" | "normal" | "wide" | "full";
+};
+
+/** A synchronous key/value store (`localStorage` has this shape). Errors thrown by it are caught. */
+export type SettingsStorage = { getItem(key: string): string | null; setItem(key: string, value: string): void };
+
+/**
+ * Labels of the chrome added after 0.1 (command palette, shortcuts, context menu, ribbon, sidebar,
+ * settings, status bar extras). English defaults ship in the lazy chunks that show them; see README.
+ */
+export type ChromeLabels = Partial<Record<string, string>>;
 
 export type Slot =
   | "root" | "toolbar" | "toolbarGroup" | "toolbarButton" | "toolbarButtonActive"
@@ -454,14 +494,33 @@ export type ToolbarItem = {
   isEnabled?: (editor: EditorInstance) => boolean;
   /** Render something other than a button (a select, a colour input). */
   render?: (editor: EditorInstance) => HTMLElement;
+  /**
+   * What kind of control (default "button"). "toggle" shows `aria-pressed` from `isActive`;
+   * "dropdown" opens a menu of `items`; "split" is a button that runs `command` plus a chevron
+   * that opens `items`; "color" opens a swatch menu of `colors` and runs `exec(command, value)`.
+   */
+  type?: "button" | "toggle" | "dropdown" | "split" | "color";
+  /** Menu rows of a "dropdown" or "split" item. `args` is passed to `exec(command, args)`. */
+  items?: { label: string; command: string; args?: unknown; shortcut?: string }[];
+  /** Swatches of a "color" item: a CSS colour, or a colour with a name. */
+  colors?: (string | { value: string; label: string })[];
+  /** Overflow order: when the row is too narrow, lower priorities move to the More menu first. Default 0. */
+  priority?: number;
 };
 
 export type ToolbarConfig = {
   position?: "top" | "bottom" | "floating" | "none";
-  /** Ids and "|" separators. Default: the built-in set. */
-  items?: (string | "|")[];
+  /**
+   * Ids, "|" separators, group names (`"text"` expands to bold, italic, strike and code; see
+   * `TOOLBAR_GROUPS`) and inline item definitions. Default: the layout's group preset.
+   */
+  items?: (string | "|" | ToolbarItem)[];
+  /** Which groups, in which order, when `items` is not given. Default: the layout's preset. */
+  groups?: ToolbarGroupName[];
   /** Collapse items that do not fit into a "more" menu. Default true. */
   overflow?: boolean;
+  /** Text labels: "hover" (tooltip after 500 ms and on keyboard focus; default), "always" (beside the icon), "never". */
+  labels?: "hover" | "always" | "never";
 };
 
 export type SlashItem = {
@@ -471,6 +530,14 @@ export type SlashItem = {
   keywords?: string[];
   icon?: string;
   run: (editor: EditorInstance) => void;
+  /** Section heading in the slash menu ("Basic blocks", "Media", ...). Default: "Other". */
+  group?: string;
+  /** Keyboard hint shown beside the item, e.g. "Mod-Alt-1". */
+  shortcut?: string;
+  /** Markdown drawn in the menu's preview column while the item is active. */
+  preview?: string;
+  /** A nested menu (ArrowRight opens it, ArrowLeft or Escape closes it); `run` is still the default action. */
+  children?: SlashItem[];
 };
 
 export type Plugin = {
@@ -525,7 +592,8 @@ export type EditorOptions = {
   allowModeSwitch?: boolean;
   layout?: LayoutName | LayoutDefinition;
   toolbar?: ToolbarConfig;
-  theme?: "light" | "dark" | "auto" | ThemeTokens;
+  /** "light", "dark", "auto", a named theme of themes.css ("sepia", "slate", "contrast", "ocean", "forest", "rose", or your own), or tokens. */
+  theme?: "light" | "dark" | "auto" | (string & {}) | ThemeTokens;
   /** Add classes per slot (Tailwind utilities welcome). */
   classNames?: Partial<Record<Slot, string>>;
   classPrefix?: string;
@@ -590,7 +658,30 @@ export type EditorOptions = {
    * editor and shows the platform shortcut. Replace with your own picker here.
    */
   emoji?: { open?: (editor: EditorInstance) => void | false } | false;
-  labels?: EditorLabels;
+  labels?: EditorLabels & ChromeLabels;
+
+  /** Replace any toolbar, ribbon, palette or menu icon by id (inline SVG markup or text), e.g. `{ bold: "<svg…>" }`. */
+  icons?: Record<string, string>;
+  /** Spacing preset of the chrome and the page. Default "comfortable". The settings popover can change it. */
+  density?: EditorSettings["density"];
+  /** Right-click, long-press, Shift+F10 or the Menu key open a context menu. Default true. */
+  contextMenu?: boolean;
+  /** The command palette (Mod-Shift-P) and the shortcuts sheet (Mod-/). Default true. */
+  commandPalette?: boolean | { /** Recent commands kept. Default 5. */ recent?: number };
+  /**
+   * The settings popover (palette: "Editor settings", or `exec("settings")`). Values persist through
+   * `storage` (default: none, so they last as long as the editor) under `key`.
+   */
+  settings?: { storage?: SettingsStorage; key?: string; defaults?: Partial<EditorSettings> } | false;
+  /** Status bar contents, in order. Default: words, characters, count, upload, mode. */
+  statusBar?: { items?: StatusBarItem[]; /** For "readingTime". Default 230. */ wordsPerMinute?: number };
+  /** Options of the layouts that have some. */
+  layoutOptions?: {
+    sidebar?: { outline?: boolean; inspector?: boolean; /** Where the outline goes. Default "start". */ side?: "start" | "end" };
+    focus?: { /** Default true. */ typewriter?: boolean; /** Fade the other blocks while typing. Below AA contrast by design; default false. */ dim?: boolean };
+    auto?: { /** Below this container width (px) the mobile layout is used. Default 640. */ breakpoint?: number };
+    ribbon?: { /** Start collapsed (tabs only). Default false. */ collapsed?: boolean };
+  };
 
   onChange?: (markdown: string, editor: EditorInstance) => void;
   /**

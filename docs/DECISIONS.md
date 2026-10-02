@@ -250,3 +250,376 @@ The `mobile` project skipped 62 tests, most of them labelled "keyboard" although
 - **Delimiter choice (stringify).** `_` is used only where a mark follows or sits at the edge of a `*` mark; it never opens or closes beside a letter or digit unless that letter is written as a character reference. Two further CommonMark facts are handled: a run of punctuation inside a mark with a letter outside (`a*.*b`, `**Note:**text`) is not a delimiter, so the outside letter becomes `&#NN;` (reads back as the same letter; a literal `_` beside it is escaped, and the cascade continues if the letter was the last thing in the next mark); and a `!` before a link or chip would make an image, so it is escaped. Edge whitespace in a mark is written outside it.
 - **Property test** (`test/parser/emphasis-roundtrip.test.ts`): 3000 seeded random trees (emphasis, strong, strike, code, links, hostile text such as `*`, `__`, `snake_case`) assert that the formatting of every character (whitespace carries none: Markdown cannot bold an edge space), all text, and stringify idempotence survive save, plus named cases. During development the same generator ran clean over 24,000 trees on four other seeds. Rendered HTML is compared as per-character formats because `<b><i>` and `<i><b>` are the same on screen.
 
+
+## 2026-10-02 — Feature subpaths (src/extensions/*, src/styles/features/*)
+
+- **One subpath per feature, never eager.** The editor entry was at its 62 kB ceiling, so every feature added in this round is a plugin (or a pure module) in `src/extensions/<name>/`, published as `advanced-texteditor-md/<name>`. A test fails if any module outside `src/extensions` imports one. Shared helpers are `src/extensions/_shared.ts`; the only eager change is the code-block info-string `meta` (below).
+- **`codeBlock.meta`.** The parser kept only the first word of a fence's info string, so `title="a.ts" {1,3}` was lost on the first edit. `meta` (additive, optional) holds the rest verbatim; `stringify` writes it back after the language (whitespace collapsed, a backtick switches to a `~~~` fence), the renderer emits it as `data-meta` on `<pre>`, dom-to-doc reads it back, the ```` ``` ```` input rule captures it and the Markdown pane's "set language" keeps it. The library never interprets it; the code-blocks extension does.
+- **CSS** for every extension is `src/styles/features/<name>.css`, inlined into `style.css` through `features.css` (no injection, so a static `renderHtml` page is styled the same way as the editor).
+- **`data-atm-preview-card` is the "not content" marker** for inline decorations an extension draws inside the surface (it was the link-preview card's attribute; the position model, dom-to-doc and the inline normaliser already skip it). Exported as `NOT_CONTENT` from the shared helpers. Not for blocks: a non-content block beside a `<pre>` broke Backspace and the caret (found by the diagrams work), so block-level UI lives in a layer outside the surface, and code-block presentation uses attributes and pseudo-elements.
+
+<!-- feature:alerts -->
+## 2026-10-02: GitHub alerts (`advanced-texteditor-md/alerts`)
+
+- **A pattern syntax, not a parser change.** Alerts needed zero eager bytes, so the marker is an inline pattern (`^\[!(?<kind>NOTE|...)\][ \t]*(?=\n|$)`, case-insensitive) that only matches where GitHub reads one: the start of a paragraph, alone on its line. It parses to a `custom` node with `serialize`, so the brackets are never escaped and edits round-trip. A first-class `blockquote.alert` field was rejected: parser, stringify, renderer, surface and dom-to-doc would each have grown (about 0.25 kB eager), over the round's budget.
+- **The quote is styled by CSS, twice.** `blockquote:has(> p:first-child > .atm-alert-marker:first-child)` styles static `renderHtml` output with no script; `postRender` and an editor `MutationObserver` add `atm-alert atm-alert-<kind>` and `data-atm-alert` for engines without `:has()` (separate rules: an unsupported `:has()` would void a shared selector list). Views also get `role="note"`.
+- **The title is the marker's own text.** Before hydration it is the kind word as written (`NOTE`) shown as "Note" with `text-transform` + `::first-letter`; after it, the localised label. dom-to-doc reads the label back as the node's children, but `serialize` writes `data.kind`, so a label never reaches the Markdown.
+- **The marker is an atom** (`contenteditable="false"` through the syntax's `attrs`): one Backspace removes it and the caret cannot type inside it.
+- **Keeping it GitHub's shape.** Text typed right after the marker would make `> [!NOTE] text`, which is not an alert (on reload it would become escaped text), so the plugin inserts a line break after the marker (and turns Enter there into one), keeping the body in the marker's paragraph, the form GitHub documents. `> [!NOTE]\n>\n> body` (body in its own paragraph) is read too.
+- **Typing.** `[!` opens a list only at the start of a quote's first paragraph (built on `createMentionController`, `hideWhenEmpty`); typing the full marker converts it on `]`. In the Markdown pane text is verbatim, so there is no list; the `alert` command works on the source lines.
+- **Custom kinds** are names `[A-Z][A-Z0-9_]{0,23}`; their colour must be a plain colour (hex, a name, `rgb()`/`hsl()`/`oklch()`/..., `var(--x)`) and is written into the plugin's `css` (the only injected CSS of the round, since it depends on options). Built-in kinds use theme tokens: `--atm-callout-note|tip|warning`, `--atm-chip-4`, `--atm-danger`; the title colour is mixed 75 % toward `--atm-fg` because the raw warning colour failed AA on the tint (axe found it).
+- **Not done:** no `[!` list in the Markdown pane; GitHub does not nest alerts, this library renders a nested one anyway; the older `callout` plugin (`::: note`) is unchanged.
+
+<!-- feature:code-blocks -->
+## 2026-10-02: Code blocks v2 (`advanced-texteditor-md/code-blocks`, `highlight/diff`)
+
+- **Metadata lives in the info string** (`codeBlock.meta`, the one eager change of the round: +0.16 kB). The tokens are the ones existing tool chains use (`title=`, `{1,3-5}`, `showLineNumbers`, `wrap`); unknown tokens are kept in order, so a document written for another tool loses nothing.
+- **Presentation through attributes and pseudo-elements only.** Line numbers are `pre::before { content: attr(data-atm-lines); float: left }` (the attribute is `"1\n2\n3"`, `white-space: pre`); highlighted and diff lines are a `linear-gradient` background whose stops are `calc(var(--atm-code-pt) + Nlh)`; the editor's file name is `pre::after`. The `<pre>` gets a fixed `line-height` (`1.45em`, a length, so the gutter and the code share it). Alternatives rejected: a gutter element inside the `<pre>` (dom-to-doc would read its text as code), a sibling block (the diagrams agent found that a non-content block beside a `<pre>` breaks Backspace and caret movement), splitting lines into spans in the editor (the surface owns that DOM and re-highlights it). Requires the `lh` unit (Chrome 109, Safari 16.4, Firefox 120).
+- **Wrapping hides numbers and bands**: a wrapped line breaks the one-line-per-`lh` model. Wrap is a per-session view setting; `wrap` in the info string is the stored default.
+- **Editing keys go through the editor**: `insertText` (one undo step each) for Enter, pairs and a single Tab; a multi-line indent, Format JSON and clearing a blank line replace the block's text directly and dispatch one `input` inside `transact`, because the surface's own deletion removes a block it empties. Plain Enter with nothing to indent is left to the surface (it places the caret correctly on a new last line, which `insertText("\n")` did not in Chromium).
+- **Tab is kept inside code blocks** (the common editor convention) with a way out: Escape, then Tab, leaves the editor; the `<pre>` carries an `aria-description` saying so. `tabIndent: false` gives Tab back.
+- **The code bar** is outside the content (`position: fixed` in the editor root), found again by block index after a re-render (Format JSON and a language change re-render the block). The language field is `<input list>`: native search, accessible, no listbox to maintain.
+- **`diff` is a language** (`highlight/diff`, 0.25 kB): line-anchored rules, one step per line.
+- **Not done:** no per-line click-to-highlight, no line numbers while wrapping, no folding; Copy in the editor copies the whole block (not the selection, which the normal clipboard already does).
+
+<!-- feature:tables -->
+## 2026-10-02: Tables v2 (`advanced-texteditor-md/tables`)
+
+- **GFM pipe tables stay the only stored form.** Everything else (widths, sort order, handles) is view state. GitHub and every GFM renderer show the same table; plain CommonMark shows the pipe text.
+- **Edits work on the table as a grid, one function for both panes.** `moveRow`, `moveColumn`, `toggleHeader`, `toggleAlign` are generic over the cell type: in the Markdown pane the cells are raw source strings (escapes kept, so a rewrite never changes a cell's text) and the table is found and rewritten by `findTable` / `formatTable`; in the WYSIWYG surface the cells are the cell ELEMENTS, written back by `writeGrid` (same elements, so marks, chips and the caret's text node move with them; a cell that changes between header and body is re-created as `th` / `td` with its children moved; each cell's `text-align` is set from the column alignment, which is what dom-to-doc reads). Each edit runs inside `editor.transact` with the surface's own `begin` / `commit`, so it is one undo step and undo restores the Markdown exactly (proved in Playwright on four engines). Rejected: stringify the table and `replaceSelectionMarkdown` over a range spanning the table (selecting a whole table is engine-dependent, and inserting a block inside the old table's cell flattens it to text).
+- **Column widths are view-only, in a `<colgroup>` the plugin owns** (`data-atm-preview-card`, `contenteditable="false"`, ignored by dom-to-doc, which reads only rows). Alternatives rejected: a width in the Markdown (GFM has none; an HTML comment or a custom delimiter row would show as text or break the table elsewhere), `style="width"` on the cells (a content attribute: a later alignment toggle or a paste could carry it). Widths follow a moved column; after a full redraw (undo, setValue) they are gone, by design for a session-only view. The editor's handles live in a fixed-positioned layer OUTSIDE the surface (like the block handles), only for the active table (caret or pointer), so there is no focus stop per column in every table; the keyboard reaches them with Mod-Alt-Shift-W.
+- **Row and column grips are pointer-only** (`aria-hidden`, not focusable): the keyboard has the move commands (and the toolbar buttons), which say where the row went. The column grip is drawn under the table because the editor's floating table toolbar sits above it. The header row never moves and no body row moves into it: promoting a row is what the header toggle is for.
+- **Header toggle.** GFM always has a header row, so "off" is an EMPTY header row with the old header moved into the body, and "on" promotes the first body row. Hiding: a view hides the empty header visually (clip, not `display: none`) and keeps it in the accessibility tree, so the table keeps its column structure for screen readers (its column headers are simply blank); the editor shows it as a thin dashed row because the caret must still be able to go there. The marker is an attribute set by `postRender`, not a `:has()` rule in the stylesheet, so documents rendered without the plugin keep their usual look.
+- **Sorting is opt-in and read-only only.** Sorting in the editor would have to either change the Markdown (a sort is not an edit the user asked to store) or desynchronise the DOM from it. While the editor is read-only the surface gets the same sort buttons; leaving read-only removes them and redraws, so the document order is back. Comparison: numbers when both cells are numbers (comma = thousands separator; a decimal comma is read as text, a documented limit), ISO dates only when `sort.dates` is on (`Date.parse` of anything else is locale-dependent), else `Intl.Collator(locale, { numeric: true, sensitivity: "base" })`; empty last; stable.
+- **Spreadsheet detection is on `text/plain`**, which every spreadsheet fills with TSV, rather than on the HTML (whose dialect differs per product and carries styles). The rule (every non-empty line has a tab-separated second cell, two lines or more, or one line when the HTML has a `<table>`; tab-indented text excluded; rich HTML that is not a table excluded) keeps ordinary text and code out. Spreadsheet HTML is read by the plugin itself only when the text is not TSV (a single column): through an inert `DOMParser`, text only. The core `htmlToMarkdown` path is untouched and still handles every other HTML table. In a cell a paste FILLS cells (the common spreadsheet expectation) instead of inserting text with tabs.
+- **Values are escaped, not trusted.** `escapeCell` backslash-escapes `\ ` `` ` `` `* ~ [ ] | < $ &` and boundary `_`; line breaks become spaces. So a spreadsheet value is shown literally, a `|` cannot add a column, and `<img onerror>` / `javascript:` links stay text (raw HTML is text in this library anyway). Host syntaxes (`==mark==`, `^sup^`) are not escaped (they are not known to the plugin).
+- **Limits** (1 MB, 1000 body rows, 50 columns by default): import REFUSES (a visible `role="alert"` notice, an announcement, an event, `onImportError`), because silently importing part of a file is data loss the user may not notice; paste KEEPS the first rows / columns and says so, because a paste is visible at once. The parser stops one row past the limit, so a huge file costs no more than the limit.
+- **Shortcuts**: Mod-Alt-Shift + arrows / L / E / R / W (no clash with the default keymap, which uses Mod-Alt + digits and C). They are plugin keymap entries, so the chrome lists them and the Markdown pane routes them too. A combination pressed outside a table is consumed but does nothing (the editor's shortcut routing does not let a command decline a key).
+- **Cell merge is not supported.** GFM has no `colspan` / `rowspan`. Every encoding considered (an empty cell meaning "merged", a `<` / `^` marker as some extended dialects use, an HTML table) would show as a wrong table, a stray character or raw HTML text in GitHub, in CommonMark viewers and in this library's own renderer, which keeps raw HTML as text. Merging is a layout feature that needs a format that stores layout.
+- **Markdown pane limit:** tables inside a block quote or a list item are not found there (the commands return false); the WYSIWYG surface handles them.
+- **Size:** about 14 kB gzip, nothing in the editor entry; the parser is not imported (the surface and the Markdown pane already hold everything needed).
+
+
+<!-- feature:diagrams -->
+## 2026-10-02: Diagrams and embeds (`advanced-texteditor-md/diagrams`)
+
+**Host-supplied renderers, nothing bundled.** The editor stays dependency-free and the diagram library (mermaid, a chart library, KaTeX display blocks, an embed) is the host's choice. A renderer is a function `(code, ctx) => element | string | Promise`. Keys are looked up in a `Map`, so `__proto__`, `constructor` and `toString` are ordinary language names and never reach `Object.prototype`.
+
+**Strings are untrusted: sandboxed iframe, not escaped text.** Options considered: (1) render a string as escaped text, which is safe but useless for the common case (a renderer that returns an SVG string); (2) `innerHTML` after a home-made sanitiser, which the library refuses everywhere else; (3) `<iframe sandbox="" srcdoc>` plus a `default-src 'none'` CSP meta. Chosen (3): the browser enforces the boundary (no scripts, no same-origin, no network), whatever the markup contains. The cost is that the frame cannot be sized to its content, hence the `frame` option. `trust` opts a language into a parsed, stripped insertion for hosts that vouch for their renderer and want a single-DOM diagram; the strip list is documented and is not a promise to be a full sanitiser. An element the host returns is the host's own DOM and is inserted as is.
+
+**The in-editor preview is drawn OUTSIDE the surface.** The obvious design, a `contenteditable="false"` `data-atm-preview-card` block right after the `<pre>`, was built first and failed in the browser: the surface's position model treats every block-level element with no block children as a leaf (a place the caret can go and Backspace can merge into), the `data-atm-preview-card` exemption only covers inline use, and an unknown element is wrapped into a paragraph by the normaliser (`wrapRuns`). Putting the card inside the `<pre>` fails the same way, because `codeText` and several `textContent` reads would take its text for code. So the preview lives in a layer that is a sibling of the surface, clipped to its box, positioned by measuring the code block (scroll, resize, mutation and ResizeObserver driven, one `requestAnimationFrame` per burst), and the space it needs is reserved with a bottom margin on the `<pre>` through a class and one custom property. Neither touches the Markdown (`data-meta`, `data-lang` and the code are all the serialiser reads), the surface's own DOM is otherwise identical with and without the plugin (unit-tested), and the keyboard behaviour around a block is compared with and without the plugin in the e2e spec on four engines. Costs: previews do not scroll "with" the content natively but by script; a surface taller than its viewport is followed through the `scroll` event. Rejected: a core change to the position model (not ours to make here).
+
+**Rendering policy.** Lazy (IntersectionObserver, immediate when absent), LRU cache keyed by (language, theme, meta, code), debounce after the last edit, the in-flight render aborted through an `AbortSignal` when the code changes or on destroy, a late result of an aborted render dropped. During an IME composition nothing is rendered (`compositionstart` holds, `compositionend` resumes). A failed render keeps the previous good one, dimmed and marked stale, and the error is escaped text in a polite live region that is only rewritten when the message changes: no `role="alert"`, so typing in a broken block does not chatter.
+
+**Read-only views** (`renderDiagrams`, `postRender`, `hydrateAll`, split preview) use real DOM: `div.atm-diagram` with a `role="img"` canvas and a toggle button (`aria-expanded`, `aria-controls`) outside it (children of `role="img"` are presentational, so a button must not be inside). `replace` swaps diagram and source; `below` keeps the diagram and reveals the source under it. Static `renderHtml` output shows the code until hydrated.
+
+**What other renderers show.** A plain fenced code block with its info string (`mermaid title="Login flow"`). GitHub renders `mermaid` blocks itself and shows other languages as code. Nothing is lost or invented, and `stringify(parse(x))` is unchanged.
+
+**Not supported:** re-rendering on a theme switch (the theme is read per render, and part of the cache key); sizing a sandboxed frame to its content; diagrams inside the Markdown source pane; renderers running in a worker or with a timeout (a host that needs one wraps its renderer and honours `ctx.signal`).
+
+
+<!-- feature:diff -->
+
+### Compare view and version history, `advanced-texteditor-md/diff` (2026-10-02)
+
+**Merge on the Markdown, never on the DOM.** Both documents are normalised (`stringify(parse(x))`), split into top-level
+blocks, and the block lists are diffed. The merge picks block strings per hunk and normalises the join. So `acceptAll` is
+exactly the normalised B, `rejectAll` the normalised A, and every mix is a fixed point; this is property-tested on random
+edits. The cost is that unchanged blocks come back in normalised spelling. Rejected: diffing raw lines (changes the meaning
+of Markdown, breaks on reflowed paragraphs), and merging from the rendered DOM (loses syntax, impossible to round-trip).
+
+**Block pairing, not a tree diff.** A run of deleted and inserted blocks is paired in order, by same block type and word
+similarity (default 0.5, a window of 6 candidates, a total token budget so a hostile document cannot make pairing quadratic).
+A pair is a "modified" hunk with an inner word diff; the unpaired rest forms one hunk between two modified ones. Lists and
+tables are one block, so a changed item makes the whole block "modified" and the word marks show where. Rejected: a full tree
+diff (large, and the Markdown tree has no stable identities to anchor on).
+
+**Word marks are applied to the rendered text.** The inner diff for display runs on the rendered block's text content and the
+`<ins>` / `<del>` wrappers split text nodes only (strings go through `createTextNode`; no `innerHTML`), so the library's
+renderer stays the only thing that turns Markdown into elements, with all its URL policy. The `words` field on a hunk row is
+computed from the plain text of the source blocks. Text that has the same words but different markup (a link target, bold)
+falls back to the whole old block against the whole new block.
+
+**A bounded Myers.** Prefix and suffix trimming, interning of tokens to integers, a cap on the edit distance (1500) and on
+the step count (4,000,000); past a cap the changed middle is one delete plus one insert and `capped` says so. Trace memory is
+O(D^2) ints, at most ~9 MB. Rejected: linear-space divide-and-conquer Myers (more code for a case, edit distance above 1500 in
+one block list or one paragraph, where a coarse answer is acceptable) and an unbounded search (50,000 unrelated tokens would
+cost billions of steps).
+
+**Tokens.** One token per Han, Hiragana or Katakana character (those scripts have no spaces), Hangul and other scripts as
+words, runs of whitespace, any other character on its own. Not a segmenter: no dictionary, so Japanese word boundaries are not
+found.
+
+**Not colour-only.** Insertions are underlined, deletions struck through, whole blocks have `+` / `−` markers (CSS generated
+content with an empty alternative, so a screen reader does not read the symbol twice) and every run carries a hidden
+"Inserted:" / "Deleted:" prefix. The default fills are a 20% tint of the accent over `--atm-bg` with `--atm-fg` text, so
+contrast follows each theme; a test computes it for every theme in `themes.css`.
+
+**History restore and undo.** `setValue` does not emit `change` and the WYSIWYG surface ignores `keepHistory`. `restore` wraps
+`setValue(value, { keepHistory: true })` in `transact` so `change` / `onChange` fire once and the drafts plugin sees the edit,
+and it saves the current text first ("Before restore") because in WYSIWYG mode the undo stack is cleared. The Markdown pane
+does keep it. Rejected: selecting the whole surface and replacing the selection (it would preserve undo in WYSIWYG but depends
+on selection state, fails in a hidden or read-only editor, and is unreliable across engines).
+
+**Storage.** A versioned envelope like the drafts plugin's, rebuilt field by field on every read (no parsed object is kept), ids
+restricted to `[\w.:-]{1,80}`, labels cut to 200 characters, duplicates and non-finite times dropped, limits re-applied to what
+was read. The store re-reads on every call so two tabs see each other's snapshots; the price is a JSON parse per call, fine for
+tens of snapshots. Snapshots live in an array, never in an object keyed by id, so `__proto__` as an id or a label is just a string.
+
+**Size.** The entry is about 24 kB gzip because it carries the parser (`diffBlocks`) and the renderer (`createDiffView`); both are
+shared chunks the editor already downloads. The diff core, view and history together are about 5 kB. A bundler drops what you do not import.
+
+**What other renderers show.** The feature stores nothing of its own in the document. GitHub and CommonMark viewers show the
+document text as it is.
+
+**Not supported.** Three-way merge and conflict markers; moved-block detection (a moved paragraph is a delete plus an insert);
+per-word accept (decisions are per hunk); diffing the source of code blocks by line.
+
+<!-- feature:export -->
+
+### Export and import (2026-10-02)
+
+- **Standalone HTML carries no script and no network.** A CSP meta (`default-src 'none'; img-src https: data:;
+  style-src 'unsafe-inline'`) backs up the rendering pipeline, which already escapes. Rejected: leaving
+  the CSP out because the renderer is safe (defence in depth is one line); inlining images as data URIs
+  (unbounded size, and remote images are allowed by `img-src https:`).
+- **Tokens, not a copy of the theme.** The export reads the editor's resolved `--atm-*` values with
+  `getComputedStyle` and writes them as a `:root` block, each value checked against `UNSAFE_CSS` plus a
+  length cap. Rejected: serialising the editor's whole stylesheet (large, and it would drag editor chrome
+  rules into a reading document); a theme-name lookup (custom themes would be lost).
+- **Print through a hidden iframe, not `window.print()` plus hiding rules.** The framed standalone
+  document prints exactly the content, whatever the host page's CSS does. `window.print()` with
+  `atm-printing` / `atm-print-root` stays as the fallback, and `@media print` rules in `style.css` make a plain
+  Ctrl+P of a page with an editor print sensibly too. The iframe is `sandbox="allow-same-origin
+  allow-modals"` (no scripts), and is removed on `afterprint` or two seconds after `print()` returns.
+- **Copy order.** `ClipboardItem` (text/plain + text/html) first, then `writeText` for text-only payloads,
+  then a `copy` event on a hidden selected textarea. Rejected: only `execCommand` (deprecated, but the one
+  path that works without the permission) or only the async API (fails without a permission or on an older engine).
+  A failure is reported, never swallowed.
+- **Selection-aware copy** uses `getSelectionMarkdown()`; the HTML of a selection is rendered from that
+  Markdown with the render options the editor exposes (`links`, `chips`, `highlight`, `embeds`, `linkPreview`,
+  `classPrefix`), not the editor's private ones; the whole document uses `getHtml()` exactly.
+- **`.txt` is text, not Markdown.** It is escaped (`\*`, `\#`, bare URLs, `@`, list and rule markers, indentation as
+  non-breaking spaces, line breaks as hard breaks) so it reads back as the same text. `txt: "markdown"` opts out.
+  HTML import reuses `htmlToMarkdown` (a lazy chunk the editor already has for paste).
+- **No `.docx`.** A `.docx` is a zip of OOXML parts. Reading it needs an inflate implementation and an OOXML
+  parser (styles, numbering, relationships), which is a dependency or several kilobytes beyond the entry's budget.
+  Hosts that need it convert on the server or in their own code and pass the Markdown to `setValue`.
+- **Replace is one undo step**: select everything inside the pane and call `replaceSelectionMarkdown` in
+  a `transact`, not `setValue` (which resets history). If the pane refuses it falls back to `setValue`.
+- **The drop handler is a capture listener on the editor element** and acts only for exactly one file whose
+  extension or MIME type is `.md`, `.markdown` or `.txt`, in an editable editor. It calls `stopPropagation`
+  only then, so every other drop reaches the upload path untouched. The default confirmation is an in-editor
+  `alertdialog` bar (not `window.confirm`, which cannot be styled, translated or tested, and is blocked in
+  some embeds). Rejected: a modal dialog (it would need a focus trap on the whole page for a one-line question).
+- **Size**: the entry is about 22.7 kB gzip bundled, of which about 13 kB is the shared renderer
+  (`exportHtml(markdown)` needs `renderHtml`; an editor page already loads it). The HTML converter loads on
+  first HTML import.
+
+
+<!-- feature:chips -->
+## 2026-10-02: Mentions v2 and chips v2 (`advanced-texteditor-md/chips`)
+
+- **The wire format is untouched.** Groups are a `kind` (`group`), tags and channels are schemes, so every existing parser,
+  renderer and host sees ordinary chips. Rejected: a `group:` scheme (two schemes for one person-or-group picker, and hosts
+  that filter `getMentions()` by scheme would miss groups) and a `?group=1` ref (invisible to CSS without script).
+- **Presets return pieces, not plugins only.** A Plugin cannot add mention triggers or chip definitions (both are read once
+  by `createEditor`), so `createTagTrigger` / `createChannelTrigger` return `{ mentions, chips, plugin? }` for the host to
+  spread. Rejected: changing the core to let plugins register triggers (an eager change to the editor entry, which is at its
+  size ceiling).
+- **The command preset defaults to `>`** because `/` is the slash menu; `trigger: "/"` is ignored, and the commands are also
+  slash items. Rejected `!` (`![` is image syntax). A command is not a chip, so its preset runs its own typeahead (the core
+  controller in WYSIWYG, the textarea typeahead in the Markdown pane) and removes the typed `>query` in the same
+  transaction as `run(editor)`: one undo step.
+- **Channels default to `~`**, not `#`: `#` is the tag preset's trigger and a heading marker. `stringify` escapes the tilde
+  (`[\~general](...)`); the parser still reads `~` as the trigger.
+- **Tag creation on space** is an `afterInput` hook (not a keydown), so the character is already in the text and IME
+  commits (`insertCompositionText`) never count. A new tag needs a letter, so `#1` stays text; `a#b` is not at a word
+  boundary.
+- **Hover cards: tooltip or non-modal dialog, decided by the content.** A card with nothing to reach is `role="tooltip"`
+  (`aria-describedby` on the chip). Links inside a tooltip cannot be reached, so a card with links is `role="dialog"`
+  `aria-modal="false"`: in views Enter/Space on the focused chip moves focus in; in the editor (where the caret, not focus,
+  is on the chip) **Alt+ArrowDown** does, the key combobox popups use to open. Escape returns focus to the chip, or to the
+  editor at the saved caret. Rejected: Tab into the card (Tab indents lists in the editor) and focusing the card on open
+  (it would steal focus from typing).
+- **Keyboard cards in the editor follow the caret**, as the link-preview card does: a chip right before or after a collapsed
+  caret, or a selected chip, opens its card (at most 150 ms). Escape there is consumed only while a card is open, and the
+  same caret does not reopen it.
+- **Chips in read-only views become focusable** (`tabindex="0"`, `role="button"`, only for the configured schemes) in
+  `postRender` mode `"view"` only, never in the surface. Listeners are bound per chip, because `renderDom` hands postRender a
+  detached wrapper whose children are moved; one controller per document; no document-level listener while no card is open,
+  so a view needs no teardown. Not supported: keyboard cards in a read-only *editor* (no caret, chips not focusable); render
+  read-only content with `renderDom` instead.
+- **Card data is text**: `textContent` everywhere, `avatarUrl` and link hrefs through `urlAllowed` (http/https), every string
+  capped, lists capped. An `HTMLElement` from `getCard` is the host's own markup and is inserted as it is. Cache per
+  `scheme:kind:id`, LRU 100; an aborted load is not cached.
+- **Decorations are not content, and the tests prove it.** The surface reads a chip's label from `data-label` and its
+  identity from `data-*`; every decoration has `contenteditable="false"`, `data-atm-preview-card` and no text (the remove "x"
+  is a CSS `::before`), so even dom-to-doc's textContent fallback is unchanged. Tests assert `getValue()` with and without
+  decorations, and after an edit. The classes added to chips (`atm-chip-removable`, `atm-chip-editable`) are never read by
+  dom-to-doc. Decorations follow edits through a MutationObserver (disconnected on cleanup) and full renders through
+  `postRender`.
+- **`icon(chip)` markup is trusted** (host-written, inserted through a `<template>`), like toolbar icons; hosts must not build
+  it from chip data. Avatars are URLs checked with `urlAllowed`.
+- **Remove = select the chip, `insertText("")`**: one undo step through the surface's own path; one adjacent space goes with
+  it when a space precedes the chip. The button is `tabindex="-1"`: Backspace/Delete already remove an atom, and a tab stop
+  per chip would turn a document into a long tab sequence.
+- **Label editing replaces the selected chip with `replaceSelectionMarkdown(chipMarkdown(...))`** (same scheme, kind, id and
+  refs; one undo step). Rejected `replaceRangeWithChip` (it appends a space each time). The dialog has no `<form>`, so Enter
+  can never submit a form the host wraps the editor in.
+- **Markdown-pane mentions are a separate typeahead** (internal `createTextareaTypeahead`), not the core controller, which
+  anchors to text nodes. It reuses `detectTrigger`, the same options and classes, and the pane's own mirror measurement
+  (`getCaretRect`: copies the textarea's box, font, spacing and tab size, subtracts its scroll). It reads at most 200
+  characters before the caret (linear on a huge line) and ignores a trigger inside link text that is already closed, which is
+  exactly what a pick just wrote. A pick is `setSelectionRange` plus the pane's `insertText`: one undo step.
+- **The label escaper mirrors `stringify`'s inline escaping** instead of importing it (the parser chunk would more than double
+  the subpath's eager size). A test compares it with `stringify` on hostile labels and checks the fixed point. The context
+  comes from the textarea line: `|` in a table row, `$` when the line has another dollar, custom-syntax openers from the
+  editor's options and plugins.
+- **Ranking: recency first, then decayed frequency, inside one match class**, as shortcodes rank by recency; a pick's weight
+  halves every 14 days and the old count is decayed to "now" before the new pick is added. Picks come from the `mentions`
+  event (new keys only) and `record(item)`; chips drawn by a full render (`setValue`, undo, redo; seen in `postRender`) are
+  not picks, so loading a document never inflates the history. Rejected: wrapping the menu's pick (not reachable from a
+  plugin).
+- **Picker**: a modal dialog (the field is its only tab stop) in the combobox pattern. It opens one microtask after the
+  command, because the toolbar focuses the pane again when a command returns. WYSIWYG inserts with `editor.insertChip`
+  (which adds a space, like the mention menu); the Markdown pane writes escaped wire text, because the core's
+  Markdown-mode `insertChip` writes the label unescaped (`stringKey` in `src/editor/create-editor.ts`; reported, not
+  changed).
+- **Size**: the eager subpath is about 12 kB gzip (limit 15): factories, ranking, groups, presets and the escaper. The card
+  UI, the textarea typeahead, the picker dialog, the label editor and (for the command preset) the core mention controller
+  are lazy chunks, fetched when a plugin is set up or first used.
+- **What other renderers show**: chips are links with an unknown scheme. Plain CommonMark shows a link; GitHub strips hrefs
+  whose scheme it does not allow, leaving the label as text.
+- **e2e note**: axe's `color-contrast` rule flags the render-only fallback chip colours (`:where(.atm-chip)` in `style.css`,
+  accent on a 14 % tint) in the read-only view; that rule is disabled for the view in `e2e/chips.spec.ts` only. The group
+  chip, the cards, the menus and the dialogs pass it.
+
+
+<!-- feature:blocks -->
+## 2026-10-02: Content blocks (`advanced-texteditor-md/blocks`)
+
+**One subpath, one factory per feature.** Columns, footnotes UI, rule styles, shortcode tables, date chips, file cards and galleries are separate modules with separate factories, so a bundler drops what is not imported; `createContentBlocksPlugins` is a convenience that imports them all. The footnote dialog needs `parse`/`stringify`; that half is a lazy `import()` chunk so render-only users of the subpath do not pay for a second copy of the parser (the editor has it already, so the chunk resolves at once there).
+
+**Columns are the existing custom block grammar, not new syntax.** `::: columns` / `::: col` with both names registered, because `blockClose` counts only the openers of registered names. Rejected: a separator line inside one container (invents syntax, and a column could not hold blocks); HTML `<div>` (raw HTML is never rendered). The layout data (`n`, `widths`) is a whitelist of numbers turned into a grid template by the plugin; the raw value is only ever a `data-` attribute. Editing rules were chosen so a column can never disappear by accident: the surface's default for an empty line in a container is to lift it out (which would split the column, or leave a stray block between columns), and Backspace at a container's start lifts too; both are intercepted in the plugin's `keydown`, for columns only. Enter on the empty last line of the last column leaves the block, like a code block. Tab is deliberately not bound (the editor's Tab-leaves-the-editor rule stands). Not handled: a range deletion across two columns merges them (undo restores); a `:::` line inside a code block in a column ends the column (a limit of the container grammar, the same for `::: details`). GitHub and CommonMark show the `:::` lines as paragraphs of text with the content between them.
+
+**Footnotes: insert on Save, not on open.** The command opens the dialog first and inserts reference and definition together when the user saves, so insert + text is one undo step by construction and Escape leaves nothing behind (an empty `[^n]:` was the alternative). The new reference and definition are added to the surface DOM inside `editor.transact` plus the surface's begin/commit; dom-to-doc already reads `sup[data-label]` and `li[data-label]`, so no core change was needed. Labels are the next number above the highest numeric label (named labels are left alone). The editor shows no tooltips (the definitions are on the page); views get unique ids for repeated references (the renderer gave every repeat the same id, an HTML error), one back link per reference, accessible names and a hover/focus tooltip. Multi-paragraph and block footnotes are edited as Markdown text.
+
+**Rule styles are document level.** All three thematic-break spellings parse to one node and stringify writes `---`, so a style per rule would need either a new syntax or abusing the spelling (which `stringify` would normalise away on the first edit). A document setting is honest about that; it is a data attribute plus CSS, so it costs nothing at run time.
+
+**Date chips: ISO id, ISO label, display-only text.** The label stays the ISO date (machine readable, sorts, and is what GitHub shows as the link text) unless the author typed one; the shown text is formatted in the viewer's locale at render time, in UTC, so a server and a browser in different time zones show the same day. Rejected: storing the formatted text as the label (locale-dependent Markdown). A `Plugin` cannot carry a `ChipDefinition`, so the factory returns both; documented. The chip's `render` returns an escaped string (the renderer inserts a string as markup), never user text unescaped. The picker is a native `<input type="date">` (accessible and localised by the browser) with explicit Set / Today / Enter, because `change` fires while a user is still typing a date segment in some browsers. GitHub shows `[2026-10-02](date:2026-10-02)` as text (an unknown scheme is not linked); CommonMark renders a link.
+
+**File cards: the size is the link title.** It is the only place in a link that every renderer keeps and shows (a tooltip). The editor's upload path (`uploads.ts`, `insertAsset`) is not this subpath's to change, so while the plugin is installed it wraps the surface's `insertAsset` for links whose URL a wrapped handler reported, running the insertion and the title inside one `editor.transact` (one undo step); the original is restored on destroy and on a pane change. Rejected: a MutationObserver that adds the title afterwards (a second undo step, and undoing it would trigger the observer again). Cards are decoration only (class and data attributes on the `<a>`, CSS masks and generated content), so `getValue()` is unchanged; dom-to-doc reads only `href`/`data-href` and `title` on a link. `download` is set only for relative and same-origin http(s) links, where browsers honour it. Other renderers: a link with a size tooltip.
+
+**Galleries are a class, not a wrapper.** Wrapping the images would change what the lightbox, the image tools and dom-to-doc see; a class on the `<p>` changes nothing but layout. Images refused by the link policy are not images any more, so they break the gallery rather than slipping into it.
+
+**Definition lists: skipped.** `Term` followed by `: definition` is a paragraph with a lazy continuation line in the block parser; recognising it needs a change to the eager parser (and a new Doc node, a renderer case and a dom-to-doc case), which a feature subpath must not make. A `::: glossary` container would work today but is not what anyone types.
+
+<!-- feature:writing -->
+## 2026-10-02: Writing aids (`advanced-texteditor-md/writing`)
+
+**The host supplies all intelligence.** Completion, selection transforms and checks are functions the host passes; the entry bundles no model, dictionary or network client (it would tie the library to one vendor and leak documents by default). Spellchecking is the browser's own, driven only through the `spellcheck` and `lang` attributes. Five factories in one subpath, so a bundler keeps only what is imported. Stored Markdown is unchanged by every feature here: GitHub and CommonMark viewers show exactly the text that was typed, accepted or applied.
+
+**Ghost text is an overlay, not content.** It is a `div` in `editor.element`, outside the surface, positioned at `getPane().getCaretRect()` with the block's font, and `text-indent` so the first line starts at the caret and wrapped lines start at the block's left edge. Rejected: a NOT_CONTENT span in the surface (the caret, IME and the browser's spellchecker all react to inline nodes beside the caret, and every keystroke would have to move it); a `::after` pseudo-element (cannot hold arbitrary text safely, and the caret position is not a box). Consequence: an overlay cannot push the following text aside, so by default a suggestion is only asked for at the end of a block (`anywhere: true` opts in and draws over it). The Markdown pane uses the pane's own textarea mirror for the caret rectangle. The logic is a pure state machine (`ghostStep`: idle, waiting, loading, shown) with effects the plugin performs, so stale answers, aborts and caret moves are unit-tested without a DOM. Tab is consumed only while a suggestion is shown; Shift+Tab is never consumed. The announcement is once per focus of the editor (announcing every suggestion while typing would talk over the user). Mod-ArrowRight is detected in the plugin's `keydown`, not the keymap, because a keymap binding cancels the key even when its command does nothing (it would break word-jump / end-of-line). Suggestions are folded to one line and stripped of control and bidi override characters (Trojan Source); they are inserted with `insertText`, never parsed.
+
+**Selection actions restore the saved selection, or refuse.** The WYSIWYG selection is kept as a live DOM `Range` (it follows edits elsewhere) and is valid only while it is connected and its text is still what was selected; in the Markdown pane, offsets plus the selected substring. Rejected: text offsets into the document (an edit before the range shifts them silently) and "replace whatever is selected now" (the user has often clicked elsewhere). When the check fails nothing is replaced and the result is offered to copy: silently writing into changed text is worse than one extra step. Results are Markdown through `replaceSelectionMarkdown` inside `transact` (one undo step, the editor's link policy); spaces at the edges of a result are inserted as text because parsing drops them. The floating menu is opt-in (`menu: true`) because the chrome owns the bubble and context menus; the actions are commands and toolbar items so the chrome shows them. The menu draws labels as text only (host icons are trusted markup by the toolbar contract, but this menu does not need them).
+
+**Spellcheck and language are touched only on request.** Other chrome (a settings popover) may also manage `spellcheck`; this plugin writes an attribute only when its option or a command asks, writes only when the value differs, and emits `plugin:writing:spellcheck` / `plugin:writing:lang`. Tags are canonicalised with `Intl.getCanonicalLocales`, which also rejects anything that is not a tag (no attribute injection possible). `dir` is deliberately not handled (the bidi plugin owns it).
+
+**`readingStats` does not carry the parser.** The parser is 12 kB gzip; importing it would leave about 3 kB for everything else in this entry. `readingStats` takes a `Doc` (exact: `editor.getAst()` costs nothing in the editor, or `parse()` from the parser subpath) or a string, reduced to text by a line-based, linear-time stripper that matches the parser on everyday Markdown (tested on a corpus against `parse()`). Han, Hiragana and Katakana count per character (`words` = spaced words + CJK characters, the word-processor convention); Hangul is space-delimited and counts in words; Thai and similar scripts count per space-delimited run (segmenting them needs a dictionary: `Intl.Segmenter` would do it, but its word boundaries differ across engines, and counts that change with the browser are worse than a documented limit). Images, math and footnote references are not counted; code is counted unless `includeCode: false`.
+
+**The word goal is the goal tracker only.** It appends to `.atm-statusbar` (as the drafts plugin does) with `aria-live="off"` on its item, because the status bar is itself a live region and a bar updating on every word would be read out constantly; the one "goal reached" announcement goes through the plugin's own polite region. A document that loads above the goal does not announce; it re-arms below 90% so a word added and deleted at the edge does not repeat it. A reading-time item drawn by other chrome is not duplicated: both call `readingStats`.
+
+**Lint text model: one run per block, atoms are U+FFFC.** The find-replace plugin's `collectRuns` ends a run at every `<br>` and atom (find never matches across them), so it cannot give "one run per block"; and importing it would pull the plugins module into this subpath. The lint model is its own walker: blocks joined by `"\n"`, a `<br>` is `"\n"` inside the run, a chip / inline math / image (and inline code unless `includeCode`) is one U+FFFC so words beside it stay apart and offsets stay stable, code blocks are left out by default (identifiers are noise to a prose checker). An offset that falls inside an atom snaps to the text beside it. Squiggles use the Highlight API (per-editor names per severity, rules injected per editor as find-replace does) and fall back to boxes in an overlay outside the surface. Issues are sanitised (clamped offsets; NaN, reversed and empty ranges dropped; strings only, control and bidi characters removed; capped counts) and carried across edits by a single common-prefix/suffix diff until the next check; a check is aborted on the next edit and on destroy. Keys are Alt+F8 / Shift+Alt+F8 (the convention of several code editors, free in the keymap) and Alt+Enter to reach the fix buttons; the popover does not take focus by itself, so typing is never interrupted.
+
+**Not supported, and why.** Lint in the Markdown pane: a textarea cannot draw highlights, and offsets there would be Markdown source offsets, not the text model; the status item says so. Multi-line ghost text: one overlay line box keeps placement exact; a paragraph-sized suggestion still wraps. A keyboard path into the floating selection menu: the toolbar items and commands are the keyboard path.
+
+**Size**: the entry is about 12.6 kB gzip bundled, with no chunk shared with the editor entry.
+
+
+<!-- feature:i18n -->
+## 2026-10-02: Internationalisation and right-to-left (`advanced-texteditor-md/i18n`)
+
+**Label bundles.** One module per language (`i18n/<code>`), a plain object typed `Labels`, so a missing or extra key is a compile error as well as a test failure. The key set is every key of `DEFAULT_LABELS`, `EXTRA_LABELS` and `LAZY_LABELS`; `resolveLabels` only merges strings, so no bundle key is a function and none needs to be. Each module is at most 1.5 kB gzip (measured as a bundler ships it, UTF-8; `dist/i18n/*.js` carries tsup's `\uXXXX` escapes, about 4% more once gzipped). A budget for `i18n/` entries is in `scripts/size.mjs`. Rejected: one JSON file per language (needs `resolveJsonModule` and import attributes in consumers), one module with all languages (every user pays for twelve they do not use), `Intl.DisplayNames` for the language names (not a label of the editor).
+
+**Wording.** Common UI terms of mainstream software (Negrita, Gras, Fett, 太字, 粗体, غامق, ...), the conventional register of each language (imperative or infinitive in Spanish, Portuguese, Italian; Sie in German; vous in French; informal je in Dutch; polite forms in Japanese), German nouns capitalised, French in sentence case, Arabic and Hindi in their own scripts. To stay inside the size budget a few Russian, Japanese and Hindi strings are shorter than a literal translation (for example "Описание (alt)"). **None of it was reviewed by a native speaker; do that before shipping a language.** Counted nouns (`words`, `characters`) use one neutral form after the number; Russian and Arabic plurals are not exact. Traditional Chinese uses the Simplified bundle (no `zh-Hant` bundle).
+
+**Locale matching.** Only the primary language subtag counts, and a tag must look like a BCP 47 tag (at most 35 characters, letters, digits and hyphens) before anything else happens, so a hostile code can never select a module path or reach an attribute: `loadLabels` uses a fixed table of literal `import()` calls. Unknown means English; it never rejects. `isRtl` knows the RTL languages and RTL script subtags, and a script subtag wins over the language (`ur-Latn` is LTR).
+
+**Bidi plugin.**
+- *Direction is view state, never stored.* Nothing is written to the Markdown; `getValue()` is identical with and without the plugin (tested in jsdom and in three engines).
+- *Only the editing areas.* The surface, the Markdown textarea and the split preview. The chrome (toolbar, status bar, the editor root) mirrors itself.
+- *Explicit wins.* `dir: "ltr"` / `"rtl"` forces every block; per-block detection exists only under `"auto"`. A mixed document under a forced direction is what the author asked for; a block with no strong character (digits, an empty line) would otherwise read LTR under `dir=auto`, which is wrong in an RTL document.
+- *Per-block through CSS and few attributes.* `unicode-bidi: plaintext; text-align: start` on the leaf blocks gives correct text flow and alignment in Chromium, Firefox and WebKit, and needs no work after Enter or paste. It does not change the element's own box direction (a list's marker side, a quote's bar, a table's column order) and it does not change the computed `direction`. So the plugin adds `dir="auto"` to top-level blocks and to the outermost list, quote or table. Descendants of a container get no `dir`: HTML skips every descendant with a `dir` attribute when it resolves `auto`, which made every list and quote read LTR in the first version (measured in all three engines).
+- *No `dir` on the root in per-block mode.* A `dir=auto` scroll container flips its scrollbar to the other side when the first paragraph's script changes. A forced direction or `perBlock: false` sets it.
+- *Attributes on content blocks are safe.* dom-to-doc reads `title`, `href`, `align`, `data-*` and similar; it never reads `dir`. Proven by unit tests (value and AST equal with and without the plugin, after edits and `setValue`) and in the browser.
+- *Textarea.* A textarea cannot have a direction per line; `dir="auto"` is the first strong character of the whole field. Documented, not worked around.
+- *IME.* The plugin tracks `compositionstart` / `compositionend` on the editor root (capture) and writes no attribute in between; the observer's work and a `setDirection` call wait for the end. The reusable simulator is `test/extensions/i18n/ime.ts`.
+- *Not supported:* a per-paragraph manual direction override stored in the document (Markdown has no syntax for it; HTML `dir` attributes would be raw HTML, which the parser does not keep); bidi isolates inserted into the text (they would change the stored Markdown); per-line direction in the textarea.
+- *Other renderers.* GitHub and plain CommonMark viewers display the Markdown with the page's direction and their own bidi handling; the plugin has no effect there.
+
+**Stylesheet findings (not edited here).** Rules in `style.css` / `surface.css` that use a physical side and so break in a right-to-left page or document:
+- `surface.css`: `.atm-surface blockquote` (`padding: 0.1em 0 0.1em 1em`; fixed for RTL in `features/i18n.css`); `.atm-details > .atm-summary` (`padding-left`) and its `::before` (`left`, `border-right`, rotation; fixed for RTL in `features/i18n.css`); `img[data-align="left" | "right"]` and `.atm-figure[data-align="left" | "right"]` (physical floats and margins, which is what an author who says "left" means).
+- `style.css`: `.atm-mode-split .atm-preview` (`border-left`, three places: wrong side when the page itself is RTL, because the columns swap); the menu buttons at `text-align: left` (two places); `.atm-mode-switch-floating` (`right: 6px`); `.atm-btn-danger` (`margin-right: auto`); `.atm-statusbar .atm-mode-switch` (`margin-right: auto`) and `.atm-status-mode` (`margin-left: auto`); `.atm-toast` (`right: 10px`); `.atm-layout-bottom-bar .atm-actions` (`margin-left: auto`); the image resize handles (`left` / `right` by corner, symmetric by design) and `.atm-lightbox-close` (`right: 0.75rem`). These are chrome and belong to the chrome rewrite.
+- Already logical: list indent (`padding-inline-start`), the quote bar (`border-inline-start`), the task checkbox (`inset-inline-start`).
+
+
+## 2026-10-02: Chrome v2 (layouts, palette, context menu, settings, toolbar model, status bar, slash v2)
+
+**Everything new is a lazy chunk; the eager entry did not grow.** Nine chunks, each with a 12 kB budget (`scripts/size.mjs`):
+`palette` 9.0 kB (palette and shortcuts sheet), `context-menu` 7.8, `settings` 7.1, `status-extra` 6.0, `ribbon` 10.5,
+`sidebar` 8.7, `focus` 7.2, `tabs` 5.5, `mobile` 1.3 (compact, mobile and auto share it). `slash` is 4.8 and `toolbar-menu`
+1.7 (it now also draws the tooltips). Measured the same day against a copy of the tree with only the chrome changes reverted:
+62.17 kB bundled with chrome v2, 62.17 kB without (budget 62.2). The eager additions (the palette, shortcuts and context-menu
+keys, the `contextmenu` listener, the toolbar groups and item types, priority overflow, `data-atm-density`, the empty-state
+class, the new `LayoutHost` fields and the layout table) were paid for by moving code out of the entry:
+- the toolbar tooltip (drawing and its 500 ms hover timer) into `toolbar-menu`; buttons keep only `data-sc`;
+- the emoji hint, the toast and the popover arguments into `popovers` (`openFor(env)`);
+- the mention wiring into `mention-glue` (it replaces the `mentions` chunk in the lazy contract) and the preview's chip click
+  into `markdown-pane`;
+- strings used only by lazy code into `i18n-lazy.ts`;
+- one `chunks.<name>.use(fn)` helper for the "run now if loaded, else when it arrives" pattern that was written out eight times;
+- theme token names generated from one list; the default toolbar order derived from the groups instead of a second list.
+
+**Strings of the new chunks are per-chunk constants** (`PALETTE_LABELS`, `MENU_LABELS`, `SETTINGS_LABELS`, `SLASH_LABELS`, …),
+overridable through `labels` like any other. They are not in `LAZY_LABELS` because the locale files in `src/extensions/i18n/`
+are typed as the full `Labels`: a key added there would have to be added to all thirteen locales at once.
+
+**Lazy chunks import no eager module except `dom`, `render`, `i18n-lazy` and the parser types.** Importing `toolbar.ts` or
+`parser/util.ts` from a chunk made esbuild split them into a shared chunk and added export glue to the entry (one attempt
+created a tenth eager file). The editor, the toolbar context, the keymap, icons, commands, `renderInto`, `announce` and `toast`
+reach the chunks through `LayoutHost` instead.
+
+**Tooltips replace native `title`.** A `title` is shown only on hover, after a browser-chosen delay, never on keyboard focus,
+and screen readers announce it on top of `aria-label`. The tooltip is `role="tooltip"`, referenced by `aria-describedby` while
+it shows, appears on focus at once and after 500 ms of a resting mouse, and keeps the shortcut in a left-to-right box.
+
+**The palette list is a native scroller with `tabindex="-1"`.** A clipped list (`overflow: hidden` plus a wheel handler, the
+slash menu's approach) left the options below the fold measured by axe against the backdrop: a false 3.9:1 in `sepia`. With
+`tabindex="-1"` the list satisfies `scrollable-region-focusable`, is never a Tab stop, and sends focus straight back to the input.
+
+**Menus animate movement, never opacity.** axe run right after a menu opened measured its text mid-fade and failed it
+(`e2e/chrome.spec.ts`). A menu that is readable from its first frame is also what a user needs.
+
+**Focus layout dimming is opt-in and typing-only.** Fading the other paragraphs to 38 % takes body text, links and code tokens
+below 4.5:1 in every theme (the axe matrix failed 9 of 9 themes). `layoutOptions.focus.dim: true` keeps the feature for those
+who want it; at rest every block is at full contrast.
+
+**Context menu.** Right-click, Shift+F10 and the ContextMenu key open it; Shift+right-click keeps the browser's own menu (spell
+check, inspect), and a touch long-press opens ours only on an image, link, code block, table cell or chip, so text selection
+on phones is untouched. It is not offered in the Markdown pane, where the browser's menu is the right one.
+
+**Settings storage.** `settings.storage` is any `{ getItem, setItem }` (so `localStorage`, `sessionStorage` or the host's own);
+errors are swallowed and stored values are validated before use (an unknown density, a font size that is not a length).
+Without storage the values live as long as the editor. The palette's recent list uses the same storage.
+
+**Sidebar breakpoints.** At an editor width of 1040 px and more both panels are open, from 720 px the outline only (the inspector
+opens beside it), and below 720 px both start closed and open over the page. `setValue()` fires no `change` event, so the
+editor now pings the layouts after it (the sidebar redraws its outline).
+
+**RTL.** Code blocks stay left to right, key combinations are isolated left-to-right boxes, Markdown source lines and chips take
+their own direction (`unicode-bidi: plaintext`), and the submenu mark "›" is not flipped: it is bidi-mirrored already, so a
+rotation turned it back (found in the RTL screenshots).
+
+**Not done.** The sticky toolbar's shadow uses `scroll-state` container queries only (Chromium); other engines get no shadow
+rather than a scroll listener in the entry.

@@ -1,0 +1,239 @@
+/*
+ * Tables v2 (advanced-texteditor-md/tables): resize separators, row / column grips, the drop
+ * indicator, sort buttons, the headless-table rule and the import notice. Everything here matches
+ * classes and attributes only the tables plugin emits.
+ */
+
+/* Live regions: read aloud, never seen. */
+.atm-tables-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* A sized table: the widths in its <colgroup> are honoured (view-only, never stored). */
+table[data-atm-tables-sized] col {
+  min-width: 2rem;
+}
+
+/* ── the editor's handle layer (outside the surface, fixed over the table) ── */
+.atm-tables-layer > * {
+  position: fixed;
+  z-index: 20;
+  box-sizing: border-box;
+}
+.atm-tables-layer > [hidden] {
+  display: none;
+}
+
+.atm-tables-resize {
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  border-radius: 3px;
+  background: transparent;
+  outline: none;
+}
+.atm-tables-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--atm-tables-handle, var(--atm-border, #d0d7de));
+  opacity: 0;
+}
+.atm-tables-resize:hover::after,
+.atm-tables-resize[data-dragging]::after,
+.atm-tables-resize:focus-visible::after {
+  opacity: 1;
+  background: var(--atm-tables-handle-active, var(--atm-accent, #0969da));
+}
+.atm-tables-resize:focus-visible {
+  box-shadow: 0 0 0 2px var(--atm-tables-focus, var(--atm-ring, var(--atm-accent, #0969da)));
+}
+
+/* In a read-only view the handle sits inside its header cell. */
+table[data-atm-tables-resizable] th {
+  position: relative;
+}
+table[data-atm-tables-resizable] th > .atm-tables-resize {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  z-index: 1;
+}
+table[data-atm-tables-resizable] th > .atm-tables-resize:dir(rtl) {
+  right: auto;
+  left: -4px;
+}
+
+.atm-tables-grip {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  cursor: grab;
+  touch-action: none;
+  background:
+    radial-gradient(circle, var(--atm-tables-grip, var(--atm-muted, #656d76)) 1.2px, transparent 1.6px) 0 0 / 5px 5px;
+  background-color: var(--atm-tables-grip-bg, var(--atm-bg, #fff));
+  border: 1px solid var(--atm-tables-handle, var(--atm-border, #d0d7de));
+  opacity: 0.85;
+}
+.atm-tables-grip:hover,
+.atm-tables-grip[data-dragging] {
+  opacity: 1;
+  border-color: var(--atm-tables-handle-active, var(--atm-accent, #0969da));
+}
+.atm-tables-grip[data-dragging] {
+  cursor: grabbing;
+}
+.atm-tables-drop {
+  pointer-events: none;
+  background: var(--atm-tables-handle-active, var(--atm-accent, #0969da));
+  border-radius: 1px;
+}
+
+/* ── headerless tables (an empty header row, the "header off" state) ── */
+/* In a view the empty row is hidden visually; it stays in the table for assistive technology. */
+table[data-atm-tables-headless="view"] > thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* In the editor it stays reachable (the caret can go there), shown as a thin dashed row. */
+table[data-atm-tables-headless="editor"] > thead th {
+  padding-block: 0;
+  background: transparent;
+  border-style: dashed;
+  color: var(--atm-tables-muted, var(--atm-muted, #656d76));
+  font-weight: inherit;
+}
+
+/* ── sort buttons (read-only tables, opt-in) ── */
+.atm-tables-sort {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-align: inherit;
+  border-radius: 3px;
+}
+th[style*="right"] > .atm-tables-sort {
+  justify-content: flex-end;
+}
+th[style*="center"] > .atm-tables-sort {
+  justify-content: center;
+}
+.atm-tables-sort:focus-visible {
+  outline: 2px solid var(--atm-tables-focus, var(--atm-ring, var(--atm-accent, #0969da)));
+  outline-offset: 2px;
+}
+.atm-tables-sort-icon {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-inline: 4px solid transparent;
+  border-block-start: 5px solid currentColor;
+  opacity: 0.3;
+}
+th[aria-sort] .atm-tables-sort-icon {
+  opacity: 1;
+  color: var(--atm-tables-handle-active, var(--atm-accent, #0969da));
+}
+th[aria-sort="ascending"] .atm-tables-sort-icon {
+  border-block-start: 0;
+  border-block-end: 5px solid currentColor;
+}
+
+/* ── the import notice ── */
+.atm-tables-notice {
+  position: absolute;
+  inset-inline: 8px;
+  top: 8px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.5em 0.75em;
+  border-radius: var(--atm-radius, 8px);
+  border: 1px solid var(--atm-tables-danger, var(--atm-danger, #cf222e));
+  background: var(--atm-tables-notice-bg, var(--atm-bg, #fff));
+  color: var(--atm-tables-notice-fg, var(--atm-fg, #1f2328));
+  font-size: 0.875em;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+}
+.atm-tables-notice[hidden] {
+  display: none;
+}
+.atm-tables-notice > span {
+  flex: 1;
+}
+.atm-tables-notice-close {
+  flex: none;
+  min-width: 24px;
+  min-height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.1em;
+  cursor: pointer;
+}
+.atm-tables-notice-close:focus-visible {
+  outline: 2px solid var(--atm-tables-focus, var(--atm-ring, var(--atm-accent, #0969da)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-tables-resize::after,
+  .atm-tables-grip {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .atm-tables-resize::after,
+  .atm-tables-drop {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+  .atm-tables-grip {
+    border-color: ButtonText;
+    background: ButtonFace;
+    forced-color-adjust: none;
+  }
+  .atm-tables-notice {
+    border-color: CanvasText;
+  }
+  .atm-tables-sort-icon {
+    color: ButtonText;
+  }
+}
+
+@media print {
+  .atm-tables-layer,
+  .atm-tables-notice,
+  .atm-tables-resize,
+  .atm-tables-sort-icon {
+    display: none !important;
+  }
+}

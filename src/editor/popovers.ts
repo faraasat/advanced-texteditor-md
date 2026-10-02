@@ -3,9 +3,9 @@
  * size, math source and code language. All are `role="dialog"`, positioned
  * from the caret, trap Tab, close on Escape and hand focus back to the editor.
  */
-import type { LinkPolicy, Slot } from "../types";
+import type { EditorOptions, Highlighter, LinkPolicy, MathRenderer, Slot } from "../types";
 import type { Labels } from "./i18n";
-import { cx, fmt, focusables, h, placeNear, trapTab, uid, type Rect } from "./dom";
+import { cx, detectPlatform, emojiShortcut, fmt, focusables, h, placeNear, trapTab, uid, type Rect } from "./dom";
 import { urlAllowed } from "../features/upload-policy";
 import { lazyLabels } from "./i18n-lazy";
 
@@ -95,7 +95,7 @@ function field(host: PopoverHost, label: string, input: HTMLElement, hint?: stri
 
 function buttons(host: PopoverHost, applyLabel: string, onCancel: () => void, extra?: HTMLElement[]): HTMLElement {
   const apply = h("button", { document: host.doc, type: "submit", class: `${host.prefix}-btn-primary` }, applyLabel);
-  const cancel = h("button", { document: host.doc, type: "button", class: `${host.prefix}-btn-secondary`, onclick: onCancel }, host.labels.cancel);
+  const cancel = h("button", { document: host.doc, type: "button", class: `${host.prefix}-btn-secondary`, onclick: onCancel }, lazyLabels(host.labels).cancel);
   return h("div", { document: host.doc, class: `${host.prefix}-actions` }, ...(extra ?? []), cancel, apply);
 }
 
@@ -416,3 +416,73 @@ export const COMMON_LANGUAGES = [
   "javascript", "js", "typescript", "ts", "json", "css", "html", "bash", "sh", "python", "py", "sql", "markdown", "md", "yaml", "yml",
   "jsx", "tsx", "xml", "go", "rust", "java", "c", "cpp", "csharp", "php", "ruby", "swift", "kotlin", "diff", "text",
 ];
+
+/* ───────────────────────────── the editor's entry point ───────────────────────────── */
+
+/**
+ * What the editor knows when a popover command runs (read at that moment, before this chunk may
+ * have arrived): the caret rectangle, the selected text, and how to apply a result to the pane the
+ * selection was saved from. Building each popover's options here keeps that code out of the entry.
+ */
+export type PopoverEnv = {
+  kind: "link" | "image" | "table" | "math" | "codeLanguage";
+  host: PopoverHost;
+  anchor: Rect | null;
+  fallback: Element | null;
+  selection: string;
+  /** The caret is inside a link (the link popover offers Remove). */
+  inLink: boolean;
+  options: EditorOptions;
+  math: MathRenderer | null | undefined;
+  highlighter: Highlighter | null;
+  /** The file input's `accept`, and the upload path, when uploads are on. */
+  accept: string;
+  upload?: (files: File[]) => void;
+  /** Restore the saved selection and run `command` on the pane. */
+  apply(command: string, args: unknown): void;
+  /** The popover closed; `restore` puts the saved selection back. */
+  done(restore: boolean): void;
+};
+
+export function openFor(e: PopoverEnv): PopoverHandle {
+  const { host, anchor, fallback, done: onClose, apply, options: o } = e;
+  if (e.kind === "link")
+    return openLinkPopover(host, {
+      anchor, fallback, selection: e.selection, canRemove: e.inLink, links: o.links, onClose,
+      onApply: (v) => apply("link", { url: v.href, text: v.text }),
+      onRemove: () => apply("unlink", undefined),
+    });
+  if (e.kind === "image")
+    return openImagePopover(host, {
+      anchor, fallback, selection: e.selection, links: o.upload?.urls ?? o.links, onClose,
+      upload: e.upload ? { accept: e.accept, urls: o.upload?.urls, onFiles: e.upload } : undefined,
+      onApply: (v) => apply("image", { url: v.src, alt: v.alt }),
+    });
+  if (e.kind === "table") return openTablePopover(host, { anchor, fallback, onClose, onPick: (size) => apply("table", size) });
+  if (e.kind === "math")
+    return openMathPopover(host, {
+      anchor, fallback, tex: e.selection, preview: e.math ?? undefined, onClose,
+      onApply: (v) => apply(v.display ? "mathBlock" : "math", v.tex),
+    });
+  const hl = e.highlighter;
+  return openCodeLanguagePopover(host, { anchor, fallback, onClose, languages: hl ? COMMON_LANGUAGES.filter((l) => hl.has(l)) : [], onApply: (lang) => apply("codeBlockLang", lang) });
+}
+
+/** The emoji button's hint: the OS shortcut for the emoji panel (a page cannot open it). */
+export function emojiHint(l: Labels): string {
+  const sc = emojiShortcut(detectPlatform()) ?? lazyLabels(l).unknownShortcut;
+  return l.emojiHint.includes("{shortcut}") ? fmt(l.emojiHint, { shortcut: sc }) : `${l.emojiHint} ${sc}`;
+}
+
+const toastTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
+/** A polite status message at the editor's corner for five seconds (`later` is the editor's timer, cleared on destroy). */
+export function toast(root: HTMLElement, p: string, msg: string, kind: string, later: (fn: () => void, ms: number) => ReturnType<typeof setTimeout>): void {
+  let el = root.querySelector<HTMLElement>(`:scope > .${p}-toast`);
+  if (!el) root.appendChild((el = h("div", { document: root.ownerDocument, class: `${p}-toast`, role: "status", "aria-live": "polite" })));
+  el.textContent = msg;
+  el.setAttribute("data-kind", kind);
+  el.hidden = false;
+  clearTimeout(toastTimers.get(el));
+  const t = el;
+  toastTimers.set(el, later(() => (t.hidden = true), 5000));
+}
