@@ -96,6 +96,7 @@ import { createSuggestPlugin, readingStats } from "advanced-texteditor-md/writin
 import { createSnippets, localStorageSnippets, importSnippets, exportSnippets, type Snippet } from "advanced-texteditor-md/snippets";
 import { createWikiLinks, createLinkManager, findLinks, findBacklinks } from "advanced-texteditor-md/links";
 import { createCommentsPlugin, findComments, type CommentsPlugin } from "advanced-texteditor-md/comments";
+import { createFrontMatterPlugin, getFrontMatter, setFrontMatter, writeFrontMatter, FRONT_MATTER_SYNTAX, type FrontMatter } from "advanced-texteditor-md/frontmatter";
 import { loadLabels, createBidiPlugin } from "advanced-texteditor-md/i18n";
 import de from "advanced-texteditor-md/i18n/de";
 const snippetList: Snippet[] = [{ id: "sig", name: "Signature", trigger: ";sig", body: "Ada {{cursor}}", scope: "inline" }];
@@ -103,16 +104,18 @@ const snippets = createSnippets({ storage: localStorageSnippets("consumer"), def
 const wikiLinks = createWikiLinks({ search: async (q) => [{ id: q, label: q }], resolve: async (ids) => Object.fromEntries(ids.map((i) => [i, { exists: true }])), onOpen: (id) => void id });
 export const wikiEditor = { chips: wikiLinks.chips, plugins: [wikiLinks.plugin, createLinkManager({ wiki: wikiLinks, upgradeHosts: "all" })] satisfies Plugin[] };
 export const linkList: { kind: string; href: string }[] = findLinks("[a](https://example.com)");
+export const frontMatterRead: FrontMatter | null = getFrontMatter("---\ntitle: A\n---");
+export const frontMatterWritten: string | null = writeFrontMatter("Body", { title: "A" });
 const featurePlugins: Plugin[] = [
   createAlertsPlugin(), createCodeBlocksPlugin(), createTablesPlugin(), createDiagramsPlugin({ renderers: {} }), createExportPlugin(),
-  createMarkdownMentionsPlugin(), createSuggestPlugin({ onSuggest: async () => null }), createDictationPlugin({ lang: "en-US", onError: (e) => e.code }), createReadAloudPlugin({ rate: 1, voice: (voices) => voices[0] }), createBidiPlugin(), createPresentPlugin({ split: "auto" }), createReaderPlugin({ outlineDepth: 2 }), snippets.plugin,
+  createMarkdownMentionsPlugin(), createSuggestPlugin({ onSuggest: async () => null }), createDictationPlugin({ lang: "en-US", onError: (e) => e.code }), createReadAloudPlugin({ rate: 1, voice: (voices) => voices[0] }), createBidiPlugin(), createPresentPlugin({ split: "auto" }), createReaderPlugin({ outlineDepth: 2 }), createFrontMatterPlugin({ collapsed: true }), snippets.plugin,
 ];
 const comments: CommentsPlugin = createCommentsPlugin({ onCreate: () => "c1", render: (id: string) => `Thread ${id}` });
 featurePlugins.push(comments);
 export const commentIdsFound: string[] = findComments("[a](comment:c1)").map((c) => c.id);
 export const features = [
   featurePlugins, alertSyntax, parseCodeInfo, diffLang, csvToTable, renderDiagrams, createDiffView, diffWords, createHistoryStore, exportHtml,
-  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists, createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, createPresentView, createReaderView, splitSlides, readingStats, fitSpoken, importSnippets, exportSnippets, createWikiLinks, createLinkManager, findLinks, findBacklinks, loadLabels, de.bold,
+  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists, createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, createPresentView, createReaderView, splitSlides, readingStats, fitSpoken, getFrontMatter, setFrontMatter, FRONT_MATTER_SYNTAX, importSnippets, exportSnippets, createWikiLinks, createLinkManager, findLinks, findBacklinks, loadLabels, de.bold,
 ];
 export const deflistsTyped: Plugin = createDefinitionListsPlugin({ labels: { term: "Term" }, classPrefix: "atm" });
 export const deflistsParsed = parse("Term\n: Definition", { syntax: { block: DEFINITION_LIST_SYNTAX } });

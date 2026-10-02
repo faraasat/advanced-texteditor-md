@@ -319,6 +319,16 @@
         "default": "./dist/speech.cjs"
       }
     },
+    "./frontmatter": {
+      "import": {
+        "types": "./dist/frontmatter.d.ts",
+        "default": "./dist/frontmatter.js"
+      },
+      "require": {
+        "types": "./dist/frontmatter.d.cts",
+        "default": "./dist/frontmatter.cjs"
+      }
+    },
     "./comments": {
       "import": {
         "types": "./dist/comments.d.ts",
@@ -510,6 +520,9 @@
       ],
       "speech": [
         "./dist/speech.d.ts"
+      ],
+      "frontmatter": [
+        "./dist/frontmatter.d.ts"
       ],
       "comments": [
         "./dist/comments.d.ts"

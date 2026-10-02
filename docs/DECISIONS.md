@@ -756,3 +756,12 @@ drag-reordering a list by state, and a task filter that survives re-rendering of
 - **Thread text is text.** `render` may return an element (the host's own DOM) or a string, which is always inserted as text.
 - **Size.** 21 kB gzip bundled: it needs `parse` and `stringify` to read and remove marks, so it gets the 28 kB budget used by the other parser-carrying subpaths (diff, export), not 15.
 - **Gutter.** The surface host gives every child `overflow: auto`; the gutter (a child of the page) overrides it, or its zero-width box clips the markers and they cannot be clicked.
+
+## 2026-10-03: Front matter (`advanced-texteditor-md/frontmatter`)
+
+- **Keep the YAML you wrote.** A YAML library would parse and re-emit, losing comments, quoting and order, and would expand anchors, aliases and tags. The reader here is a subset that classifies every top-level entry and keeps what it cannot edit as a read-only entry with its source lines; the writer replaces only the lines of an edited entry. Nothing is evaluated, nothing is expanded; results are null-prototype objects.
+- **A block syntax through `BlockSyntax.match` / `serialize`**, the hook that was added for definition lists: the block is not a `::: name` container, its node holds the exact text (`data.yaml`) and is written back verbatim. No parser change.
+- **Shadow root for the panel.** The surface reads the DOM back as the document, so anything the panel draws inside the block could end up as content. In a shadow root nothing can: the Markdown is built from `data-atm-data` alone. Events from the panel are stopped at the shadow root so the surface never sees its keys, input or clipboard events; undo and redo are forwarded by hand from non-text controls.
+- **One stylesheet, two homes.** The shadow root needs the CSS as a string (`FRONT_MATTER_CSS`); a read-only view in the page needs it in `style.css`. They are the same text and `test/extensions/frontmatter/css.test.ts` fails when they differ.
+- **Size.** 14.84 kB gzip of 15, the panel stylesheet being about 2 kB of it.
+- **Not done:** nested maps and multi-line values are shown as "kept as written", not editable; a TOML or JSON front matter is not recognised.

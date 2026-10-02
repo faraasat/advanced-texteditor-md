@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md frontmatter</title>
+    <meta name="description" content="YAML front matter as a properties panel: edit fields, keep the YAML you wrote byte for byte." />
+    <!-- The built library. Run `npm run build` first (see example/README.md). -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; }
+      @media (prefers-color-scheme: dark) { :root { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; } }
+      :root[data-theme="dark"] { color-scheme: dark; --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 66ch; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      pre.out { margin: 0; max-height: 240px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .actions button { padding: 6px 12px; border: 1px solid var(--page-border); border-radius: 8px; background: var(--page-card); color: var(--page-fg); font: inherit; cursor: pointer; min-height: 36px; }
+      .actions button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+      @media (pointer: coarse) { .actions button { min-height: 44px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Front matter</h1>
+      <p class="lead">
+        The block of <code>key: value</code> lines between <code>---</code> fences at the top of a document is shown as a
+        properties panel. Editing a field rewrites only that property's lines; anything the panel cannot edit (anchors,
+        block scalars, comments) is kept exactly as written. <code>Mod-Alt-Shift-P</code> moves focus to the panel.
+        URL parameters: <code>value</code>, <code>readonly=1</code>, <code>mode=markdown</code>, <code>layout</code>,
+        <code>dir=rtl</code>, <code>theme=dark</code>.
+      </p>
+      <div id="editor-host" data-testid="editor-host"></div>
+      <div class="actions" role="group" aria-label="Front matter commands">
+        <button type="button" id="b-add" data-cmd="frontMatter">Properties</button>
+        <button type="button" id="b-remove" data-cmd="removeFrontMatter">Remove front matter</button>
+        <button type="button" id="b-mode" aria-pressed="false">Markdown view</button>
+        <button type="button" id="b-readonly" aria-pressed="false">Read-only</button>
+      </div>
+      <section class="card" aria-labelledby="data-h">
+        <h2 id="data-h">Data (getFrontMatter)</h2>
+        <pre class="out" id="output-data" tabindex="0"></pre>
+      </section>
+      <section class="card" aria-labelledby="md-h">
+        <h2 id="md-h">Markdown (what is stored)</h2>
+        <pre class="out" id="output-md" tabindex="0"></pre>
+      </section>
+      <section class="card" aria-labelledby="view-h">
+        <h2 id="view-h">Read-only view</h2>
+        <div id="view" class="atm-preview" data-testid="view"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import * as F from "../dist/frontmatter.js";
+      import { renderDom } from "../dist/render.js";
+
+      const q = new URLSearchParams(location.search);
+      if (q.get("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
+      if (q.get("dir") === "rtl") document.documentElement.setAttribute("dir", "rtl");
+
+      const plugin = F.createFrontMatterPlugin({ today: () => new Date("2026-10-02T12:00:00") });
+      const out = document.getElementById("output-md");
+      const data = document.getElementById("output-data");
+      const view = document.getElementById("view");
+      view.setAttribute("data-atm-theme", q.get("theme") === "dark" ? "dark" : "light");
+
+      const show = (md) => {
+        out.textContent = md;
+        data.textContent = JSON.stringify(F.getFrontMatter(md)?.data ?? null, null, 2);
+        view.textContent = "";
+        view.appendChild(renderDom(md, { syntax: { block: [F.FRONT_MATTER_SYNTAX] }, postRender: [plugin.postRender] }));
+      };
+
+      const initial =
+        q.get("value") ??
+        [
+          "---",
+          "title: Project Alpha",
+          "date: 2026-10-02",
+          "draft: true",
+          "priority: 2",
+          "tags: [notes, alpha]",
+          "# kept as written",
+          "anchor: &a [1, 2]",
+          "---",
+          "",
+          "# Project Alpha",
+          "",
+          "Body text of the document.",
+          "",
+        ].join("\n");
+
+      const editor = lib.createEditor(document.getElementById("editor-host"), {
+        value: initial,
+        theme: q.get("theme") === "dark" ? "dark" : "light",
+        layout: q.get("layout") ?? "classic",
+        mode: q.get("mode") === "markdown" ? "markdown" : "wysiwyg",
+        readOnly: q.get("readonly") === "1",
+        plugins: [plugin],
+        minHeight: 260,
+        onChange: show,
+      });
+      show(editor.getValue());
+      for (const b of document.querySelectorAll("[data-cmd]")) b.addEventListener("click", () => editor.exec(b.dataset.cmd));
+      const mode = document.getElementById("b-mode");
+      mode.addEventListener("click", () => {
+        const md = editor.getMode() === "markdown";
+        editor.setMode(md ? "wysiwyg" : "markdown");
+        mode.setAttribute("aria-pressed", String(!md));
+      });
+      const ro = document.getElementById("b-readonly");
+      ro.setAttribute("aria-pressed", String(editor.isReadOnly()));
+      ro.addEventListener("click", () => {
+        editor.setReadOnly(!editor.isReadOnly());
+        ro.setAttribute("aria-pressed", String(editor.isReadOnly()));
+      });
+      window.__editor = editor;
+      window.__fm = F;
+      window.__showView = () => show(editor.getValue());
+    </script>
+  </body>
+</html>

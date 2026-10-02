@@ -21,4 +21,6 @@ import { findLinks, createWikiLinks } from "advanced-texteditor-md/links";
 export const usedLinks = [findLinks, createWikiLinks];
 import { createCommentsPlugin } from "advanced-texteditor-md/comments";
 export const usedComments = [createCommentsPlugin];
+import { createFrontMatterPlugin } from "advanced-texteditor-md/frontmatter";
+export const usedFrontMatter = [createFrontMatterPlugin];
 export const usedViews = [createPresentView, splitSlides, createReaderView];

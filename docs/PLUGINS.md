@@ -1568,3 +1568,32 @@ Commands: `addComment`, `comment` (add, or focus the thread when the caret is in
 ### Keyboard and accessibility
 
 The panel is a non-modal `role="dialog"` named from the excerpt; Escape closes it and returns the caret; the close button is 44 px on coarse pointers. The gutter is a `role="group"` of buttons with a roving tab stop (arrows, Home, End) whose names carry the excerpt and ", resolved". Resolved is shown by a dashed border and the word, not by colour alone; forced-colors and print are handled.
+
+## Front matter (`advanced-texteditor-md/frontmatter`)
+
+A properties panel for the YAML block at the top of a Markdown file, and a safe reader and writer for it. The entry is about 15 kB gzipped including the panel's stylesheet (budget 15 kB). It uses the block-syntax hooks `BlockSyntax.match` and `serialize` (so the block is not a `::: name` container). Server-safe at import.
+
+```ts
+import { createFrontMatterPlugin, FRONT_MATTER_SYNTAX, getFrontMatter, setFrontMatter, removeFrontMatter, writeFrontMatter, hydrateFrontMatter } from "advanced-texteditor-md/frontmatter";
+createEditor(el, { plugins: [createFrontMatterPlugin({ collapsed: false })] });
+```
+
+**Markdown stored:** the block as written, byte for byte (the fences, even `...` as a closer, the line endings, comments). The parser node is `{ type: "custom", name: "frontmatter", data: { yaml, open?, close? } }`; `stringify` writes `data.yaml` back unchanged. A block is front matter only when it starts on the first line, a closing `---` or `...` exists, and its first non-blank, non-comment line is a `key:` line, so a horizontal rule followed by a setext heading stays what it was. Only the first block counts.
+
+### The YAML subset
+
+Read: top-level `key: value` with a scalar (plain, 'single' or "double" quoted, number, `true`/`false`, `null`/`~`, ISO date), a list (flow `[a, b]` on one line, or block `- a` lines) or a flat map one level deep. Everything else (anchors, aliases, tags, block scalars, deeper nesting, flow maps, multi-line scalars, duplicate keys, lines that are not `key:` lines) is a **read-only entry kept byte for byte**; nothing is expanded, so `*alias` and `!!tag` cannot do anything. Results have null prototypes (`__proto__` is a key like any other). Limits (`YAML_LIMITS`): over them the whole block is kept and edits are refused (`tooLarge`).
+
+Write (`updateYaml`, `writeFrontMatter`, `setFrontMatter`): only the lines of an edited entry change; an edited entry keeps its key spelling, spacing, quoting style and trailing comment, and an edited list reuses the source text of unchanged items. Strings that would read back as something else (`"yes"`, `"n"`, `"2026-10-02"`, anything with `: ` or a leading `-`) are quoted. A value with a newline or a line that is a fence cannot end the block early. `undefined` removes a key.
+
+### In the editor
+
+One atomic `contenteditable=false` block; the panel lives in a shadow root, so nothing it draws is ever read as content (the Markdown comes from the block's `data-atm-data`). Fields: text, number, date (`<input type=date>`), switch (checkbox with `role="switch"`), list (chips with remove buttons and an add field), add property (name and type; a taken name is refused), remove, rename. Each commit is one undo step. Commands: `frontMatter` (create when missing, then focus), `focusFrontMatter` (`Mod-Alt-Shift-P`), `removeFrontMatter`; slash item "Properties". ArrowUp at the start of the first block after the panel enters it, Backspace there never deletes it, Escape in the panel returns to the document. The collapsed state is per editor and never stored. A read-only editor shows the read-only list.
+
+### API
+
+`getFrontMatter(editorOrMarkdown)` → `{ data, raw, entries, tooLarge }` or null; `setFrontMatter(editor, patch | null, options?)` (works in every mode; false when nothing changed, the editor is read-only or the YAML is too large); `removeFrontMatter(editor)`; `writeFrontMatter(markdown, patch | null)` and `splitFrontMatter`, `findFrontMatter`, `frontMatterBlock` for strings; `hydrateFrontMatter(root, doc?)` fills `renderHtml` output with the read-only list; `FRONT_MATTER_LABELS` for translation; `FRONT_MATTER_CSS` is the stylesheet of the panel.
+
+### Styling
+
+Colours read `--atm-fm-*` variables (`bg`, `fg`, `border`, `muted`, `accent`, `ring`, `danger`, `field-bg`, `field-border`) and fall back to the theme's `--atm-*`; custom properties cross the shadow boundary. A read-only view is drawn in the page with the same rules from `style.css`; a test keeps the two copies equal. Reduced motion, coarse pointers (44 px targets), forced colors and print are handled.

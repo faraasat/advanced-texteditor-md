@@ -122,6 +122,7 @@ else is a subpath so you only pay for what you import.
 | `/snippets` | `createSnippets`: text expanders (`;sig` + Space/Tab/Enter) and block templates with `{{date}}`, `{{time}}`, `{{cursor}}`, `{{selection}}` and host variables, a "Templates" group in the slash menu, an "Insert template…" picker (palette and optional toolbar button), a store kept in `localStorage` or memory, JSON import and export with a per-entry report |
 | `/links` | `createWikiLinks` (type `[[`, pick a page, get a chip stored as `[Title](wiki:id)`; pages the host's `resolve` says are gone are marked broken) and `createLinkManager` (a dialog listing every link with its state; edit, remove, go to, optional host `check`, upgrade `http:` to `https:` in one undo step); pure `findLinks`, `findWikiIds`, `findBacklinks` |
 | `/comments` | `createCommentsPlugin`: comments anchored to text, stored as `[anchored text](comment:ID)` with the threads kept by the host (`onCreate`, `render`, `isResolved`); highlight, resolved state, margin markers in the document layout, a thread panel, `Mod-Alt-M` / `Alt-F9` keys, read-only views; `findComments`, `commentIds`, `removeCommentMarks` |
+| `/frontmatter` | `createFrontMatterPlugin`: the `---` YAML block at the top of a document as a properties panel (text, number, date, switch and list fields, add and remove, collapse), edited line by line so comments, order and anything the panel cannot edit are kept byte for byte; `getFrontMatter`, `setFrontMatter`, `writeFrontMatter` over a safe YAML subset; a read-only list in views |
 | `/i18n`, `/i18n/<lang>` | `loadLabels`, `resolveLocale`, `isRtl`, `createBidiPlugin`; label bundles for en, es, fr, de, pt, it, nl, ru, ja, zh, ar, hi, tr (each at most 1.5 kB gzip) |
 | `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
 
@@ -373,6 +374,20 @@ renderDom(md, { syntax: { inline: commentSyntaxes() }, postRender: [comments.pos
 ```
 
 The document stores only `[anchored text](comment:ID)`: no author, date, message or resolved flag; any other Markdown reader shows the text. The host owns the threads. The selected text gets a highlight (dashed when resolved), the caret entering it opens the thread panel (`openOnCaret`), and in the `document` and `sidebar` layouts a marker per comment sits in the margin. `Mod-Alt-M` adds a comment (or focuses the thread when the caret is in one), `Alt-F9` / `Shift-Alt-F9` move to the next and previous comment. `comments.setState(id, "resolved")`, `getState`, `update()`, `open(editor, id)` and `add(editor)` are the host's handles; `findComments`, `commentIds` and `removeCommentMarks` work on Markdown without a DOM. See [docs/PLUGINS.md](./docs/PLUGINS.md#comments-advanced-texteditor-mdcomments).
+
+### Front matter
+
+```ts
+import { createFrontMatterPlugin, getFrontMatter, setFrontMatter } from "advanced-texteditor-md/frontmatter";
+
+const fm = createFrontMatterPlugin({ collapsed: false });
+createEditor(el, { plugins: [fm] }); // ---\ntitle: Project Alpha\ntags: [a, b]\n--- becomes a properties panel
+getFrontMatter(editor); //                { data: { title: "Project Alpha", tags: ["a", "b"] }, raw, entries, tooLarge }
+setFrontMatter(editor, { draft: true, tags: undefined }); // minimal-diff write, one undo step, any mode
+renderDom(md, { syntax: { block: [FRONT_MATTER_SYNTAX] }, postRender: [fm.postRender] }); // a read-only list in views
+```
+
+The block is the very first thing in the file, between `---` fences, and starts with a `key:` line. In the editor it is one atomic block with a properties panel; editing a field rewrites only that property's lines, so comments, blank lines, order, quoting and anything the panel cannot edit (anchors, aliases, tags, block scalars, nested maps) stay exactly as written. The Markdown view shows the YAML as text. See [docs/PLUGINS.md](./docs/PLUGINS.md#front-matter-advanced-texteditor-mdfrontmatter).
 
 ### Mentions, badges, colours, merged identities
 
