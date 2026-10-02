@@ -1,0 +1,97 @@
+/* Tasks v2 (advanced-texteditor-md/tasks): due-date marks, progress bar, task filter.
+   Colours: var(--atm-tasks-x, var(--atm-*, fallback)). Nothing here is stored in the document. */
+
+/* ── Due dates: drawn from data-atm-due, set at render time ── */
+.atm-chip-date[data-atm-due="overdue"] {
+  --atm-c: var(--atm-tasks-overdue, var(--atm-danger, #b42318));
+  font-weight: 600;
+}
+.atm-chip-date[data-atm-due="today"] {
+  --atm-c: var(--atm-tasks-today, var(--atm-warn, #9a6700));
+  font-weight: 600;
+}
+.atm-chip-date[data-atm-due="soon"] {
+  --atm-c: var(--atm-tasks-soon, var(--atm-warn, #9a6700));
+}
+/* Not colour alone: overdue and today get a second mark that survives forced colours and print. */
+.atm-chip-date[data-atm-due="overdue"] { text-decoration: underline wavy; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+.atm-chip-date[data-atm-due="today"] { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+/* Text on the chip's tint must reach 4.5:1 in a view too, where the base chip text is the plain accent. */
+li.atm-task .atm-chip-date { color: color-mix(in srgb, var(--atm-c, var(--atm-accent, #2563eb)) 70%, var(--atm-fg, #1f2328)); }
+.atm-chip-date[data-atm-due] { color: color-mix(in srgb, var(--atm-c) 80%, var(--atm-fg, #1f2328)); }
+@media (forced-colors: active) {
+  .atm-chip-date[data-atm-due] { color: CanvasText; forced-color-adjust: none; border: 1px solid CanvasText; }
+}
+
+/* ── Progress block: a bar drawn on the block itself (no node added), then the sentence ── */
+.atm-custom-progress { margin: 0 0 0.75em; }
+.atm-custom-progress > p { margin: 0; color: var(--atm-tasks-text, var(--atm-muted, #59636e)); font-size: 0.875em; font-variant-numeric: tabular-nums; }
+.atm-custom-progress[data-atm-progress]::before {
+  content: "";
+  display: block;
+  block-size: var(--atm-tasks-bar-height, 0.5rem);
+  margin-block-end: 0.35em;
+  border-radius: 999px;
+  /* Fill over track. The fill grows from the inline start: see the rtl rule. */
+  background:
+    linear-gradient(var(--atm-tasks-fill, var(--atm-accent, #2563eb)), var(--atm-tasks-fill, var(--atm-accent, #2563eb))) 0 0 / var(--atm-progress, 0%) 100% no-repeat,
+    var(--atm-tasks-track, color-mix(in srgb, var(--atm-fg, #1f2328) 14%, transparent));
+  transition: background-size 0.2s ease;
+}
+.atm-custom-progress[data-atm-progress]:dir(rtl)::before { background-position: 100% 0, 0 0; }
+@media (forced-colors: active) {
+  .atm-custom-progress[data-atm-progress]::before {
+    background:
+      linear-gradient(Highlight, Highlight) 0 0 / var(--atm-progress, 0%) 100% no-repeat,
+      Canvas;
+    border: 1px solid CanvasText;
+    forced-color-adjust: none;
+  }
+  .atm-custom-progress[data-atm-progress]:dir(rtl)::before { background-position: 100% 0, 0 0; }
+}
+@media print {
+  .atm-custom-progress { break-inside: avoid; }
+  .atm-custom-progress[data-atm-progress]::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* ── Filter: hidden by class, never removed ── */
+.atm-task-hidden,
+.atm-task-list-hidden { display: none !important; }
+
+.atm-tasks-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-block: 0 0.75rem;
+  font-size: 0.8125rem;
+}
+.atm-root > .atm-tasks-filter { margin: 0; padding: 0.4rem 0.75rem; border-block-end: 1px solid var(--atm-border, #d0d7de); }
+.atm-tasks-filter-btn {
+  min-block-size: 1.75rem;
+  padding: 0.125rem 0.7rem;
+  border: 1px solid var(--atm-tasks-filter-border, var(--atm-border, #d0d7de));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--atm-tasks-filter-fg, var(--atm-fg, #1f2328));
+  font: inherit;
+  cursor: pointer;
+}
+.atm-tasks-filter-btn:hover { background: color-mix(in srgb, var(--atm-fg, #1f2328) 8%, transparent); }
+.atm-tasks-filter-btn[aria-pressed="true"] {
+  border-color: var(--atm-tasks-filter-on, var(--atm-accent, #2563eb));
+  background: var(--atm-tasks-filter-on, var(--atm-accent, #2563eb));
+  color: var(--atm-accent-fg, #fff);
+}
+.atm-tasks-filter-btn:focus-visible { outline: 2px solid var(--atm-ring, #2563eb); outline-offset: 2px; }
+.atm-tasks-filter-status { margin-inline-start: auto; color: var(--atm-muted, #59636e); }
+@media (pointer: coarse) {
+  .atm-tasks-filter-btn { min-block-size: 2.5rem; padding-inline: 1rem; }
+}
+@media (forced-colors: active) {
+  .atm-tasks-filter-btn { border-color: ButtonText; }
+  .atm-tasks-filter-btn[aria-pressed="true"] { background: Highlight; color: HighlightText; border-color: Highlight; forced-color-adjust: none; }
+}
+@media print {
+  .atm-tasks-filter { display: none; }
+}

@@ -115,6 +115,7 @@ else is a subpath so you only pay for what you import.
 | `/chips` | mentions and chips v2: hover cards, group mentions, `#tag` / channel / command presets, recent-and-frequent ranking, mentions in the Markdown pane, chip icons, removable and editable chips, a chip picker |
 | `/blocks` | `createContentBlocksPlugins`: `::: columns`, a footnote editor and back links, rule styles, `createShortcodes`, date chips `[2026-10-02](date:2026-10-02)`, file-attachment cards, image galleries |
 | `/deflists` | definition lists (`Term` and `: Definition`) as a plugin block syntax: `DEFINITION_LIST_SYNTAX`, `createDefinitionListsPlugin` (Enter / Backspace flow, `/definition`), `upgradeDefinitionLists` (real `<dl>` in views) |
+| `/tasks` | `createTasks`: due-date chips on task items with overdue / today marks drawn at render time, assignees as mentions, a `::: progress` block (bar and "3 of 5 tasks done (60%)"), "move completed to bottom", an All / Open / Done / Overdue filter for views; `taskItems`, `tasksSummary` over a parsed Doc |
 | `/writing` | host-driven writing aids: ghost-text suggestions, selection actions, spellcheck and language, a word goal and `readingStats`, lint squiggles with fixes |
 | `/i18n`, `/i18n/<lang>` | `loadLabels`, `resolveLocale`, `isRtl`, `createBidiPlugin`; label bundles for en, es, fr, de, pt, it, nl, ru, ja, zh, ar, hi, tr (each at most 1.5 kB gzip) |
 | `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
@@ -277,6 +278,27 @@ A plugin can also hook the editor itself (`keydown`, `afterInput`, `postRender`)
 [docs/PLUGINS.md](docs/PLUGINS.md#editor-api-for-plugin-authors).
 
 Details: [docs/CUSTOM_SYNTAX.md](docs/CUSTOM_SYNTAX.md) and [docs/PLUGINS.md](docs/PLUGINS.md).
+
+### Tasks
+
+```ts
+import { createTasks, tasksSummary } from "advanced-texteditor-md/tasks";
+
+const tasks = createTasks({ locale: "en-GB" });
+createEditor(el, {
+  plugins: tasks.plugins, // the date chip plugin and the tasks plugin
+  chips: tasks.chips,     // the date chip definition
+  mentions: { search: findPeople }, // assignees are your mentions
+});
+
+// Read-only views
+view.appendChild(renderDom(md, { syntax: tasks.syntax, chips: tasks.chips, postRender: [tasks.postRender] }));
+
+// Totals from a parsed document (no editor, no DOM)
+tasksSummary(parse(md, { chipSchemes: ["date"] })); // { total, done, open, overdue, dueToday, percent, byAssignee }
+```
+
+A due date is the date chip `[2026-10-05](date:2026-10-05)` at the end of a task item; an assignee is a mention chip. Commands: `setDueDate` (an ISO date, or nothing to open the picker), `clearDueDate`, `assignTask`, `moveCompleted`, `moveCompletedAll`, `insertProgress` (`"section"` for a section block), `updateProgress`, `filterTasks`. Overdue, due today and due soon are drawn at render time and never stored. See [docs/PLUGINS.md](docs/PLUGINS.md#tasks-advanced-texteditor-mdtasks).
 
 ### Mentions, badges, colours, merged identities
 

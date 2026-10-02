@@ -6,6 +6,7 @@
 - **Definition lists** (`advanced-texteditor-md/deflists`): `Term` + `: Definition` as a plugin block syntax on `BlockSyntax.match` / `serialize`
   (no parser change, the entry does not grow), an editor plugin with Enter / Backspace flow, `/definition` and the `definitionList`
   command, and `upgradeDefinitionLists` for real `<dl>` in views.
+- **`advanced-texteditor-md/tasks`**: due-date chips on task items with overdue / today marks drawn at render time, assignees as mentions, a `::: progress` block with a bar and a sentence kept true in the same undo step as a checkbox click, "move completed to bottom" (WYSIWYG and Markdown pane), an All / Open / Done / Overdue filter for views and read-only editors, shortcuts Mod-Alt-Shift-D / A / M, and the server-safe `taskItems`, `tasksSummary` and `progressBlocks`.
 - **Chrome v2: seven new layouts**: `ribbon` (tabbed, grouped, labelled; collapsible), `sidebar` (outline + inspector around
   a page), `focus` (fading chrome, immersive mode, typewriter scrolling), `tabs` (Write / Preview / Markdown), `compact`,
   `mobile` (keyboard-pinned toolbar, bottom sheets) and `auto` (mobile below a breakpoint). `layoutOptions` configures them.

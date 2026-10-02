@@ -11,3 +11,5 @@ import en from "advanced-texteditor-md/i18n/en";
 export const usedFeatures = [createAlertsPlugin, en];
 import { createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX } from "advanced-texteditor-md/deflists";
 export const usedDeflists = [createDefinitionListsPlugin({ labels: { insert: "x" } }), DEFINITION_LIST_SYNTAX];
+import { createTasks } from "advanced-texteditor-md/tasks";
+export const usedTasks = [createTasks];

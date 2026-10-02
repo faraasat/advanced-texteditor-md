@@ -646,3 +646,41 @@ A per-block cache of parsed blocks and Markdown ("incremental serialisation") wa
 **Also found.** The inline parser is quadratic on a very long run of internal spaces in one line (`"a" + " \t".repeat(n) + "b"`), with or without this syntax; and a paragraph holding only a non-breaking space is written and then dropped on the next parse. Neither is changed here.
 
 **Not supported.** Term attributes, nested nesting by Tab, `dl` for `renderHtml` (allow-list), several lines per term.
+<!-- feature:tasks -->
+## 2026-10-02: Tasks v2 (`advanced-texteditor-md/tasks`)
+
+**No syntax of its own on the item.** A due date is the existing date chip, an assignee the existing mention chip. A `📅`
+or `@due(...)` token would have needed a parser change and would read as noise in every other renderer; the chips already
+round-trip and degrade to links. The model takes the last date chip of the item as its due date.
+
+**Overdue is decoration.** The state ("overdue", "today", "soon") depends on the clock, so it is an attribute set when the
+content is drawn (and again on every `change`), with a description for assistive technology (`aria-description`, also the
+tooltip) and a non-colour mark. `getValue()` is identical with or without it. Alternative rejected: storing a status in the
+chip's label (stale the next day).
+
+**The progress sentence is stored, and kept true in the same undo step where it can be.** The `::: progress` block needs its
+inner line to be correct in plain Markdown renderers. The core checkbox handler commits its own history step and plugins have
+no hook into it, so the only way to put the rewrite in the same step is to take the click: a capture listener on the editor
+root handles the click (and Mod-Enter, through the plugin `keydown` hook) inside one `transact` while a progress block exists,
+and leaves the core handler alone otherwise. Everything else (typing, Enter, delete, paste, toolbar toggle) is fixed after a
+quiet period in its own step. To keep the redo stack, a change whose Markdown is one the plugin has already seen (undo, redo)
+never triggers a rewrite. Alternatives rejected: rewriting on every `change` (undo of one click takes two steps and a rewrite
+after undo clears redo); never storing the sentence (other renderers show a stale or empty block); a core history "amend" API
+(core files are out of bounds for a feature).
+
+**Counting is one function.** The editor builds the Doc from its DOM (`ctx.lib.domToDoc`) and calls the same `progressBlocks`
+the views use, so the surface and the server cannot disagree. The bar is a CSS background drawn from `--atm-progress` on the
+block itself: a node inside the surface would be content or break caret movement.
+
+**Section scope** is the nearest heading looking outwards through the containers the block is in, to the next heading of the
+same or a higher level.
+
+**Move completed.** Done items are appended after the open ones in place (open items are not touched), so the DOM change and
+the undo step are minimal; the text version is a stable partition of list entries and renumbers ordered lists.
+
+**Filter.** Classes only; a match keeps its ancestors visible. The control finds what it filters through its own parent
+because `renderDom` moves the content after `postRender` ran. In the editor it is mounted between the toolbar and the body
+(inside the body's grid it took a cell of its own) and only while the editor is read-only.
+
+**Not supported.** Recurring tasks, times of day, a due date range, reminders, per-assignee views, filtering in Markdown mode,
+drag-reordering a list by state, and a task filter that survives re-rendering of a split preview.

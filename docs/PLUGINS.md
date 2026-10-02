@@ -1059,6 +1059,98 @@ A paragraph whose only content is two or more images (separated by spaces or sof
 Not supported: definition lists (`Term` + `: definition`); see DECISIONS.md.
 
 <!-- feature:writing -->
+## Tasks (`advanced-texteditor-md/tasks`)
+
+Tasks v2 on top of GFM task lists (`- [ ] text`): due dates, assignees, a progress block, moving completed items and a filter for views. The entry is about 13 kB gzipped and imports the date chip of `/blocks` directly, so only that module is bundled.
+
+```ts
+import { createTasks } from "advanced-texteditor-md/tasks";
+
+const tasks = createTasks({ locale: "en-GB", today: "2026-10-02" /* tests only */ });
+createEditor(el, { plugins: tasks.plugins, chips: tasks.chips, mentions: { search } });
+view.appendChild(renderDom(md, { syntax: tasks.syntax, chips: tasks.chips, postRender: [tasks.postRender] }));
+// or: view.innerHTML = renderHtml(md, { syntax: tasks.syntax, chips: tasks.chips }); hydrateAll(view, tasks.plugins, md);
+```
+
+`createTasks(options)` returns `{ plugins, plugin, chips, syntax, postRender, dates, todayIso }`. `plugins` is the date chip plugin followed by the tasks plugin (the date chip plugin is left out when you pass your own `dates: createDateChips()` result or `dates: false`).
+
+| Option | Meaning |
+| --- | --- |
+| `locale` | BCP 47 locale for dates and the relative wording ("yesterday", "in 3 days"). Default: the runtime's |
+| `today` | An ISO date, a `Date` or a function; "today" for overdue and the picker. Default: now. Tests and screenshots fix it |
+| `dates` | `DateChipsOptions` (a chip is created here), an existing `createDateChips()` result, or `false` (no due dates) |
+| `assign` | `{ trigger?, command? }`. `trigger` (default `@`) is typed at the end of the item; `command` (for example `"chipPicker:people"`) runs instead. `false` removes the command |
+| `assigneeSchemes` | Chip schemes that count as an assignee. Default `["mention"]` |
+| `progress` | Progress blocks. Default true |
+| `autoProgress` | Keep the stored sentence true (see below). `false`, or `{ delayMs }` (default 400) |
+| `filter` | The filter control in views and in a read-only editor. Default true |
+| `keys` | `{ dueDate, assign, moveCompleted }`, each a binding or `false` |
+| `labels` | Every visible string (`TASKS_LABELS`) |
+
+### Due dates
+
+`setDueDate` puts ONE date chip at the end of the item text at the caret: given an ISO string (or a `Date`) it sets it at once, otherwise it opens a dialog with a native `<input type="date">`, "Today", "Remove" and "Set"; an existing chip is replaced, not added to. `clearDueDate` removes it. One undo step each. In the Markdown pane the task line's last date chip is edited as text.
+
+An open task with a due date is marked when drawn: `data-atm-due="overdue|today|soon|later"` on the item and on the chip, an accessible description on the chip (`aria-description`, also its tooltip: "Overdue, yesterday", "Due today", "Due in 2 days", `Intl.RelativeTimeFormat`), and a second visual mark (wavy or plain underline) so colour is not the only signal. A done task is not marked. None of this is stored: `getValue()` is the same with or without it.
+
+### Assignees
+
+`assignTask` moves the caret to the end of the item and types the mention trigger (or runs `assign.command`); the host's `mentions` do the picking. The result is an ordinary mention chip in the item.
+
+### Progress block
+
+```
+::: progress
+3 of 5 tasks done (60%)
+:::
+
+::: progress scope=section
+1 of 2 tasks done (50%)
+:::
+```
+
+The editor and views draw a bar and the sentence from the real counts of all task items in the document, or with `scope=section` of the section under the nearest heading (up to the next heading of the same or a higher level; with no heading before it, the whole document). The sentence between the fences is the plain-text fallback, so it must be true in the stored Markdown too:
+
+- A checkbox click, Mod-Enter on a task, `moveCompleted*`, `insertProgress` and `updateProgress` rewrite the sentence inside the SAME undo step as the change. While a progress block exists the checkbox click is handled by this plugin (the core handler is not run) so that both changes are one step.
+- Any other change (typing a task, Enter, delete, paste, the toolbar's own task toggle) rewrites the sentence in a step of its own after `delayMs` of quiet. Undo and redo never trigger a rewrite, so the redo stack survives. A block with the caret in it is never rewritten.
+- Views compute the sentence from the document and show that, whatever the stored text says.
+
+**Other renderers.** GitHub and plain CommonMark show the lines `::: progress` and `:::` and the sentence between them as ordinary paragraphs. Due dates show as links `[2026-10-05](date:2026-10-05)` that do not resolve; mentions likewise.
+
+### Move completed to bottom
+
+`moveCompleted` reorders the innermost list at the caret (completed items after open ones, stable inside each group); `moveCompletedAll` does it for every task list. Nested items move with their parent and each nested list is ordered on its own. One undo step; the caret stays in its item. In the Markdown pane the same is done on the text (ordered lists are renumbered, loose and tight spacing kept, fenced code untouched). `moveCompletedInMarkdown(md)` and `moveCompletedAt(md, line)` are the pure functions.
+
+### Filtering
+
+`filterTasks(root, "all" | "open" | "done" | "overdue")` hides items by the class `atm-task-hidden` (a parent of a match stays; a list with nothing visible gets `atm-task-list-hidden`) and returns `{ shown, total }`. The document is never touched. In views a control (`createTaskFilter`) is added above the content: a group of toggle buttons with `aria-pressed` and a polite live region ("Showing 2 of 5 tasks"). In a read-only editor the same control sits between the toolbar and the page and goes away when editing is allowed again. The command `filterTasks` takes the mode as its argument.
+
+### Pure model (server-safe, takes a parsed `Doc`)
+
+| Function | Returns |
+| --- | --- |
+| `taskItems(doc, options?)` | `{ text, checked, due?, assignees[], path, depth }[]` for every task item |
+| `tasksSummary(doc, { today?, ... })` | `{ total, done, open, overdue, dueToday, percent, byAssignee: { id, label, total, done, overdue }[] }` |
+| `progressBlocks(doc)` | each `::: progress` block with its `done`, `total`, `percent` and `scope` |
+| `progressText(done, total, labels?)` | the sentence |
+
+Parse with `chipSchemes: ["date"]` so date chips are recognised.
+
+### Keyboard
+
+| Keys | Command |
+| --- | --- |
+| Mod-Alt-Shift-D | `setDueDate` |
+| Mod-Alt-Shift-A | `assignTask` |
+| Mod-Alt-Shift-M | `moveCompleted` |
+| Mod-Enter | the core `toggleTask` (with a progress block, handled by this plugin so the sentence follows) |
+
+None clashes with the default keymap or the table plugin (Mod-Alt-Shift with arrows, L, E, R, W). Events: the `change` event is the only one used; nothing new is emitted.
+
+### Limits
+
+Overdue is computed against the clock of the page that draws it, so a stored page reads differently tomorrow. A task has one due date for the model (the last date chip); a second chip is left alone. The filter is not offered in Markdown mode. The progress bar is a CSS background on the block (no extra node), so a renderer without `style.css` shows only the sentence.
+
 ## Writing aids (`advanced-texteditor-md/writing`)
 
 Ghost-text completion, selection actions, spellcheck and language, a word goal and lint hooks. **All intelligence is yours**: every suggestion, transform and check is a function you pass. Nothing talks to a network, and no model or dictionary is bundled. Each plugin is its own factory, and the entry is about 12.6 kB gzipped.

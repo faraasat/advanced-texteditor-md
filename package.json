@@ -269,6 +269,16 @@
         "default": "./dist/deflists.cjs"
       }
     },
+    "./tasks": {
+      "import": {
+        "types": "./dist/tasks.d.ts",
+        "default": "./dist/tasks.js"
+      },
+      "require": {
+        "types": "./dist/tasks.d.cts",
+        "default": "./dist/tasks.cjs"
+      }
+    },
     "./writing": {
       "import": {
         "types": "./dist/writing.d.ts",
@@ -425,6 +435,9 @@
       ],
       "deflists": [
         "./dist/deflists.d.ts"
+      ],
+      "tasks": [
+        "./dist/tasks.d.ts"
       ],
       "writing": [
         "./dist/writing.d.ts"

@@ -88,6 +88,7 @@ import { createExportPlugin, exportHtml } from "advanced-texteditor-md/export";
 import { createChipCardsPlugin, createTagTrigger, createMarkdownMentionsPlugin } from "advanced-texteditor-md/chips";
 import { createContentBlocksPlugins, createShortcodes } from "advanced-texteditor-md/blocks";
 import { createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists } from "advanced-texteditor-md/deflists";
+import { createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, type TasksSummary } from "advanced-texteditor-md/tasks";
 import { createSuggestPlugin, readingStats } from "advanced-texteditor-md/writing";
 import { loadLabels, createBidiPlugin } from "advanced-texteditor-md/i18n";
 import de from "advanced-texteditor-md/i18n/de";
@@ -97,7 +98,11 @@ const featurePlugins: Plugin[] = [
 ];
 export const features = [
   featurePlugins, alertSyntax, parseCodeInfo, diffLang, csvToTable, renderDiagrams, createDiffView, diffWords, createHistoryStore, exportHtml,
-  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists, readingStats, loadLabels, de.bold,
+  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists, createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, readingStats, loadLabels, de.bold,
 ];
 export const deflistsTyped: Plugin = createDefinitionListsPlugin({ labels: { term: "Term" }, classPrefix: "atm" });
 export const deflistsParsed = parse("Term\n: Definition", { syntax: { block: DEFINITION_LIST_SYNTAX } });
+
+const tasks = createTasks({ today: "2026-10-02", locale: "en-GB", assign: { trigger: "@" }, keys: { moveCompleted: false } });
+export const taskPlugins: Plugin[] = tasks.plugins;
+export const taskSummary: TasksSummary = tasksSummary(parse("- [x] a\n- [ ] b"), { today: "2026-10-02" });
