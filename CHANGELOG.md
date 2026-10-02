@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 - 2026-10-03
 
 ### Added
 - **`softBreak: "br"`** (`ParseOptions`, so `renderHtml`, `renderDom` and `createEditor` all take it): a single newline inside a paragraph renders as `<br>`
