@@ -178,7 +178,8 @@ test.describe("dictation", () => {
     await say(page, [["and some more", false]]);
     const ghost = page.locator("#editor-host .atm-speech-ghost");
     await expect(ghost).toBeVisible();
-    await expect(ghost).toHaveText(" And some more");
+    // One line after the caret: a narrow screen keeps the latest words behind an ellipsis.
+    await expect(ghost).toHaveText(/^(?: And |\u2026)?(?:.*)some more$/);
     await expect(surface(page).locator(".atm-speech-ghost")).toHaveCount(0);
     expect(await value(page)).not.toContain("some more");
     await axeClean(page);
