@@ -6,7 +6,7 @@
  */
 export type * from "./types";
 
-export const VERSION = "0.3.0";
+export const VERSION = "0.3.1";
 
 export { createEditor } from "./editor/create-editor";
 export { preloadChunks } from "./editor/lazy-chunks";

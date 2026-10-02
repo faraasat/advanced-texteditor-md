@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 - 2026-10-03
 
 ### Added
 - **Chip cards everywhere.** `enhanceChipCards(root, { getCard, ... })` (`advanced-texteditor-md/chips`) gives the chips inside any read-only markup (`renderHtml` output, a framework's DOM) the same cards the editor and `renderDom` already had: hover, keyboard focus and a touch long-press (500 ms) open the card, Escape closes it, a tap elsewhere closes it, and the long-press does not also open the system menu. It returns `{ refresh(), destroy() }` and does nothing without a DOM element.
