@@ -1452,3 +1452,28 @@ Nothing: neither plugin writes syntax. Dictated words are plain text.
 - Voices differ per device and some engines never send `boundary` events or ignore `pause()`; the block highlight is the fallback.
 - Spoken commands exist for English, Spanish, French and German only; the tables are in `SPOKEN_COMMANDS`.
 - The pure helpers (`fitSpoken`, `parseSpoken`, `readResults`, `buildChunks`, `wordSpan`, `markdownBlocks`, `pickVoice`) are exported for hosts that build their own UI.
+
+## Present and reader views (`advanced-texteditor-md/present`, `advanced-texteditor-md/reader`)
+
+Two read-only views of a document, both lazy and sharing `src/extensions/_view.ts` (theme, direction, `::: notes`).
+
+```ts
+import { createPresentView, createPresentPlugin } from "advanced-texteditor-md/present";
+import { createReaderView, createReaderPlugin } from "advanced-texteditor-md/reader";
+
+const slides = createPresentView(el, markdown, { split: "auto", presenter: false, hash: true });
+slides.next(); slides.goTo(3); slides.update(newMarkdown);
+const article = createReaderView(el2, markdown, { outlineDepth: 3, notes: "hide" });
+
+createEditor(host, { plugins: [createPresentPlugin({ split: "h2" }), createReaderPlugin()] });  // commands `present` and `reader`
+```
+
+| Option (both) | Meaning |
+| --- | --- |
+| `render` | the library's `RenderOptions` (syntax, chips, highlight, links, math, `postRender` of other extensions) |
+| `theme`, `dir`, `labels` | theme name (default: nearest `data-atm-theme`), direction (default: nearest `dir`), every visible string |
+| `container`, `onExit` | where to mount; a callback that adds an exit button |
+
+Present only: `split` (`"rule"` default, `"h1"`, `"h2"`, `"auto"`), `presenter` (speaker panel with current, next, notes and timer; the S key), `start`, `hash` (`#slide-n`), `fullscreen` (`true`, `"overlay"`, `false`), `minScale`, `clickNavigation`, `swipe`. Keys: arrows, PageUp/PageDown, Space, Home/End, a typed number then Enter, F, S, Escape; in RTL the arrows swap. Reader only: `scroll` (`"window"` or `"element"`), `outline`, `outlineDepth`, `readingTime`, `wordsPerMinute`, `notes` (`"show"`/`"hide"`), `maxWidth`, `locale`.
+
+`::: notes` ... `:::` is an ordinary custom block (`NOTES_SYNTAX`, registered by the views): the present view removes it from the slide and shows it in the speaker panel, the reader shows an aside or hides it. `splitSlides(doc, mode)` is the pure splitter. The handles expose `element`, `update`, `focus`, `destroy` plus `getIndex` / `goTo` / `next` / `previous` / `setPresenter` / `setFullscreen` (present) and `outline`, `stats`, `getProgress`, `getCurrent`, `scrollTo` (reader). Content comes from the same renderer as every other view, so links, images and raw HTML follow the editor's `LinkPolicy`; no view writes back into the Markdown.

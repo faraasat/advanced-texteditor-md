@@ -13,3 +13,6 @@ import { createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX } from "advanced-te
 export const usedDeflists = [createDefinitionListsPlugin({ labels: { insert: "x" } }), DEFINITION_LIST_SYNTAX];
 import { createTasks } from "advanced-texteditor-md/tasks";
 export const usedTasks = [createTasks];
+import { createPresentView, splitSlides } from "advanced-texteditor-md/present";
+import { createReaderView } from "advanced-texteditor-md/reader";
+export const usedViews = [createPresentView, splitSlides, createReaderView];

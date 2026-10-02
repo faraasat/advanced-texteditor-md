@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md present view</title>
+    <meta name="description" content="A Markdown document shown as slides: split on rules or headings, speaker notes, progress bar, fullscreen, keyboard and touch navigation." />
+    <!-- The built library. Run `npm run build` first. -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; }
+      @media (prefers-color-scheme: dark) { :root:not([data-atm-theme="light"]) { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; } }
+      :root[data-atm-theme="dark"] { color-scheme: dark; --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 1000px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 70ch; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card > h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      label { font-weight: 600; font-size: 0.9rem; }
+      select, button.demo { font: inherit; padding: 4px 10px; color: inherit; background: var(--page-card); border: 1px solid var(--page-border); border-radius: 6px; cursor: pointer; }
+      .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 10px; }
+      pre.out { margin: 0; max-height: 220px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      kbd { font: 600 0.85em ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--page-border); border-bottom-width: 2px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Present</h1>
+      <p class="lead">
+        The same Markdown as slides. <kbd>→</kbd> <kbd>Space</kbd> <kbd>Enter</kbd> go on, <kbd>←</kbd> goes back (reversed in right-to-left text),
+        <kbd>Home</kbd>/<kbd>End</kbd> jump, a number then <kbd>Enter</kbd> goes to that slide, <kbd>F</kbd> toggles fullscreen and <kbd>S</kbd> the speaker view
+        with notes and a timer. Swipe or click the edges on a touch screen. URL parameters: <code>split</code> (rule, h1, h2, auto), <code>presenter=1</code>,
+        <code>hash=1</code>, <code>theme</code> (light, dark), <code>dir=rtl</code>, <code>nofs=1</code> (no Fullscreen API), <code>start</code>.
+      </p>
+
+      <section class="card" aria-labelledby="view-h">
+        <h2 id="view-h">The slides</h2>
+        <div class="row">
+          <label for="split">Split on</label>
+          <select id="split">
+            <option value="rule">Rules (---)</option>
+            <option value="h1">Headings 1</option>
+            <option value="h2">Headings 1 and 2</option>
+            <option value="auto">Automatic</option>
+          </select>
+        </div>
+        <div id="present-host" data-testid="present-host"></div>
+      </section>
+
+      <section class="card" aria-labelledby="ed-h">
+        <h2 id="ed-h">An editor with the Present command</h2>
+        <p class="lead">The toolbar button (or the command palette, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) opens the current text full-window. <kbd>Esc</kbd> closes it and puts the cursor back.</p>
+        <div id="editor-host" data-testid="editor-host"></div>
+      </section>
+
+      <section class="card" aria-labelledby="md-h">
+        <h2 id="md-h">Markdown (what is stored)</h2>
+        <pre class="out" id="md" data-testid="md" tabindex="0"></pre>
+      </section>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import * as P from "../dist/present.js";
+      import * as R from "../dist/reader.js";
+
+      const q = new URLSearchParams(location.search);
+      const $ = (id) => document.getElementById(id);
+      const theme = q.get("theme") === "dark" ? "dark" : q.get("theme") === "light" ? "light" : null;
+      if (theme) document.documentElement.setAttribute("data-atm-theme", theme);
+      if (q.get("dir") === "rtl") document.documentElement.setAttribute("dir", "rtl");
+
+      const SAMPLE = [
+        "# Quarterly review",
+        "",
+        "Project Alpha, prepared by Ada and Grace",
+        "",
+        "::: notes",
+        "Welcome everyone. Mention the new team members first.",
+        ":::",
+        "",
+        "---",
+        "",
+        "## Highlights",
+        "",
+        "- Launch moved up by two weeks",
+        "- Support tickets down **18%**",
+        "- New onboarding guide published",
+        "",
+        "::: notes",
+        "Ask Grace to say a few words about the guide.",
+        "Do not read the numbers aloud, they are on the slide.",
+        ":::",
+        "",
+        "---",
+        "",
+        "## How the cache works",
+        "",
+        "```ts",
+        "export function memo<T>(fn: () => T): () => T {",
+        "  let done = false;",
+        "  let value!: T;",
+        "  return () => (done ? value : ((done = true), (value = fn())));",
+        "}",
+        "```",
+        "",
+        "One call computes the value, every later call returns it.",
+        "",
+        "::: notes",
+        "Live demo if there is time: open the console and call it twice.",
+        ":::",
+        "",
+        "---",
+        "",
+        "## Next steps",
+        "",
+        "1. Ship the beta",
+        "2. Collect feedback",
+        "3. Plan the next quarter",
+        "",
+        "Questions? Write to team@example.com",
+      ].join("\n");
+
+      $("split").value = ["rule", "h1", "h2", "auto"].includes(q.get("split")) ? q.get("split") : "rule";
+      const fsOff = q.get("nofs") === "1";
+      if (fsOff) delete Element.prototype.requestFullscreen;
+      const opts = () => ({
+        split: $("split").value,
+        presenter: q.get("presenter") === "1",
+        hash: q.get("hash") === "1",
+        start: Number(q.get("start") || 0),
+        container: $("present-host"),
+      });
+      let view = P.createPresentView(null, q.get("md") ?? SAMPLE, opts());
+      window.__present = view;
+      $("split").addEventListener("change", () => {
+        const at = view.getIndex();
+        view.destroy();
+        view = P.createPresentView(null, q.get("md") ?? SAMPLE, { ...opts(), start: at });
+        window.__present = view;
+      });
+
+      const editor = lib.createEditor($("editor-host"), {
+        value: q.get("md") ?? SAMPLE,
+        theme: theme ?? "auto",
+        minHeight: 160,
+        plugins: [P.createPresentPlugin({ split: "rule" }), R.createReaderPlugin()],
+        onChange: (md) => ($("md").textContent = md),
+      });
+      window.__editor = editor;
+      $("md").textContent = editor.getValue();
+    </script>
+  </body>
+</html>

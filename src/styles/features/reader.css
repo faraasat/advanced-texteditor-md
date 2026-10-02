@@ -1,0 +1,284 @@
+/*
+ * Reader view (advanced-texteditor-md/reader): a clean article with a sticky outline, a reading
+ * progress bar and the reading time.
+ *
+ * Tokens (all optional; each falls back to the editor's own tokens or a fixed value):
+ *   --atm-reader-width    longest line of the article (default 68ch); also the `maxWidth` option
+ *   --atm-reader-height   height of a view that scrolls itself (`scroll: "element"`; default 100%)
+ *   --atm-reader-font     font family of the article (default: the editor's)
+ *   --atm-reader-size     font size of the article (default 1.125rem)
+ * Colours come from --atm-bg / --atm-fg / --atm-muted / --atm-surface / --atm-accent / --atm-border.
+ * Under 56rem wide the outline folds behind a button (container query, not a viewport query, so a
+ * narrow column on a wide screen folds too).
+ */
+.atm-reader {
+  container: atm-reader / inline-size;
+  position: relative;
+  box-sizing: border-box;
+  background: var(--atm-bg, #ffffff);
+  color: var(--atm-fg, #1f2328);
+  font-family: var(--atm-reader-font, var(--atm-font-family, inherit));
+  outline: none;
+}
+.atm-reader *,
+.atm-reader *::before,
+.atm-reader *::after {
+  box-sizing: border-box;
+}
+.atm-reader[data-scroll="element"] {
+  block-size: var(--atm-reader-height, 100%);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.atm-reader[data-scroll="element"]:focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: -2px;
+}
+
+/* top bar */
+.atm-reader-bar {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-block-size: 3rem;
+  padding: 0.4rem 1rem;
+  border-block-end: 1px solid var(--atm-border, #d0d7de);
+  background: var(--atm-surface, #f6f8fa);
+  color: var(--atm-fg, #1f2328);
+}
+.atm-reader-spacer {
+  flex: 1 1 auto;
+}
+.atm-reader-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-block-size: 2.25rem;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--atm-border, #d0d7de);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-bg, #ffffff);
+  color: var(--atm-fg, #1f2328);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.atm-reader-btn:hover {
+  background: color-mix(in srgb, var(--atm-fg, #1f2328) 8%, var(--atm-bg, #ffffff));
+}
+.atm-reader-btn:focus-visible,
+.atm-reader-link:focus-visible,
+.atm-reader-content :is(h1, h2, h3, h4, h5, h6):focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: 2px;
+}
+.atm-reader-toggle {
+  display: none;
+}
+.atm-reader[data-outline-open] .atm-reader-toggle {
+  background: var(--atm-accent, #2563eb);
+  border-color: transparent;
+  color: var(--atm-accent-fg, #ffffff);
+}
+.atm-reader-meta {
+  display: inline-flex;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  color: var(--atm-muted, #59636e);
+}
+.atm-reader-progress {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -1px;
+  block-size: 3px;
+}
+.atm-reader-fill {
+  block-size: 100%;
+  inline-size: calc(var(--atm-reader-p, 0) * 100%);
+  background: var(--atm-accent, #2563eb);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .atm-reader-fill {
+    transition: inline-size 0.1s linear;
+  }
+}
+.atm-reader-dir {
+  flex: none;
+}
+.atm-reader:dir(rtl) .atm-reader-dir {
+  transform: scaleX(-1);
+}
+
+/* layout: outline | article */
+.atm-reader-layout {
+  display: grid;
+  grid-template-columns: minmax(10rem, 15rem) minmax(0, var(--atm-reader-width, 68ch));
+  justify-content: center;
+  align-items: start;
+  column-gap: 3rem;
+  padding: 2rem 1.5rem 5rem;
+}
+.atm-reader[data-outline="none"] .atm-reader-layout {
+  grid-template-columns: minmax(0, var(--atm-reader-width, 68ch));
+}
+.atm-reader[data-outline="none"] .atm-reader-outline {
+  display: none;
+}
+.atm-reader-outline {
+  position: sticky;
+  inset-block-start: 4.5rem;
+  max-block-size: calc(100vh - 6rem);
+  overflow: auto;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+.atm-reader-outline-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.atm-reader-link {
+  display: block;
+  padding: 0.3rem 0.6rem;
+  padding-inline-start: calc(0.6rem + (var(--atm-reader-level, 1) - 1) * 0.9rem);
+  border-inline-start: 2px solid transparent;
+  border-radius: 0 var(--atm-radius, 6px) var(--atm-radius, 6px) 0;
+  color: var(--atm-muted, #59636e);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.atm-reader-item[data-level="2"] { --atm-reader-level: 2; }
+.atm-reader-item[data-level="3"] { --atm-reader-level: 3; }
+.atm-reader-item[data-level="4"] { --atm-reader-level: 4; }
+.atm-reader-item[data-level="5"] { --atm-reader-level: 5; }
+.atm-reader-item[data-level="6"] { --atm-reader-level: 6; }
+.atm-reader-link:hover {
+  color: var(--atm-fg, #1f2328);
+}
+.atm-reader-link[aria-current="location"] {
+  border-inline-start-color: var(--atm-accent, #2563eb);
+  background: color-mix(in srgb, var(--atm-accent, #2563eb) 10%, var(--atm-bg, #ffffff));
+  color: var(--atm-fg, #1f2328);
+  font-weight: 600;
+}
+.atm-reader:dir(rtl) .atm-reader-link {
+  border-radius: var(--atm-radius, 6px) 0 0 var(--atm-radius, 6px);
+}
+
+/* the article */
+.atm-reader-article {
+  min-inline-size: 0;
+}
+.atm-reader .atm-reader-content.atm-surface {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  font-size: var(--atm-reader-size, 1.125rem);
+  line-height: 1.7;
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+.atm-reader-content :is(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-block-start: 4rem;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+.atm-reader-content h1 {
+  margin: 0 0 0.6em;
+  font-size: 2.1em;
+}
+.atm-reader-content h2 {
+  margin: 1.8em 0 0.5em;
+  font-size: 1.5em;
+}
+.atm-reader-content h3 {
+  margin: 1.5em 0 0.4em;
+  font-size: 1.25em;
+}
+.atm-reader-content :is(img, video, svg) {
+  max-inline-size: 100%;
+  block-size: auto;
+}
+.atm-reader-content pre {
+  overflow: auto;
+}
+.atm-reader-content table {
+  display: block;
+  max-inline-size: 100%;
+  overflow-x: auto;
+}
+
+/* narrow: the outline folds behind the Outline button */
+@container atm-reader (max-width: 56rem) {
+  .atm-reader-words,
+  .atm-reader-dot {
+    display: none;
+  }
+  .atm-reader-toggle {
+    display: inline-flex;
+  }
+  .atm-reader-layout,
+  .atm-reader[data-outline="none"] .atm-reader-layout {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 1.25rem 1rem 4rem;
+    row-gap: 1rem;
+  }
+  .atm-reader-outline {
+    display: none;
+    position: static;
+    max-block-size: 50vh;
+    padding: 0.4rem;
+    border: 1px solid var(--atm-border, #d0d7de);
+    border-radius: var(--atm-radius, 6px);
+    background: var(--atm-surface, #f6f8fa);
+  }
+  .atm-reader[data-outline-open] .atm-reader-outline {
+    display: block;
+  }
+  .atm-reader-link {
+    padding-block: 0.55rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .atm-reader-progress {
+    border: 1px solid CanvasText;
+  }
+  .atm-reader-fill {
+    background: Highlight;
+  }
+  .atm-reader-link[aria-current="location"] {
+    border-inline-start-color: Highlight;
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+@media print {
+  .atm-reader-bar,
+  .atm-reader-outline {
+    display: none !important;
+  }
+  .atm-reader[data-scroll="element"] {
+    block-size: auto;
+    overflow: visible;
+  }
+  .atm-reader-layout {
+    display: block;
+    padding: 0;
+  }
+  .atm-reader .atm-reader-content.atm-surface {
+    font-size: 12pt;
+    color: #000;
+  }
+  .atm-reader-content a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+  }
+}

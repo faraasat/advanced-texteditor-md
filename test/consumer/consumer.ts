@@ -90,16 +90,18 @@ import { createContentBlocksPlugins, createShortcodes } from "advanced-textedito
 import { createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists } from "advanced-texteditor-md/deflists";
 import { createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, type TasksSummary } from "advanced-texteditor-md/tasks";
 import { createDictationPlugin, createReadAloudPlugin, fitSpoken } from "advanced-texteditor-md/speech";
+import { createPresentView, createPresentPlugin, splitSlides, type PresentView, type PresentOptions } from "advanced-texteditor-md/present";
+import { createReaderView, createReaderPlugin, type ReaderView, type ReaderOptions } from "advanced-texteditor-md/reader";
 import { createSuggestPlugin, readingStats } from "advanced-texteditor-md/writing";
 import { loadLabels, createBidiPlugin } from "advanced-texteditor-md/i18n";
 import de from "advanced-texteditor-md/i18n/de";
 const featurePlugins: Plugin[] = [
   createAlertsPlugin(), createCodeBlocksPlugin(), createTablesPlugin(), createDiagramsPlugin({ renderers: {} }), createExportPlugin(),
-  createMarkdownMentionsPlugin(), createSuggestPlugin({ onSuggest: async () => null }), createDictationPlugin({ lang: "en-US", onError: (e) => e.code }), createReadAloudPlugin({ rate: 1, voice: (voices) => voices[0] }), createBidiPlugin(),
+  createMarkdownMentionsPlugin(), createSuggestPlugin({ onSuggest: async () => null }), createDictationPlugin({ lang: "en-US", onError: (e) => e.code }), createReadAloudPlugin({ rate: 1, voice: (voices) => voices[0] }), createBidiPlugin(), createPresentPlugin({ split: "auto" }), createReaderPlugin({ outlineDepth: 2 }),
 ];
 export const features = [
   featurePlugins, alertSyntax, parseCodeInfo, diffLang, csvToTable, renderDiagrams, createDiffView, diffWords, createHistoryStore, exportHtml,
-  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists, createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, readingStats, fitSpoken, loadLabels, de.bold,
+  createChipCardsPlugin, createTagTrigger, createContentBlocksPlugins, createShortcodes, createDefinitionListsPlugin, DEFINITION_LIST_SYNTAX, upgradeDefinitionLists, createTasks, tasksSummary, taskItems, moveCompletedInMarkdown, createPresentView, createReaderView, splitSlides, readingStats, fitSpoken, loadLabels, de.bold,
 ];
 export const deflistsTyped: Plugin = createDefinitionListsPlugin({ labels: { term: "Term" }, classPrefix: "atm" });
 export const deflistsParsed = parse("Term\n: Definition", { syntax: { block: DEFINITION_LIST_SYNTAX } });
@@ -107,3 +109,8 @@ export const deflistsParsed = parse("Term\n: Definition", { syntax: { block: DEF
 const tasks = createTasks({ today: "2026-10-02", locale: "en-GB", assign: { trigger: "@" }, keys: { moveCompleted: false } });
 export const taskPlugins: Plugin[] = tasks.plugins;
 export const taskSummary: TasksSummary = tasksSummary(parse("- [x] a\n- [ ] b"), { today: "2026-10-02" });
+
+// The two read-only views: options and the returned handles are typed.
+const presentOptions: PresentOptions = { split: "h2", presenter: true, hash: true, dir: "rtl", labels: { next: "Next" }, onExit: () => undefined };
+const readerOptions: ReaderOptions = { scroll: "element", outlineDepth: 4, notes: "hide", labels: { back: "Back" } };
+export const views = (el: HTMLElement): [PresentView, ReaderView] => [createPresentView(el, "# a\n\n---\n\n# b", presentOptions), createReaderView(el, "# a", readerOptions)];

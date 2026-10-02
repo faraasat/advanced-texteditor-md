@@ -707,3 +707,16 @@ drag-reordering a list by state, and a task filter that survives re-rendering of
 - *Editing during reading stops it* (offsets would be stale).
 
 **Not supported.** Highlighting in the Markdown pane (a textarea has no ranges); hard line breaks from "new line"; custom spoken-command tables (the `SPOKEN_COMMANDS` object is exported but read-only by convention); recognition grammars; speaker/voice selection UI; the read-aloud toolbar item in a read-only editor (the core greys every item there; the command and shortcut still work); retrying `no-speech` automatically.
+
+<!-- feature:present -->
+## 2026-10-02: Present and reader views (`advanced-texteditor-md/present`, `/reader`)
+
+**Views, not editor modes.** Both take Markdown or a `Doc` and render it through the library renderer into their own element; the editor's document is never touched, so there is nothing to round-trip and no core change. The plugins only open a view in a full-window dialog (Escape returns focus to the editor). Rejected: a third editor mode (it would put the surface, history and selection in play for a read-only job, and cost eager bytes).
+
+**Slides are split on the parsed Doc, not on text.** `---` inside a code block or a column must not split, so `splitSlides` walks top-level nodes; `auto` uses the rules if there are any, else `h1` if the document has one, else `h2`. A slide that does not fit is scaled down to `minScale`, then scrolls (clipping content in a talk is worse than a scrollbar).
+
+**Speaker notes are `::: notes`.** An existing custom-block grammar, so no new syntax; other renderers show the text between the `:::` lines, which is acceptable for notes the author wrote. Rejected: HTML comments (raw HTML is never kept) and a heading convention (collides with content).
+
+**Direction decides the arrows.** In RTL "next" is ArrowLeft; swipe follows. Fullscreen uses the Fullscreen API with a full-window overlay fallback, because the API is refused in iframes and some browsers.
+
+**Not supported.** Transitions, a second window for the speaker view, remote control, PDF export of the deck, per-slide themes.

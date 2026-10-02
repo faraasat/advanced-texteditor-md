@@ -28,6 +28,8 @@ export default defineConfig({
     blocks: "src/extensions/blocks/index.ts",
     deflists: "src/extensions/deflists/index.ts",
     tasks: "src/extensions/tasks/index.ts",
+    present: "src/extensions/present/index.ts",
+    reader: "src/extensions/reader/index.ts",
     writing: "src/extensions/writing/index.ts",
     speech: "src/extensions/speech/index.ts",
     i18n: "src/extensions/i18n/index.ts",

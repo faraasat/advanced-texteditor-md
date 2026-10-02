@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>advanced-texteditor-md reader view</title>
+    <meta name="description" content="A Markdown document as a clean article: sticky outline with the current section, reading progress, reading time and print styles." />
+    <!-- The built library. Run `npm run build` first. -->
+    <link rel="stylesheet" href="../dist/style.css" />
+    <style>
+      :root { color-scheme: light dark; --page-bg: #f4f6f8; --page-fg: #1f2328; --page-muted: #59636e; --page-card: #fff; --page-border: #d0d7de; }
+      @media (prefers-color-scheme: dark) { :root:not([data-atm-theme="light"]) { --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; } }
+      :root[data-atm-theme="dark"] { color-scheme: dark; --page-bg: #0b0e13; --page-fg: #e6edf3; --page-muted: #9aa4b0; --page-card: #12161d; --page-border: #30363d; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--page-fg); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      main { max-width: 1000px; margin: 0 auto; padding: 24px 20px 48px; }
+      h1 { margin: 0 0 4px; font-size: 1.5rem; }
+      p.lead { margin: 0 0 16px; color: var(--page-muted); max-width: 70ch; }
+      .card { background: var(--page-card); border: 1px solid var(--page-border); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+      .card > h2 { margin: 0 0 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--page-muted); }
+      label { font-weight: 600; font-size: 0.9rem; }
+      select, button.demo { font: inherit; padding: 4px 10px; color: inherit; background: var(--page-card); border: 1px solid var(--page-border); border-radius: 6px; cursor: pointer; }
+      .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 10px; }
+      pre.out { margin: 0; max-height: 220px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--page-bg); border: 1px solid var(--page-border); font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+      kbd { font: 600 0.85em ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--page-border); border-bottom-width: 2px; border-radius: 4px; }
+      main { max-width: none; padding: 0; }
+      .intro { max-width: 1000px; margin: 0 auto; padding: 24px 20px 0; }
+      .editor-card { max-width: 1000px; margin: 24px auto 48px; padding: 0 20px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="intro">
+        <h1>Reader</h1>
+        <p class="lead">
+          The article below is a reader view of a long Markdown text. The outline sticks to the side and marks the section you are in; the thin bar under the top row
+          shows how far you have read. On a narrow screen the outline folds behind the Outline button. URL parameters: <code>theme</code> (light, dark), <code>dir=rtl</code>,
+          <code>depth</code> (outline levels), <code>notes=hide</code>.
+        </p>
+      </div>
+
+      <div id="reader-host" data-testid="reader-host"></div>
+
+      <div class="editor-card">
+        <section class="card" aria-labelledby="ed-h">
+          <h2 id="ed-h">An editor with the Reader view command</h2>
+          <p class="lead">The toolbar button (or the command palette) opens the text as an article over the page. "Back to editor" or <kbd>Esc</kbd> returns.</p>
+          <div id="editor-host" data-testid="editor-host"></div>
+        </section>
+        <section class="card" aria-labelledby="md-h">
+          <h2 id="md-h">Markdown (what is stored)</h2>
+          <pre class="out" id="md" data-testid="md" tabindex="0"></pre>
+        </section>
+      </div>
+    </main>
+
+    <script type="module">
+      import * as lib from "../dist/index.js";
+      import * as R from "../dist/reader.js";
+
+      const q = new URLSearchParams(location.search);
+      const $ = (id) => document.getElementById(id);
+      const theme = q.get("theme") === "dark" ? "dark" : q.get("theme") === "light" ? "light" : null;
+      if (theme) document.documentElement.setAttribute("data-atm-theme", theme);
+      if (q.get("dir") === "rtl") document.documentElement.setAttribute("dir", "rtl");
+
+      const para = (t) => `${t} `.repeat(1) + "The text here is only there to fill the page, so that the outline, the progress bar and the current section have something to follow while you scroll. ".repeat(3);
+      const section = (title, subs) => [`## ${title}`, "", para(title), "", ...subs.flatMap((s) => [`### ${s}`, "", para(s), "", para(s + " again"), ""])].join("\n");
+      const SAMPLE = [
+        "# A short guide to Project Alpha",
+        "",
+        "Written by Ada and Grace. " + para("Introduction"),
+        "",
+        "::: notes",
+        "Remember to update the screenshots before the next release.",
+        ":::",
+        "",
+        section("Getting started", ["Install", "First run"]),
+        section("Everyday use", ["Notes and tasks", "Sharing with a team", "Keyboard shortcuts"]),
+        "```js",
+        "const answer = 6 * 7;",
+        "console.log(answer);",
+        "```",
+        "",
+        section("Troubleshooting", ["Nothing happens", "Slow start"]),
+        section("Reference", ["Settings", "Glossary"]),
+        "Questions? Write to team@example.com",
+      ].join("\n");
+
+      const md = q.get("md") ?? SAMPLE;
+      const view = R.createReaderView(null, md, {
+        container: $("reader-host"),
+        outlineDepth: Math.min(6, Math.max(1, Number(q.get("depth")) || 3)),
+        notes: q.get("notes") === "hide" ? "hide" : "show",
+      });
+      window.__reader = view;
+
+      const editor = lib.createEditor($("editor-host"), {
+        value: md,
+        theme: theme ?? "auto",
+        minHeight: 160,
+        plugins: [R.createReaderPlugin()],
+        onChange: (v) => ($("md").textContent = v),
+      });
+      window.__editor = editor;
+      $("md").textContent = editor.getValue();
+    </script>
+  </body>
+</html>

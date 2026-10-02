@@ -47,7 +47,7 @@ const LAZY_CONTRACT = [
 const LANG_KB = 2; // highlight/<lang>.js, eager closure
 const I18N_KB = 1.5; // i18n/<lang>.js, one label bundle (2026-10-02)
 /** Feature subpaths (src/extensions, 2026-10-02): each entry's own closure. diff and export carry the shared parser + renderer chunks (about 13 kB) an editor page already has. */
-const FEATURE_KB = { "alerts.js": 15, "code-blocks.js": 15, "tables.js": 15, "diagrams.js": 15, "chips.js": 15, "blocks.js": 15, "tasks.js": 15, "deflists.js": 15, "writing.js": 15, "speech.js": 15, "i18n.js": 15, "diff.js": 28, "export.js": 28 };
+const FEATURE_KB = { "alerts.js": 15, "code-blocks.js": 15, "tables.js": 15, "diagrams.js": 15, "chips.js": 15, "blocks.js": 15, "tasks.js": 15, "deflists.js": 15, "writing.js": 15, "speech.js": 15, "i18n.js": 15, "diff.js": 28, "export.js": 28, "present.js": 28, "reader.js": 28 };
 const LAZY_CHUNK_KB = 15; // every dynamically imported chunk, on its own
 /**
  * The block tools (2026-10-02) have a tighter budget of their own: each must stay a small download

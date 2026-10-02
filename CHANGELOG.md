@@ -13,6 +13,11 @@
   commands, language-aware, accessible status and errors) and `createReadAloudPlugin` (`speechSynthesis`, reads the selection or
   the document from the caret, word highlighting with the CSS Custom Highlight API and an overlay fallback, pause / resume /
   stop). Both are feature-detected and never start on their own.
+- **Present and reader views** (`advanced-texteditor-md/present`, `/reader`): `createPresentView` turns a document into slides (split
+  on `---`, `h1`, `h2` or automatically; `::: notes` become speaker notes; keyboard, swipe, fullscreen, speaker panel with timer, RTL
+  aware, `#slide-n` hash) and `createReaderView` into a clean article (outline, reading progress and time, `::: notes` shown or
+  hidden). Both are read-only and take the renderer options; `createPresentPlugin` / `createReaderPlugin` add a toolbar command that
+  opens the view in a full-window dialog. Nothing is stored in the Markdown; GitHub shows `::: notes` as plain text.
 - **Chrome v2: seven new layouts**: `ribbon` (tabbed, grouped, labelled; collapsible), `sidebar` (outline + inspector around
   a page), `focus` (fading chrome, immersive mode, typewriter scrolling), `tabs` (Write / Preview / Markdown), `compact`,
   `mobile` (keyboard-pinned toolbar, bottom sheets) and `auto` (mobile below a breakpoint). `layoutOptions` configures them.

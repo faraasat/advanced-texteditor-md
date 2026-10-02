@@ -118,6 +118,7 @@ else is a subpath so you only pay for what you import.
 | `/tasks` | `createTasks`: due-date chips on task items with overdue / today marks drawn at render time, assignees as mentions, a `::: progress` block (bar and "3 of 5 tasks done (60%)"), "move completed to bottom", an All / Open / Done / Overdue filter for views; `taskItems`, `tasksSummary` over a parsed Doc |
 | `/writing` | host-driven writing aids: ghost-text suggestions, selection actions, spellcheck and language, a word goal and `readingStats`, lint squiggles with fixes |
 | `/speech` | `createDictationPlugin` (speak to type, interim words as ghost text) and `createReadAloudPlugin` (read the selection or the page, the spoken word highlighted), on the browser's Web Speech API; feature-detected, never on by default |
+| `/present`, `/reader` | `createPresentView` (a document as slides: split rules, speaker notes and panel, fullscreen, keys and swipe) and `createReaderView` (a clean article with outline, progress and reading time); `createPresentPlugin` / `createReaderPlugin` open them from the editor toolbar |
 | `/i18n`, `/i18n/<lang>` | `loadLabels`, `resolveLocale`, `isRtl`, `createBidiPlugin`; label bundles for en, es, fr, de, pt, it, nl, ru, ja, zh, ar, hi, tr (each at most 1.5 kB gzip) |
 | `/style.css`, `/style.min.css`, `/tailwind.css`, `/plugins.css` | stylesheets (`plugins.css` is optional: each plugin also injects its own) |
 

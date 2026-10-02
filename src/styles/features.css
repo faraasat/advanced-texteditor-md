@@ -1,6 +1,6 @@
 /*
  * Stylesheets of the feature subpaths (alerts, code blocks, tables, diagrams, diff, export, chips,
- * content blocks, writing aids, bidi). Each lives in ./features/<name>.css and is inlined into
+ * content blocks, writing aids, bidi, present and reader views). Each lives in ./features/<name>.css and is inlined into
  * dist/style.css by scripts/copy-css.mjs, so a page that loads style.css styles every feature
  * whether or not it uses it (the rules only match the classes those features emit).
  *
@@ -18,6 +18,8 @@
 @import "./features/blocks.css";
 @import "./features/deflists.css";
 @import "./features/tasks.css";
+@import "./features/present.css";
+@import "./features/reader.css";
 @import "./features/writing.css";
 @import "./features/i18n.css";
 @import "./features/speech.css";

@@ -279,6 +279,26 @@
         "default": "./dist/tasks.cjs"
       }
     },
+    "./present": {
+      "import": {
+        "types": "./dist/present.d.ts",
+        "default": "./dist/present.js"
+      },
+      "require": {
+        "types": "./dist/present.d.cts",
+        "default": "./dist/present.cjs"
+      }
+    },
+    "./reader": {
+      "import": {
+        "types": "./dist/reader.d.ts",
+        "default": "./dist/reader.js"
+      },
+      "require": {
+        "types": "./dist/reader.d.cts",
+        "default": "./dist/reader.cjs"
+      }
+    },
     "./writing": {
       "import": {
         "types": "./dist/writing.d.ts",
@@ -448,6 +468,12 @@
       ],
       "tasks": [
         "./dist/tasks.d.ts"
+      ],
+      "present": [
+        "./dist/present.d.ts"
+      ],
+      "reader": [
+        "./dist/reader.d.ts"
       ],
       "writing": [
         "./dist/writing.d.ts"

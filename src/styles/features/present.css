@@ -1,0 +1,399 @@
+/*
+ * Present view (advanced-texteditor-md/present) and the full-window dialog both views use when an
+ * editor opens them (.atm-view-modal).
+ *
+ * Tokens (all optional; each falls back to the editor's own tokens or a fixed value):
+ *   --atm-present-height     height of the view when it is not in the dialog (default: 70vh, at most 40rem)
+ *   --atm-present-font       font size of slide text (default: grows with the smaller side of the window)
+ * Colours come from --atm-bg / --atm-fg / --atm-muted / --atm-surface / --atm-accent / --atm-border,
+ * never from a theme selector, so every theme (light, dark, sepia, contrast ...) keeps its contrast.
+ * Nothing is colour-only: the progress bar has a number (aria-valuenow) and the counter says "3 / 12".
+ */
+.atm-view-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  background: var(--atm-bg, #ffffff);
+  color: var(--atm-fg, #1f2328);
+}
+.atm-view-modal > * {
+  flex: 1 1 0;
+  min-block-size: 0;
+}
+
+.atm-present {
+  --atm-present-bg: var(--atm-bg, #ffffff);
+  --atm-present-fg: var(--atm-fg, #1f2328);
+  --atm-present-line: var(--atm-border, #d0d7de);
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: var(--atm-present-height, min(70vh, 40rem));
+  overflow: hidden;
+  border: 1px solid var(--atm-present-line);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-present-bg);
+  color: var(--atm-present-fg);
+  font-family: var(--atm-font-family, inherit);
+  outline: none;
+}
+.atm-present *,
+.atm-present *::before,
+.atm-present *::after {
+  box-sizing: border-box;
+}
+.atm-present:focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: -2px;
+}
+.atm-view-modal > .atm-present {
+  block-size: auto;
+  border: 0;
+  border-radius: 0;
+}
+.atm-present[data-fullscreen="overlay"] {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  block-size: auto;
+  border: 0;
+  border-radius: 0;
+}
+.atm-present:fullscreen {
+  block-size: 100%;
+  border: 0;
+  border-radius: 0;
+}
+.atm-present-main {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* the stage and its slides */
+.atm-present-stage {
+  position: relative;
+  flex: 1 1 0;
+  min-block-size: 0;
+  display: flex;
+  touch-action: pan-y;
+}
+.atm-present-slide {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.atm-present-slide[hidden] {
+  display: none;
+}
+.atm-present-fit {
+  position: relative;
+  flex: none;
+  inline-size: 100%;
+  margin-block: auto;
+}
+.atm-present .atm-present-content {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: 100%;
+  min-height: 0;
+  padding: clamp(1rem, 4vmin, 3rem) clamp(1.25rem, 6vmin, 5rem);
+  font-size: var(--atm-present-font, clamp(1.1rem, 0.9rem + 1.7vmin, 2.1rem));
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: break-word;
+  background: transparent;
+  color: var(--atm-present-fg);
+}
+.atm-present .atm-present-content h1 {
+  margin: 0 0 0.5em;
+  font-size: 2.1em;
+  line-height: 1.15;
+}
+.atm-present .atm-present-content h2 {
+  margin: 0 0 0.5em;
+  font-size: 1.7em;
+  line-height: 1.2;
+}
+.atm-present .atm-present-content h3 {
+  margin: 0 0 0.4em;
+  font-size: 1.35em;
+}
+.atm-present .atm-present-content :is(ul, ol) {
+  padding-inline-start: 1.4em;
+}
+.atm-present .atm-present-content li + li {
+  margin-block-start: 0.3em;
+}
+.atm-present .atm-present-content :is(img, video, svg, table) {
+  max-inline-size: 100%;
+}
+.atm-present .atm-present-content pre {
+  font-size: 0.8em;
+  line-height: 1.45;
+  /* Not scrollable: the slide is scaled until the widest line fits (down to minScale). */
+  overflow: visible;
+  white-space: pre;
+}
+.atm-present-slide[data-kind="title"] .atm-present-content {
+  text-align: center;
+}
+.atm-present-slide[data-kind="title"] .atm-present-content h1 {
+  font-size: 2.8em;
+}
+.atm-present-slide[data-kind="title"] .atm-present-content :is(p, ul, ol) {
+  color: var(--atm-muted, #59636e);
+}
+.atm-present-empty {
+  margin: 0;
+  color: var(--atm-muted, #59636e);
+  text-align: center;
+}
+
+/* progress and controls */
+.atm-present-progress {
+  flex: none;
+  block-size: 4px;
+  background: color-mix(in srgb, var(--atm-present-fg) 12%, var(--atm-present-bg));
+}
+.atm-present-fill {
+  block-size: 100%;
+  inline-size: calc(var(--atm-present-p, 0) * 100%);
+  background: var(--atm-accent, #2563eb);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .atm-present-fill {
+    transition: inline-size 0.2s ease-out;
+  }
+}
+.atm-present-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-block-start: 1px solid var(--atm-present-line);
+  background: var(--atm-surface, #f6f8fa);
+  color: var(--atm-present-fg);
+}
+.atm-present-spacer {
+  flex: 1 1 auto;
+}
+.atm-present-counter {
+  min-inline-size: 4.5ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  color: var(--atm-present-fg);
+}
+.atm-present-jump {
+  font-size: 0.85rem;
+  color: var(--atm-muted, #59636e);
+}
+.atm-present-jump:empty {
+  display: none;
+}
+.atm-present-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-block-size: 2.25rem;
+  min-inline-size: 2.25rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--atm-present-line);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-present-bg);
+  color: var(--atm-present-fg);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.atm-present-btn:hover {
+  background: color-mix(in srgb, var(--atm-present-fg) 8%, var(--atm-present-bg));
+}
+.atm-present-btn[aria-pressed="true"],
+.atm-present-btn[aria-pressed="true"]:hover {
+  border-color: transparent;
+  background: var(--atm-accent, #2563eb);
+  color: var(--atm-accent-fg, #ffffff);
+}
+.atm-present-btn[aria-disabled="true"] {
+  opacity: 0.55;
+}
+.atm-present-btn:focus-visible,
+.atm-present-notes:focus-visible {
+  outline: 2px solid var(--atm-ring, #2563eb);
+  outline-offset: 2px;
+}
+.atm-present[data-rtl="true"] .atm-present-dir {
+  transform: scaleX(-1);
+}
+
+/* speaker panel */
+.atm-present-panel {
+  flex: 0 0 min(26rem, 38%);
+  min-inline-size: 0;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  overflow: auto;
+  border-inline-start: 1px solid var(--atm-present-line);
+  background: var(--atm-surface, #f6f8fa);
+  color: var(--atm-present-fg);
+}
+.atm-present-clock {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.atm-present-time {
+  flex: 1 1 auto;
+  font-size: 1.6rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.atm-present-previews {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.6rem;
+}
+.atm-present-panel-title {
+  margin-block-end: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--atm-muted, #59636e);
+}
+.atm-present-mini {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--atm-present-line);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-present-bg);
+}
+.atm-present-mini .atm-present-mini-inner {
+  inline-size: 1280px;
+  padding: 40px 64px;
+  font-size: 32px;
+  pointer-events: none;
+  transform: scale(0.2);
+  transform-origin: top left;
+}
+.atm-present[data-rtl="true"] .atm-present-mini .atm-present-mini-inner {
+  transform-origin: top right;
+}
+.atm-present-mini-empty {
+  margin: 0;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--atm-muted, #59636e);
+}
+.atm-present-notes.atm-surface {
+  flex: 1 1 8rem;
+  min-block-size: 6rem;
+  padding: 0.6rem 0.75rem;
+  overflow: auto;
+  border: 1px solid var(--atm-present-line);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-present-bg);
+  font-size: 1.05rem;
+  line-height: 1.5;
+  white-space: normal;
+}
+.atm-present-no-notes {
+  margin: 0;
+  color: var(--atm-muted, #59636e);
+}
+@media (max-width: 760px) {
+  .atm-present[data-presenter] {
+    flex-direction: column;
+  }
+  .atm-present-panel {
+    flex: 0 0 45%;
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--atm-present-line);
+  }
+  .atm-present-btn {
+    min-inline-size: 2.75rem;
+    min-block-size: 2.75rem;
+  }
+}
+
+/* speaker notes in any view that shows them (the reader, a custom render): an aside */
+.atm-custom-notes {
+  margin-block: 1em;
+  padding: 0.5rem 0.9rem;
+  border-inline-start: 3px solid var(--atm-accent, #2563eb);
+  border-radius: var(--atm-radius, 6px);
+  background: var(--atm-surface, #f6f8fa);
+  color: var(--atm-fg, #1f2328);
+  font-size: 0.95em;
+}
+
+@media (forced-colors: active) {
+  .atm-present-progress {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+  .atm-present-fill {
+    background: Highlight;
+  }
+  .atm-present-btn[aria-pressed="true"] {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+/* paper: every slide, one per page, no controls */
+@media print {
+  body:has(> .atm-view-modal) > :not(.atm-view-modal) {
+    display: none !important;
+  }
+  .atm-view-modal {
+    position: static;
+    display: block;
+  }
+  .atm-present {
+    display: block;
+    block-size: auto;
+    overflow: visible;
+    border: 0;
+  }
+  .atm-present-main,
+  .atm-present-stage {
+    display: block;
+  }
+  .atm-present-progress,
+  .atm-present-bar,
+  .atm-present-panel {
+    display: none !important;
+  }
+  .atm-present-slide,
+  .atm-present-slide[hidden] {
+    display: block;
+    overflow: visible;
+    break-after: page;
+  }
+  .atm-present .atm-present-fit {
+    block-size: auto !important;
+    inline-size: auto !important;
+  }
+  .atm-present .atm-present-content {
+    position: static;
+    inline-size: auto !important;
+    transform: none !important;
+  }
+}
