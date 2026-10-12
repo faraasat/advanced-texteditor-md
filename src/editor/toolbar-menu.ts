@@ -78,7 +78,9 @@ export function openToolbarMenu(o: MenuOptions): { close(restoreFocus?: boolean)
   row.appendChild(menu);
   anchor.setAttribute("aria-expanded", "true");
   const ar = anchor.getBoundingClientRect();
-  if (win) placeNear(menu, ar, win, { gap: 4 });
+  // Beside a vertical strip (to the right of a left one, to the left of a right one), else below it.
+  const side = row.classList.contains(`${p}-toolbar-left`) ? "end" : row.classList.contains(`${p}-toolbar-right`) ? "start" : undefined;
+  if (win) placeNear(menu, ar, win, { gap: 4, beside: side });
 
   const onKey = (e: KeyboardEvent) => {
     const i = els.indexOf(doc.activeElement as HTMLElement);

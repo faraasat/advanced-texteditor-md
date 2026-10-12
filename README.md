@@ -205,7 +205,18 @@ createEditor(el, {
 });
 ```
 
-`position: "none"` removes the toolbar; `"floating"` is the bubble. Add your own button through a plugin
+`position: "none"` removes the toolbar; `"floating"` is the bubble.
+
+| `toolbar.position` | Where it sits | Layouts |
+|---|---|---|
+| `"top"` / `"bottom"` | A horizontal row above or below the surface (overflow folds by width) | the layout's own default; every layout that draws a flat toolbar |
+| `"left"` / `"right"` | A **vertical strip** beside the surface: items flow down, separators are horizontal rules, the border sits on the inner edge, overflow folds by **height** into a More menu that opens sideways, `aria-orientation="vertical"` and ArrowUp / ArrowDown move between buttons | `classic`, `bottom-bar`, `compact`, `document`, `minimal`, `split` (any other layout, and `bubble`, `ribbon`, `sidebar`, `mobile`, `auto`, keeps its own position) |
+| `"floating"` / `"none"` | The bubble / no toolbar | as before |
+
+A vertical strip never makes the editor taller than its surface. The editor keeps at least `--atm-side-min-height`
+(default `15rem`, about six buttons plus More) so the strip is usable; the mode switch moves to the status bar (or floats
+when there is none). The root carries `data-atm-toolbar="left"` and `atm-toolbar-side`, the toolbar `atm-toolbar-left`,
+and the strip and body share an `atm-main` row. Add your own button through a plugin
 (`toolbar: [{ id, label, icon, command }]`) or `defineToolbarItem`. `builtinToolbarItems()` lists the defaults.
 
 The toolbar model: `items` mixes ids, `"|"`, **group names** and inline item objects; `groups` is a list of group names

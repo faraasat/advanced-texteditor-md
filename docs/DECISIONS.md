@@ -786,3 +786,11 @@ drag-reordering a list by state, and a task filter that survives re-rendering of
 - **Read-only task checkboxes keep the default cursor**, not `not-allowed`: they are display, not a refused control. There is no interactive-toggle option for views.
 - **The code-block copy button is not faded until hover**: opacity lowers the contrast axe measures, and a button that is always there works on touch and for keyboard users alike.
 - **Guard.** `test/styles/cursor-guard.test.ts` parses every stylesheet and fails when a class styled on `:hover`/`:active` has no `cursor` rule anywhere, with a short, justified exemption list.
+
+## Unreleased: toolbar position "left" / "right" (vertical strip)
+
+- **One shell, one wrapper.** For a side position `shell()` puts the toolbar and the body in an `atm-main` flex row (status bar stays under both), and marks the root `atm-toolbar-side` + `data-atm-toolbar`. Top/bottom keep the exact old DOM.
+- **Only layouts with a plain strip accept it** (`SIDE_TOOLBAR_LAYOUTS`: classic, bottom-bar, compact, document, minimal, split); anywhere else `resolveToolbarPosition` falls back to the layout default rather than breaking bubble, ribbon, sidebar, mobile or auto.
+- **Overflow reuses the pure maths with heights.** `createToolbar` decides `vertical` from the row's class once; only the measured numbers (clientHeight, offsetHeight, rowGap, vertical margins, scrollHeight) change, so the horizontal path is untouched.
+- **Never taller than the surface.** The strip's items box has a flex basis of 0, so its content cannot stretch the row; the row's minimum is `--atm-side-min-height`. Compact does not expand (wrap) in a strip, it keeps folding.
+- **Mode switch** leaves the strip (three tabs do not fit a narrow column) for the status bar, else floats.

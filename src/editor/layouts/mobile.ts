@@ -19,6 +19,8 @@ export function keyboardInset(innerHeight: number, vv: { height: number; offsetT
 
 function compact(host: LayoutHost): () => void {
   const root = host.regions.root;
+  // A vertical strip never wraps: it keeps folding by height, focused or not.
+  if (root.classList.contains(`${host.prefix}-toolbar-side`)) return () => undefined;
   const set = (v: boolean) => {
     if (host.ctx.overflow === !v) return;
     host.ctx.overflow = !v;

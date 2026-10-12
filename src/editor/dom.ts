@@ -175,14 +175,30 @@ export function placeNear(
   el: HTMLElement,
   anchor: Rect,
   win: Window,
-  opts: { gap?: number; margin?: number; prefer?: "below" | "above"; centre?: boolean } = {},
-): "below" | "above" {
+  opts: { gap?: number; margin?: number; prefer?: "below" | "above"; centre?: boolean; beside?: "end" | "start" } = {},
+): "below" | "above" | "right" | "left" {
   const gap = opts.gap ?? 6;
   const margin = opts.margin ?? 8;
   const vw = win.innerWidth || 1024;
   const vh = win.innerHeight || 768;
   const w = el.offsetWidth || 0;
   const h2 = el.offsetHeight || 0;
+  if (opts.beside) {
+    // Beside the anchor (a vertical toolbar): to its right ("end") or left ("start"), flipping when
+    // there is no room, aligned to the anchor's top and clamped into the viewport.
+    let side: "right" | "left" = opts.beside === "end" ? "right" : "left";
+    const roomRight = vw - anchor.right - margin;
+    const roomLeft = anchor.left - margin;
+    if (side === "right" && roomRight < w + gap && roomLeft > roomRight) side = "left";
+    else if (side === "left" && roomLeft < w + gap && roomRight > roomLeft) side = "right";
+    const left = side === "right" ? anchor.right + gap : anchor.left - w - gap;
+    const top = Math.max(margin, Math.min(anchor.top, vh - h2 - margin));
+    el.style.position = "fixed";
+    el.style.left = `${Math.round(Math.max(margin, Math.min(left, vw - w - margin)))}px`;
+    el.style.top = `${Math.round(top)}px`;
+    el.setAttribute("data-side", side);
+    return side;
+  }
   const roomBelow = vh - anchor.bottom - margin;
   const roomAbove = anchor.top - margin;
   let side: "below" | "above" = opts.prefer ?? "below";

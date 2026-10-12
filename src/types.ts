@@ -549,7 +549,13 @@ export type ToolbarItem = {
 };
 
 export type ToolbarConfig = {
-  position?: "top" | "bottom" | "floating" | "none";
+  /**
+   * Where the toolbar sits. "left" and "right" draw a vertical strip beside the editor (items flow down,
+   * overflow folds by height into a More menu that opens sideways). They apply to the classic,
+   * bottom-bar, compact, document, minimal and split layouts; any other layout keeps its own position.
+   * Give the editor at least about 15rem of height (--atm-min-height) so six buttons and More fit.
+   */
+  position?: "top" | "bottom" | "left" | "right" | "floating" | "none";
   /**
    * Ids, "|" separators, group names (`"text"` expands to bold, italic, strike and code; see
    * `TOOLBAR_GROUPS`) and inline item definitions. Default: the layout's group preset.

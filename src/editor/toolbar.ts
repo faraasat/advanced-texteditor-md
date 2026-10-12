@@ -287,11 +287,13 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
   const platform = ctx.platform ?? detectPlatform();
   const cls = (base: string, slot?: Slot) => cx(`${p}-${base}`, slot && ctx.classes[slot]);
 
+  // A vertical strip (toolbar position "left" / "right"): items flow down, overflow folds by height.
+  const vertical = row.classList.contains(`${p}-toolbar-left`) || row.classList.contains(`${p}-toolbar-right`);
   const bar = h("div", {
     document: doc,
     role: "toolbar",
     "aria-label": labels.toolbar,
-    "aria-orientation": "horizontal",
+    "aria-orientation": vertical ? "vertical" : "horizontal",
     class: cx(`${p}-toolbar-items`, ctx.classes.toolbarGroup),
   });
   row.insertBefore(bar, row.firstChild);
@@ -346,7 +348,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
 
   for (const entry of items) {
     if (entry === "|") {
-      const sep = h("span", { document: doc, role: "separator", "aria-orientation": "vertical", class: cls("sep") });
+      const sep = h("span", { document: doc, role: "separator", "aria-orientation": vertical ? "horizontal" : "vertical", class: cls("sep") });
       bar.appendChild(sep);
       entries.push({ kind: "sep", el: sep, overflowed: false });
     } else {
@@ -392,9 +394,12 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     if (i < 0) return;
     let n = -1;
     // Arrow keys follow the visual direction: in a right-to-left editor ArrowLeft moves forward.
-    const fwd = win?.getComputedStyle(bar).direction === "rtl" ? "ArrowLeft" : "ArrowRight";
+    // A vertical strip uses ArrowDown / ArrowUp instead, whatever the direction.
+    const rtl = win?.getComputedStyle(bar).direction === "rtl";
+    const fwd = vertical ? "ArrowDown" : rtl ? "ArrowLeft" : "ArrowRight";
+    const back = vertical ? "ArrowUp" : rtl ? "ArrowRight" : "ArrowLeft";
     if (e.key === fwd) n = (i + 1) % list.length;
-    else if (e.key === "ArrowLeft" || e.key === "ArrowRight") n = (i - 1 + list.length) % list.length;
+    else if (e.key === back) n = (i - 1 + list.length) % list.length;
     else if (e.key === "Home") n = 0;
     else if (e.key === "End") n = list.length - 1;
     else if (e.key === "Escape") tip(e);
@@ -515,17 +520,17 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     moreBtn.hidden = true;
     // Read per call: a layout may turn overflow off while the editor has focus (compact).
     if (!ctx.overflow) return setRover(rover);
-    const avail = bar.clientWidth;
+    const avail = vertical ? bar.clientHeight : bar.clientWidth;
     if (!avail) {
       setRover(rover);
       return;
     }
     // Each entry takes its box, its margins (separators have some) and the row's gap.
     const px = (v?: string) => parseFloat(v ?? "") || 0;
-    const gap = px(win?.getComputedStyle(bar).columnGap);
+    const gap = px(vertical ? win?.getComputedStyle(bar).rowGap : win?.getComputedStyle(bar).columnGap);
     const room = (el: HTMLElement) => {
       const st = win?.getComputedStyle(el);
-      return el.offsetWidth + gap + px(st?.marginLeft) + px(st?.marginRight);
+      return vertical ? el.offsetHeight + gap + px(st?.marginTop) + px(st?.marginBottom) : el.offsetWidth + gap + px(st?.marginLeft) + px(st?.marginRight);
     };
     const widths = entries.map((e) => room(e.el));
     moreBtn.hidden = false;
@@ -548,7 +553,8 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     moreBtn.hidden = false;
     // Verify against the real layout (fractional widths, late fonts): while the row still overflows
     // its box, send the last visible item to More as well.
-    for (let i = entries.length; bar.scrollWidth > bar.clientWidth + 1 && i--; ) {
+    const spills = () => (vertical ? bar.scrollHeight > bar.clientHeight + 1 : bar.scrollWidth > bar.clientWidth + 1);
+    for (let i = entries.length; spills() && i--; ) {
       entries[i].el.hidden = entries[i].overflowed = true;
     }
     // Drop separators that now touch each other or the edges of the visible run.

@@ -1035,6 +1035,62 @@ img[data-atm-zoom]:focus-visible {
   min-height: var(--atm-min-height, 4rem);
 }
 
+/* ── a vertical toolbar (toolbar.position "left" / "right"): a column beside the surface ──
+   .atm-main holds the strip and the body side by side. The strip is as tall as the body (its items
+   box has no height of its own, so it never stretches the editor): what does not fit folds into
+   More. --atm-side-min-height (default 15rem) keeps room for about six buttons and More. */
+.atm-main {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--atm-side-min-height, 15rem);
+}
+.atm-main > .atm-body {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.atm-toolbar-side > .atm-main > .atm-toolbar-left,
+.atm-toolbar-side > .atm-main > .atm-toolbar-right {
+  position: relative; /* not sticky: it is as tall as the editor */
+  top: auto;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  align-self: stretch;
+  gap: var(--_s3);
+  padding: var(--_s3) var(--_s2);
+  border-top: 0;
+  border-bottom: 0;
+}
+.atm-toolbar-side > .atm-main > .atm-toolbar-left {
+  border-inline-end: 1px solid var(--atm-border, #d0d7de);
+  border-radius: calc(var(--atm-r) - 1px) 0 0 calc(var(--atm-r) - 1px);
+}
+.atm-toolbar-side > .atm-main > .atm-toolbar-right {
+  border-inline-start: 1px solid var(--atm-border, #d0d7de);
+  border-radius: 0 calc(var(--atm-r) - 1px) calc(var(--atm-r) - 1px) 0;
+}
+.atm-toolbar-left > .atm-toolbar-items,
+.atm-toolbar-right > .atm-toolbar-items {
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  align-self: stretch;
+  min-width: 0;
+  min-height: var(--_ctl, 32px); /* room for the More button, however short the editor */
+}
+.atm-toolbar-left .atm-sep,
+.atm-toolbar-right .atm-sep {
+  width: calc(var(--_ctl) - 14px);
+  height: 1px;
+  margin: var(--_s2) 0;
+}
+.atm-toolbar-left > .atm-actions,
+.atm-toolbar-right > .atm-actions {
+  margin: 0;
+  margin-block-start: auto;
+}
+
 /* split: source | preview */
 .atm-layout-split .atm-markdown-host,
 .atm-layout-split .atm-preview {

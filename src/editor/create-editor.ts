@@ -40,7 +40,7 @@ import { detectSlash } from "./slash-detect";
 import { DEFAULT_KEYMAP, createKeymap, type Keymap } from "./keymap";
 import { DEFAULT_LABELS, fmt, resolveLabels, type Labels } from "./i18n";
 import { applyTheme } from "./theme";
-import { fullClasses, lazyAttach, resolveLayout, type LayoutHost, type RuntimeLayout } from "./layouts";
+import { fullClasses, isSide, lazyAttach, resolveLayout, resolveToolbarPosition, type LayoutHost, type RuntimeLayout } from "./layouts";
 import {
   ICONS,
   builtinToolbarItems,
@@ -269,7 +269,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
   /* ── shell ── */
 
   const layout: RuntimeLayout = resolveLayout(options.layout);
-  const toolbarPos = options.toolbar?.position ?? layout.defaults?.toolbar ?? "top";
+  const toolbarPos = resolveToolbarPosition(layout.name, options.toolbar?.position, layout.defaults?.toolbar ?? "top");
   const statusWanted = features.statusBar ?? (options.maxLength ? true : (layout.defaults?.statusBar ?? true));
   const regions = layout.build({
     classes: fullClasses(classes),
@@ -881,7 +881,8 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       controls: regionIds,
       onSelect: (m) => setMode(m),
     });
-    const row = regions.toolbar && toolbarPos !== "floating" && !layoutHost.statusItems?.includes("modeSwitch") ? regions.toolbar : null;
+    // The mode switch is a row of tabs: it does not belong in a narrow vertical strip.
+    const row = regions.toolbar && toolbarPos !== "floating" && !isSide(toolbarPos) && !layoutHost.statusItems?.includes("modeSwitch") ? regions.toolbar : null;
     if (row) {
       if (regions.actions && regions.actions.parentElement === row) row.insertBefore(modeSwitch.el, regions.actions);
       else row.appendChild(modeSwitch.el);
