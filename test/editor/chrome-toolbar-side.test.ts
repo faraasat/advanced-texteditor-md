@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mount } from "./fakes";
 import { computeOverflow, overflowHidden } from "../../src/editor/toolbar";
-import { placeNear } from "../../src/editor/dom";
+import { placeBeside } from "../../src/editor/toolbar-menu";
 import type { LayoutName } from "../../src/types";
 
 const cleanups: (() => void)[] = [];
@@ -21,16 +21,13 @@ const key = (el: HTMLElement, k: string) => el.dispatchEvent(new KeyboardEvent("
 describe("toolbar position left / right", () => {
   for (const layout of ["classic", "bottom-bar", "compact", "document", "minimal", "split"] as LayoutName[]) {
     for (const side of ["left", "right"] as const) {
-      it(`${layout}: ${side} marks the root and the toolbar and sits beside the body`, () => {
+      it(`${layout}: ${side} marks the root and the toolbar and sits beside the body (grid on the root)`, () => {
         const x = m({ layout, toolbar: { position: side } });
         const tb = q(x.root, ".atm-toolbar");
         expect(tb.classList.contains(`atm-toolbar-${side}`)).toBe(true);
-        expect(x.root.getAttribute("data-atm-toolbar")).toBe(side);
         expect(x.root.classList.contains("atm-toolbar-side")).toBe(true);
-        const main = tb.parentElement!;
-        expect(main.classList.contains("atm-main")).toBe(true);
-        const kids = Array.from(main.children);
-        const body = kids.indexOf(q(main, ".atm-body"));
+        const kids = Array.from(x.root.children);
+        const body = kids.indexOf(q(x.root, ".atm-body"));
         const bar = kids.indexOf(tb);
         expect(side === "left" ? bar < body : bar > body).toBe(true);
         expect(q(x.root, '[role="toolbar"]').getAttribute("aria-orientation")).toBe("vertical");
@@ -40,8 +37,7 @@ describe("toolbar position left / right", () => {
   it("top and bottom keep a horizontal toolbar and no wrapper", () => {
     const x = m({ layout: "classic", toolbar: { position: "bottom" } });
     expect(q(x.root, '[role="toolbar"]').getAttribute("aria-orientation")).toBe("horizontal");
-    expect(x.root.querySelector(".atm-main")).toBeNull();
-    expect(x.root.hasAttribute("data-atm-toolbar") ? x.root.getAttribute("data-atm-toolbar") : "bottom").toBe("bottom");
+    expect(x.root.classList.contains("atm-toolbar-side")).toBe(false);
   });
   it("layouts whose toolbar is not a fixed strip keep their own position", () => {
     for (const layout of ["bubble", "ribbon", "sidebar", "mobile"] as LayoutName[]) {
@@ -130,19 +126,19 @@ describe("overflow maths with heights", () => {
   });
 });
 
-describe("placeNear beside", () => {
+describe("placeBeside", () => {
   const win = { innerWidth: 800, innerHeight: 600 } as Window;
   const el = () => Object.assign(document.createElement("div"), {}) as HTMLElement;
   const rect = (l: number, t: number) => ({ left: l, top: t, right: l + 32, bottom: t + 32, width: 32, height: 32 });
   it("puts the element to the right when asked, flips left when there is no room", () => {
     const a = el();
     Object.defineProperty(a, "offsetWidth", { value: 150 });
-    expect(placeNear(a, rect(10, 100), win, { beside: "end", gap: 4 })).toBe("right");
+    expect(placeBeside(a, rect(10, 100), win, "end")).toBe("right");
     expect(a.style.left).toBe("46px");
     expect(a.style.top).toBe("100px");
     const b = el();
     Object.defineProperty(b, "offsetWidth", { value: 150 });
-    expect(placeNear(b, rect(760, 100), win, { beside: "end", gap: 4 })).toBe("left");
+    expect(placeBeside(b, rect(760, 100), win, "end")).toBe("left");
     expect(b.style.left).toBe("606px");
   });
 });

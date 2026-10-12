@@ -288,7 +288,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
   const cls = (base: string, slot?: Slot) => cx(`${p}-${base}`, slot && ctx.classes[slot]);
 
   // A vertical strip (toolbar position "left" / "right"): items flow down, overflow folds by height.
-  const vertical = row.classList.contains(`${p}-toolbar-left`) || row.classList.contains(`${p}-toolbar-right`);
+  const vertical = row.matches(`.${p}-toolbar-left,.${p}-toolbar-right`);
   const bar = h("div", {
     document: doc,
     role: "toolbar",
@@ -393,13 +393,10 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     const i = list.indexOf(t);
     if (i < 0) return;
     let n = -1;
-    // Arrow keys follow the visual direction: in a right-to-left editor ArrowLeft moves forward.
-    // A vertical strip uses ArrowDown / ArrowUp instead, whatever the direction.
-    const rtl = win?.getComputedStyle(bar).direction === "rtl";
-    const fwd = vertical ? "ArrowDown" : rtl ? "ArrowLeft" : "ArrowRight";
-    const back = vertical ? "ArrowUp" : rtl ? "ArrowRight" : "ArrowLeft";
-    if (e.key === fwd) n = (i + 1) % list.length;
-    else if (e.key === back) n = (i - 1 + list.length) % list.length;
+    // Arrow keys follow the visual direction: in a right-to-left editor ArrowLeft moves forward; a
+    // vertical strip rides ArrowDown / ArrowUp.
+    const [back, fwd] = vertical ? ["ArrowUp", "ArrowDown"] : win?.getComputedStyle(bar).direction === "rtl" ? ["ArrowRight", "ArrowLeft"] : ["ArrowLeft", "ArrowRight"];
+    if (e.key === fwd || e.key === back) n = (i + (e.key === fwd ? 1 : list.length - 1)) % list.length;
     else if (e.key === "Home") n = 0;
     else if (e.key === "End") n = list.length - 1;
     else if (e.key === "Escape") tip(e);
@@ -430,7 +427,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     if (!btn || !bar.contains(btn)) return;
     tip(e);
     if (btn === moreBtn) {
-      toggleMenu(btn, overflowEntries(), true);
+      toggleMenu(btn, (m) => m.moreRows(entries), true);
       return;
     }
     if (btn.getAttribute("aria-disabled") === "true") return;
@@ -447,18 +444,7 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
   /* ── menus ── */
 
 
-  function overflowEntries(): MenuRow[] {
-    const rows: MenuRow[] = [];
-    for (const e of entries) {
-      if (e.kind !== "item" || !e.overflowed || !e.item) continue;
-      const it = e.item;
-      if (it.menu) rows.push(...it.menu.map((m) => ({ ...m, item: it })));
-      else rows.push({ id: it.id, label: it.label, command: typeof it.command === "string" ? it.command : "", shortcut: it.shortcut, item: it, host: it.render ? e.el : undefined });
-    }
-    return rows;
-  }
-
-  function toggleMenu(anchor: HTMLElement, rows: MenuRow[], isMore: boolean) {
+  function toggleMenu(anchor: HTMLElement, rows: MenuRow[] | ((m: typeof import("./toolbar-menu")) => MenuRow[]), isMore: boolean) {
     if (openMenuHandle && anchor.getAttribute("aria-expanded") === "true") {
       openMenuHandle.close(true);
       return;
@@ -468,9 +454,10 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
   }
 
   // The menu itself is a lazy chunk (toolbar-menu.ts): nothing about it is needed before a click.
-  function openMenu(anchor: HTMLElement, rows: MenuRow[], isMore: boolean) {
-    if (!rows.length) return;
+  function openMenu(anchor: HTMLElement, rowsOf: MenuRow[] | ((m: typeof import("./toolbar-menu")) => MenuRow[]), isMore: boolean) {
     const go = (m: typeof import("./toolbar-menu")) => {
+      const rows = typeof rowsOf === "function" ? rowsOf(m) : rowsOf;
+      if (!rows.length) return;
       openMenuHandle?.close(false);
       const handle = m.openToolbarMenu({ doc, row, anchor, rows, isMore, p, platform, ctx, cls, onClose: () => openMenuHandle === handle && (openMenuHandle = null) });
       openMenuHandle = handle;
@@ -520,17 +507,19 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
     moreBtn.hidden = true;
     // Read per call: a layout may turn overflow off while the editor has focus (compact).
     if (!ctx.overflow) return setRover(rover);
-    const avail = vertical ? bar.clientHeight : bar.clientWidth;
+    // A vertical strip measures heights where a row measures widths; the maths is the same.
+    const [cl, off, g, m1, m2] = vertical ? (["clientHeight", "offsetHeight", "rowGap", "marginTop", "marginBottom"] as const) : (["clientWidth", "offsetWidth", "columnGap", "marginLeft", "marginRight"] as const);
+    const avail = bar[cl];
     if (!avail) {
       setRover(rover);
       return;
     }
     // Each entry takes its box, its margins (separators have some) and the row's gap.
     const px = (v?: string) => parseFloat(v ?? "") || 0;
-    const gap = px(vertical ? win?.getComputedStyle(bar).rowGap : win?.getComputedStyle(bar).columnGap);
+    const gap = px(win?.getComputedStyle(bar)[g]);
     const room = (el: HTMLElement) => {
       const st = win?.getComputedStyle(el);
-      return vertical ? el.offsetHeight + gap + px(st?.marginTop) + px(st?.marginBottom) : el.offsetWidth + gap + px(st?.marginLeft) + px(st?.marginRight);
+      return el[off] + gap + px(st?.[m1]) + px(st?.[m2]);
     };
     const widths = entries.map((e) => room(e.el));
     moreBtn.hidden = false;
@@ -543,28 +532,12 @@ export function createToolbar(row: HTMLElement, items: (ToolbarEntryItem | "|")[
       setRover(rover);
       return;
     }
-    entries.forEach((e, i) => {
-      // The chevron of a split button goes with its button.
-      if (hide[i] || (e.item?.split && entries[i - 1]?.overflowed)) {
-        e.overflowed = true;
-        e.el.hidden = true;
-      }
+    // Applying the fold (and checking it against the real layout) is the menu chunk's, fetched only once
+    // something has to fold: until it arrives the row is drawn whole and clipped by its own overflow.
+    chunks.menu.use((m) => {
+      m.applyFold(entries, hide, bar, moreBtn, vertical);
+      setRover(rover);
     });
-    moreBtn.hidden = false;
-    // Verify against the real layout (fractional widths, late fonts): while the row still overflows
-    // its box, send the last visible item to More as well.
-    const spills = () => (vertical ? bar.scrollHeight > bar.clientHeight + 1 : bar.scrollWidth > bar.clientWidth + 1);
-    for (let i = entries.length; spills() && i--; ) {
-      entries[i].el.hidden = entries[i].overflowed = true;
-    }
-    // Drop separators that now touch each other or the edges of the visible run.
-    const vis = entries.filter((e) => !e.overflowed);
-    vis.forEach((e, i) => {
-      if (e.kind === "sep" && (i === 0 || i === vis.length - 1 || vis[i - 1].kind === "sep")) {
-        e.el.hidden = true;
-      }
-    });
-    setRover(rover);
   }
   const relayoutCo = coalesce(relayoutNow, win);
 

@@ -40,7 +40,7 @@ import { detectSlash } from "./slash-detect";
 import { DEFAULT_KEYMAP, createKeymap, type Keymap } from "./keymap";
 import { DEFAULT_LABELS, fmt, resolveLabels, type Labels } from "./i18n";
 import { applyTheme } from "./theme";
-import { fullClasses, isSide, lazyAttach, resolveLayout, resolveToolbarPosition, type LayoutHost, type RuntimeLayout } from "./layouts";
+import { fullClasses, lazyAttach, resolveLayout, resolveToolbarPosition, type LayoutHost, type RuntimeLayout } from "./layouts";
 import {
   ICONS,
   builtinToolbarItems,
@@ -882,7 +882,7 @@ export function createEditor(target: HTMLElement, options: EditorOptions = {}, i
       onSelect: (m) => setMode(m),
     });
     // The mode switch is a row of tabs: it does not belong in a narrow vertical strip.
-    const row = regions.toolbar && toolbarPos !== "floating" && !isSide(toolbarPos) && !layoutHost.statusItems?.includes("modeSwitch") ? regions.toolbar : null;
+    const row = regions.toolbar && /^(top|bottom)$/.test(toolbarPos) && !layoutHost.statusItems?.includes("modeSwitch") ? regions.toolbar : null;
     if (row) {
       if (regions.actions && regions.actions.parentElement === row) row.insertBefore(modeSwitch.el, regions.actions);
       else row.appendChild(modeSwitch.el);

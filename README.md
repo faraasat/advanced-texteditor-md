@@ -215,8 +215,8 @@ createEditor(el, {
 
 A vertical strip never makes the editor taller than its surface. The editor keeps at least `--atm-side-min-height`
 (default `15rem`, about six buttons plus More) so the strip is usable; the mode switch moves to the status bar (or floats
-when there is none). The root carries `data-atm-toolbar="left"` and `atm-toolbar-side`, the toolbar `atm-toolbar-left`,
-and the strip and body share an `atm-main` row. Add your own button through a plugin
+when there is none). The root carries `atm-toolbar-side`, the toolbar `atm-toolbar-left`,
+and the root becomes a grid with the strip and the body side by side. Add your own button through a plugin
 (`toolbar: [{ id, label, icon, command }]`) or `defineToolbarItem`. `builtinToolbarItems()` lists the defaults.
 
 The toolbar model: `items` mixes ids, `"|"`, **group names** and inline item objects; `groups` is a list of group names

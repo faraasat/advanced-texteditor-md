@@ -2,8 +2,9 @@
  * A toolbar dropdown (the heading menu) or the "more" menu of overflowed items. A lazy chunk: it is
  * fetched on the first click of such a button (toolbar.ts).
  */
+import type { Rect } from "./dom";
 import type { Slot } from "../types";
-import type { MenuRow, ToolbarContext } from "./toolbar";
+import type { MenuRow, ToolbarContext, ToolbarEntryItem } from "./toolbar";
 import { cx, formatShortcut, h, placeNear, uid, type Platform } from "./dom";
 
 const OPEN = '[aria-expanded="true"]';
@@ -80,7 +81,7 @@ export function openToolbarMenu(o: MenuOptions): { close(restoreFocus?: boolean)
   const ar = anchor.getBoundingClientRect();
   // Beside a vertical strip (to the right of a left one, to the left of a right one), else below it.
   const side = row.classList.contains(`${p}-toolbar-left`) ? "end" : row.classList.contains(`${p}-toolbar-right`) ? "start" : undefined;
-  if (win) placeNear(menu, ar, win, { gap: 4, beside: side });
+  if (win) side ? placeBeside(menu, ar, win, side) : placeNear(menu, ar, win, { gap: 4 });
 
   const onKey = (e: KeyboardEvent) => {
     const i = els.indexOf(doc.activeElement as HTMLElement);
@@ -168,4 +169,59 @@ export function tip(row: HTMLElement, btn: HTMLElement | null, p: string): void 
   btn.setAttribute("aria-describedby", t.id);
   const win = doc.defaultView;
   if (win) placeNear(t, btn.getBoundingClientRect(), win, { gap: 6, centre: true });
+}
+
+/**
+ * Place `el` (position: fixed) beside `anchor`: to its right ("end") or left ("start"), flipping when
+ * there is no room, aligned to the anchor's top and clamped into the viewport. For a vertical toolbar.
+ */
+export function placeBeside(el: HTMLElement, anchor: Rect, win: Window, beside: "end" | "start", gap = 4, margin = 8): "right" | "left" {
+  const vw = win.innerWidth || 1024;
+  const vh = win.innerHeight || 768;
+  const w = el.offsetWidth || 0;
+  const h2 = el.offsetHeight || 0;
+  let side: "right" | "left" = beside === "end" ? "right" : "left";
+  const roomRight = vw - anchor.right - margin;
+  const roomLeft = anchor.left - margin;
+  if (side === "right" && roomRight < w + gap && roomLeft > roomRight) side = "left";
+  else if (side === "left" && roomLeft < w + gap && roomRight > roomLeft) side = "right";
+  const left = side === "right" ? anchor.right + gap : anchor.left - w - gap;
+  el.style.position = "fixed";
+  el.style.left = `${Math.round(Math.max(margin, Math.min(left, vw - w - margin)))}px`;
+  el.style.top = `${Math.round(Math.max(margin, Math.min(anchor.top, vh - h2 - margin)))}px`;
+  el.setAttribute("data-side", side);
+  return side;
+}
+
+/** The rows of the More menu: every folded item (a dropdown contributes its own rows). */
+export function moreRows(entries: { kind: "item" | "sep"; item?: ToolbarEntryItem; el: HTMLElement; overflowed: boolean }[]): MenuRow[] {
+  const rows: MenuRow[] = [];
+  for (const e of entries) {
+    if (e.kind !== "item" || !e.overflowed || !e.item) continue;
+    const it = e.item;
+    if (it.menu) rows.push(...it.menu.map((m) => ({ ...m, item: it })));
+    else rows.push({ id: it.id, label: it.label, command: typeof it.command === "string" ? it.command : "", shortcut: it.shortcut, item: it, host: it.render ? e.el : undefined });
+  }
+  return rows;
+}
+
+
+/**
+ * Apply a fold: hide the entries `hide` marks (a split button's chevron goes with its button), show
+ * More, then check against the real layout (fractional sizes, late fonts): while the strip still
+ * overflows its box, send the last visible entry to More as well. Separators left touching each other or
+ * an edge of the visible run are hidden. `vertical` measures heights instead of widths.
+ */
+export function applyFold(entries: { kind: "item" | "sep"; item?: { split?: boolean }; el: HTMLElement; overflowed: boolean }[], hide: boolean[], bar: HTMLElement, moreBtn: HTMLElement, vertical: boolean): void {
+  entries.forEach((e, i) => {
+    if (hide[i] || (e.item?.split && entries[i - 1]?.overflowed)) e.el.hidden = e.overflowed = true;
+  });
+  moreBtn.hidden = false;
+  for (let i = entries.length; (vertical ? bar.scrollHeight - bar.clientHeight : bar.scrollWidth - bar.clientWidth) > 1 && i--; ) {
+    entries[i].el.hidden = entries[i].overflowed = true;
+  }
+  const vis = entries.filter((e) => !e.overflowed);
+  vis.forEach((e, i) => {
+    if (e.kind === "sep" && (i === 0 || i === vis.length - 1 || vis[i - 1].kind === "sep")) e.el.hidden = true;
+  });
 }

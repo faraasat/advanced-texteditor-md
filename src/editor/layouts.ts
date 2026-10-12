@@ -14,16 +14,12 @@ import { chunks } from "./lazy-chunks";
 export type ToolbarPosition = "top" | "bottom" | "left" | "right" | "floating" | "none";
 
 /** Layouts whose toolbar is a plain strip that may stand beside the surface. */
-export const SIDE_TOOLBAR_LAYOUTS: readonly string[] = ["classic", "bottom-bar", "compact", "document", "minimal", "split"];
+export const SIDE_TOOLBAR_LAYOUTS = /^(classic|bottom-bar|compact|document|minimal|split)$/;
 
 /** A vertical strip: the toolbar position "left" or "right". */
-export const isSide = (p: unknown): p is "left" | "right" => p === "left" || p === "right";
-
 /** The position the editor draws: "left" / "right" only where the layout supports them. */
-export function resolveToolbarPosition(layoutName: string, wanted: ToolbarPosition | undefined, fallback: ToolbarPosition): ToolbarPosition {
-  if (!wanted) return fallback;
-  return isSide(wanted) && !SIDE_TOOLBAR_LAYOUTS.includes(layoutName) ? fallback : wanted;
-}
+export const resolveToolbarPosition = (layoutName: string, wanted: ToolbarPosition | undefined, fallback: ToolbarPosition): ToolbarPosition =>
+  !wanted || (/^[lr]/.test(wanted) && !SIDE_TOOLBAR_LAYOUTS.test(layoutName)) ? fallback : wanted;
 
 export type LayoutBuildContext = {
   classes: Record<Slot, string>;
@@ -116,7 +112,7 @@ function shell(name: string, ctx: LayoutBuildContext, actions: boolean, defaultT
   const tb = ctx.toolbar ?? defaultToolbar;
   const status = ctx.statusBar ?? defaultStatus;
 
-  const root = h("div", { document: doc, class: cx(p, `${p}-root`, `${p}-layout-${name}`, `${p}-mode-${ctx.mode}`, c.root), "data-atm-layout": name });
+  const root = h("div", { document: doc, class: cx(p, `${p}-root`, `${p}-layout-${name}`, `${p}-mode-${ctx.mode}`, /^[lr]/.test(tb) && `${p}-toolbar-side`, c.root), "data-atm-layout": name });
   const body = h("div", { document: doc, class: `${p}-body` });
   const surface = h("div", { document: doc, class: cx(`${p}-surface-host`, c.surface) });
   const markdownPane = h("div", { document: doc, class: cx(`${p}-markdown-host`, c.markdown) });
@@ -136,19 +132,11 @@ function shell(name: string, ctx: LayoutBuildContext, actions: boolean, defaultT
   // role=status would announce every keystroke of the word count; keep it quiet.
   statusBar?.setAttribute("role", "group");
 
-  if (toolbar && isSide(tb)) {
-    // A vertical strip: the toolbar and the body share a row (.atm-main); the status bar stays under both.
-    const main = h("div", { document: doc, class: `${p}-main` });
-    if (tb === "left") main.append(toolbar, body);
-    else main.append(body, toolbar);
-    root.classList.add(`${p}-toolbar-side`);
-    root.setAttribute("data-atm-toolbar", tb);
-    root.appendChild(main);
-  } else {
-    if (toolbar && tb === "top") root.appendChild(toolbar);
-    root.appendChild(body);
-    if (toolbar && (tb === "bottom" || tb === "floating")) root.appendChild(toolbar);
-  }
+  // left / right: the same order as top / bottom; the stylesheet puts them side by side (grid on the root).
+  const first = /^[tl]/.test(tb); // top, left
+  if (toolbar && first) root.appendChild(toolbar);
+  root.appendChild(body);
+  if (toolbar && !first) root.appendChild(toolbar);
   if (act && !toolbar) root.appendChild(act);
   if (statusBar) root.appendChild(statusBar);
   return { root, toolbar, surface, markdownPane, previewPane, statusBar, actions: act };

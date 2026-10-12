@@ -789,8 +789,8 @@ drag-reordering a list by state, and a task filter that survives re-rendering of
 
 ## Unreleased: toolbar position "left" / "right" (vertical strip)
 
-- **One shell, one wrapper.** For a side position `shell()` puts the toolbar and the body in an `atm-main` flex row (status bar stays under both), and marks the root `atm-toolbar-side` + `data-atm-toolbar`. Top/bottom keep the exact old DOM.
+- **One shell, no wrapper.** For a side position `shell()` keeps the DOM order of top/bottom (left = before the body, right = after) and marks the root `atm-toolbar-side`; the stylesheet turns the root into a grid (strip and body side by side, status bar under both).
 - **Only layouts with a plain strip accept it** (`SIDE_TOOLBAR_LAYOUTS`: classic, bottom-bar, compact, document, minimal, split); anywhere else `resolveToolbarPosition` falls back to the layout default rather than breaking bubble, ribbon, sidebar, mobile or auto.
-- **Overflow reuses the pure maths with heights.** `createToolbar` decides `vertical` from the row's class once; only the measured numbers (clientHeight, offsetHeight, rowGap, vertical margins, scrollHeight) change, so the horizontal path is untouched.
+- **Overflow reuses the pure maths with heights.** `createToolbar` decides `vertical` from the row's class once; only the measured numbers (clientHeight, offsetHeight, rowGap, vertical margins, scrollHeight) change. Measuring stays eager; APPLYING a fold (hide, show More, verify against the real layout, drop stray separators) and building the More rows live in the menu chunk, fetched only once something has to fold. The strip is a grid on the root (no wrapper element), and the side placement of the More menu (`placeBeside`) is in the same chunk: this is how the feature fits the 63 kB eager budget without raising it.
 - **Never taller than the surface.** The strip's items box has a flex basis of 0, so its content cannot stretch the row; the row's minimum is `--atm-side-min-height`. Compact does not expand (wrap) in a strip, it keeps folding.
 - **Mode switch** leaves the strip (three tabs do not fit a narrow column) for the status bar, else floats.
