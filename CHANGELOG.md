@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - 2026-10-13
 
 ### Added
 - **Toolbar on the left or right.** `toolbar: { position: "left" | "right" }` draws a vertical strip beside the surface in the `classic`, `bottom-bar`, `compact`, `document`, `minimal` and `split` layouts (other layouts keep their own position). Items flow down, separators are horizontal rules, the border is on the inner edge, `aria-orientation="vertical"` with ArrowUp / ArrowDown roving, and the overflow is measured by height (`clientHeight`, item heights, row gap) with the same `computeOverflow` / `overflowHidden` maths; the More menu opens beside the strip. The editor keeps `--atm-side-min-height` (15rem) so about six buttons and More fit. `placeNear` gained `beside: "end" | "start"`. Horizontal toolbars are unchanged.
