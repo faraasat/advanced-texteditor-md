@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1 - 2026-10-13
+
+0.4.0 was tagged but failed the release size check before publishing (the eager bundle was 63.27 kB against the 63 kB budget), so it never reached npm. 0.4.1 carries the same changes, with the vertical-toolbar code moved lazy: the eager closure is 62.97 kB. Nothing else differs.
+
 ## 0.4.0 - 2026-10-13
 
 ### Added
